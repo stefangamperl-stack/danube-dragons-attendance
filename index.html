@@ -106,7 +106,7 @@
       margin-top: 24px;
     }
 
-    .primaryButton, .secondaryButton, .button {
+    .primaryButton, .secondaryButton, .button, .dangerButton {
       border: none;
       border-radius: 12px;
       min-height: 44px;
@@ -126,6 +126,11 @@
       border: 1px solid #334155;
     }
 
+    .dangerButton {
+      background: #7f1d1d;
+      color: white;
+    }
+
     .grid {
       display: grid;
       gap: 16px;
@@ -140,6 +145,13 @@
       display: grid;
       gap: 16px;
       grid-template-columns: 1fr 1fr;
+      margin-bottom: 24px;
+    }
+
+    .threeCol {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr 1fr 1fr;
       margin-bottom: 24px;
     }
 
@@ -235,6 +247,24 @@
       margin-bottom: 24px;
     }
 
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .timelineItem {
+      border: 1px solid #243056;
+      border-radius: 14px;
+      padding: 14px;
+      background: #0f172a;
+    }
+
+    .rowActions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     @media (max-width: 900px) {
       .app {
         grid-template-columns: 1fr;
@@ -245,7 +275,7 @@
         border-bottom: 1px solid #243056;
       }
 
-      .twoCol {
+      .twoCol, .threeCol {
         grid-template-columns: 1fr;
       }
 
@@ -348,7 +378,8 @@
         active: true,
         healthStatus: "fit",
         injuryType: "",
-        unavailableDuration: ""
+        unavailableDuration: "",
+        injuries: []
       },
       {
         id: "p2",
@@ -361,7 +392,14 @@
         active: true,
         healthStatus: "injured",
         injuryType: "Oberschenkel",
-        unavailableDuration: "2 Wochen"
+        unavailableDuration: "2 Wochen",
+        injuries: [
+          {
+            from: "2026-03-15",
+            until: "2026-03-29",
+            type: "Oberschenkel"
+          }
+        ]
       },
       {
         id: "p3",
@@ -374,7 +412,8 @@
         active: true,
         healthStatus: "fit",
         injuryType: "",
-        unavailableDuration: ""
+        unavailableDuration: "",
+        injuries: []
       }
     ];
 
@@ -385,7 +424,9 @@
         date: "2026-03-19",
         time: "19:00",
         location: "Sportzentrum Nord",
-        notes: "Pads mitbringen"
+        notes: "Pads mitbringen",
+        voteOpensHoursBefore: 72,
+        voteClosesHoursBefore: 6
       },
       {
         id: "t2",
@@ -393,7 +434,9 @@
         date: "2026-03-21",
         time: "19:00",
         location: "Sportzentrum Nord",
-        notes: "Special Teams Fokus"
+        notes: "Special Teams Fokus",
+        voteOpensHoursBefore: 72,
+        voteClosesHoursBefore: 4
       }
     ];
 
@@ -412,7 +455,9 @@
       currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
       currentView: "dashboard",
       selectedTrainingId: "t1",
-      filterUnit: "all"
+      filterUnit: "all",
+      editingTrainingId: null,
+      playerStatsSearch: ""
     };
 
     function saveSession() {
@@ -591,6 +636,7 @@
               <p>${training.date} um ${training.time}</p>
               <p>${training.location}</p>
               <p class="smallMuted">${training.notes}</p>
+              <p><strong>Abstimmung offen:</strong> ${training.voteOpensHoursBefore}h bis ${training.voteClosesHoursBefore}h vor Beginn</p>
               <p><strong>Status:</strong> ${getStatusTag(status)}</p>
               ${exempt ? `<p class="smallMuted">Du bist aktuell Verletzt/Krank und musst nicht abstimmen.</p>` : `
                 <div class="statusButtons">
@@ -717,26 +763,70 @@
         document.getElementById("screenTitle").textContent = "Trainings";
         document.getElementById("screenSubtitle").textContent = "Trainings erstellen und bearbeiten";
 
+        const editTraining = state.editingTrainingId
+          ? trainings.find(t => t.id === state.editingTrainingId)
+          : null;
+
         content.innerHTML = `
           <div class="twoCol">
             <div class="card">
-              <h2>Training erstellen</h2>
-              <div class="field"><label>Titel</label><input class="input" placeholder="z. B. Teamtraining Dienstag" /></div>
-              <div class="field"><label>Datum</label><input class="input" type="date" /></div>
-              <div class="field"><label>Uhrzeit</label><input class="input" type="time" /></div>
-              <div class="field"><label>Ort</label><input class="input" placeholder="Sportzentrum Nord" /></div>
-              <div class="field"><label>Notizen</label><textarea class="textarea" placeholder="Pads mitbringen"></textarea></div>
-              <button class="button">Demo speichern</button>
+              <h2>${editTraining ? "Training bearbeiten" : "Training erstellen"}</h2>
+
+              <div class="field">
+                <label>Titel</label>
+                <input id="trainingTitle" class="input" placeholder="z. B. Teamtraining Dienstag" value="${editTraining ? escapeHtml(editTraining.title) : ""}" />
+              </div>
+
+              <div class="field">
+                <label>Datum</label>
+                <input id="trainingDate" class="input" type="date" value="${editTraining ? editTraining.date : ""}" />
+              </div>
+
+              <div class="field">
+                <label>Uhrzeit</label>
+                <input id="trainingTime" class="input" type="time" value="${editTraining ? editTraining.time : ""}" />
+              </div>
+
+              <div class="field">
+                <label>Ort</label>
+                <input id="trainingLocation" class="input" placeholder="Sportzentrum Nord" value="${editTraining ? escapeHtml(editTraining.location) : ""}" />
+              </div>
+
+              <div class="field">
+                <label>Notizen</label>
+                <textarea id="trainingNotes" class="textarea" placeholder="Pads mitbringen">${editTraining ? escapeHtml(editTraining.notes) : ""}</textarea>
+              </div>
+
+              <div class="field">
+                <label>Abstimmung startet X Stunden vor Beginn</label>
+                <input id="voteOpensHoursBefore" class="input" type="number" min="0" value="${editTraining ? editTraining.voteOpensHoursBefore : 72}" />
+              </div>
+
+              <div class="field">
+                <label>Abstimmung endet X Stunden vor Beginn</label>
+                <input id="voteClosesHoursBefore" class="input" type="number" min="0" value="${editTraining ? editTraining.voteClosesHoursBefore : 6}" />
+              </div>
+
+              <div class="rowActions">
+                <button class="button" onclick="${editTraining ? "updateTraining()" : "createTraining()"}">
+                  ${editTraining ? "Training speichern" : "Training erstellen"}
+                </button>
+                ${editTraining ? `<button class="secondaryButton" onclick="cancelTrainingEdit()">Abbrechen</button>` : ""}
+              </div>
             </div>
 
             <div class="card">
-              <h2>Kommende Trainings</h2>
+              <h2>Trainingsliste</h2>
               ${trainings.map(t => `
                 <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
                   <strong>${t.title}</strong>
                   <p style="margin:8px 0 0 0;">${t.date} um ${t.time}</p>
                   <p style="margin:8px 0 0 0;">${t.location}</p>
                   <p class="smallMuted" style="margin:8px 0 0 0;">${t.notes}</p>
+                  <p class="smallMuted" style="margin:8px 0 0 0;">Abstimmung: ${t.voteOpensHoursBefore}h bis ${t.voteClosesHoursBefore}h vor Beginn</p>
+                  <div class="rowActions" style="margin-top:10px;">
+                    <button class="secondaryButton" onclick="startTrainingEdit('${t.id}')">Bearbeiten</button>
+                  </div>
                 </div>
               `).join("")}
             </div>
@@ -746,76 +836,7 @@
       }
 
       if (state.currentView === "stats") {
-        document.getElementById("screenTitle").textContent = "Statistiken";
-        document.getElementById("screenSubtitle").textContent = "Anwesenheit gesamt, je Position und je Spieler";
-
-        const byPosition = units.map(unit => {
-          const unitPlayers = players.filter(p => p.position === unit);
-          const possible = unitPlayers.length * trainings.length;
-          let attends = 0;
-          trainings.forEach(t => {
-            unitPlayers.forEach(p => {
-              if ((responses[t.id] || {})[p.id]?.status === "yes") attends++;
-            });
-          });
-          return { unit, attends, possible };
-        }).filter(x => x.possible > 0);
-
-        content.innerHTML = `
-          <div class="twoCol">
-            <div class="card">
-              <h2>Anwesenheit je Position</h2>
-              <div class="tableWrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Position</th>
-                      <th>Zusage</th>
-                      <th>Möglich</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${byPosition.map(row => `
-                      <tr>
-                        <td>${row.unit}</td>
-                        <td>${row.attends}</td>
-                        <td>${row.possible}</td>
-                      </tr>
-                    `).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card">
-              <h2>Anwesenheit je Spieler</h2>
-              <div class="tableWrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Spieler</th>
-                      <th>Zusage</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${players.map(p => {
-                      let attends = 0;
-                      trainings.forEach(t => {
-                        if ((responses[t.id] || {})[p.id]?.status === "yes") attends++;
-                      });
-                      return `
-                        <tr>
-                          <td>${fullName(p)}</td>
-                          <td>${attends}</td>
-                        </tr>
-                      `;
-                    }).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        `;
+        renderStatsView();
         return;
       }
 
@@ -875,6 +896,7 @@
             <p>${selectedTraining.date} um ${selectedTraining.time}</p>
             <p>${selectedTraining.location}</p>
             <p class="smallMuted">${selectedTraining.notes}</p>
+            <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
           </div>
 
           <div class="card">
@@ -937,6 +959,108 @@
       `;
     }
 
+    function renderStatsView() {
+      const content = document.getElementById("content");
+      document.getElementById("screenTitle").textContent = "Statistiken";
+      document.getElementById("screenSubtitle").textContent = "Suche nach einem Spieler";
+
+      const search = state.playerStatsSearch.trim().toLowerCase();
+      const matchedPlayer = players.find(p => fullName(p).toLowerCase().includes(search));
+
+      let resultHtml = `
+        <div class="card">
+          <h2>Spieler suchen</h2>
+          <div class="field">
+            <label>Name</label>
+            <input id="playerStatsSearchInput" class="input" value="${escapeHtml(state.playerStatsSearch)}" placeholder="z. B. Stefan Gamperl" />
+          </div>
+          <button class="button" onclick="searchPlayerStats()">Suchen</button>
+        </div>
+      `;
+
+      if (search && matchedPlayer) {
+        let yes = 0;
+        let no = 0;
+        let maybe = 0;
+        let open = 0;
+
+        const timeline = trainings.map(training => {
+          const response = (responses[training.id] || {})[matchedPlayer.id];
+          const status = response ? response.status : "open";
+
+          if (status === "yes") yes++;
+          else if (status === "no") no++;
+          else if (status === "maybe") maybe++;
+          else open++;
+
+          return {
+            training,
+            response,
+            status
+          };
+        });
+
+        resultHtml += `
+          <div class="threeCol">
+            <div class="card">
+              <div class="smallMuted">Zusage</div>
+              <div class="kpi">${yes}</div>
+            </div>
+            <div class="card">
+              <div class="smallMuted">Absage</div>
+              <div class="kpi">${no}</div>
+            </div>
+            <div class="card">
+              <div class="smallMuted">Nicht abgestimmt</div>
+              <div class="kpi">${open}</div>
+            </div>
+          </div>
+
+          <div class="twoCol">
+            <div class="card">
+              <h2>Spielerprofil</h2>
+              <p><strong>Name:</strong> ${fullName(matchedPlayer)}</p>
+              <p><strong>Position:</strong> ${matchedPlayer.position}</p>
+              <p><strong>Unit:</strong> ${matchedPlayer.unit}</p>
+            </div>
+
+            <div class="card">
+              <h2>Verletzungen</h2>
+              ${matchedPlayer.injuries && matchedPlayer.injuries.length > 0 ? matchedPlayer.injuries.map(injury => `
+                <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
+                  <p><strong>Art:</strong> ${injury.type}</p>
+                  <p><strong>Von:</strong> ${injury.from}</p>
+                  <p><strong>Bis:</strong> ${injury.until}</p>
+                </div>
+              `).join("") : `<p class="smallMuted">Keine gespeicherten Verletzungszeiträume.</p>`}
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Zeitleiste vergangener Trainings</h2>
+            <div class="timeline">
+              ${timeline.map(item => `
+                <div class="timelineItem">
+                  <strong>${item.training.title}</strong>
+                  <p style="margin:8px 0 0 0;">${item.training.date} um ${item.training.time}</p>
+                  <p style="margin:8px 0 0 0;">Status: ${getStatusTag(item.status)}</p>
+                  <p class="smallMuted" style="margin:8px 0 0 0;">Letzte Änderung: ${item.response ? item.response.updatedAt : "offen"}</p>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      } else if (search) {
+        resultHtml += `
+          <div class="card">
+            <p>Kein Spieler gefunden.</p>
+          </div>
+        `;
+      }
+
+      content.innerHTML = resultHtml;
+    }
+
     function changeTraining(trainingId) {
       state.selectedTrainingId = trainingId;
       renderApp();
@@ -973,10 +1097,90 @@
 
     function saveHealthStatus() {
       const player = players.find(p => p.id === state.currentUser.playerId);
+      const injuryType = document.getElementById("injuryType").value.trim();
+      const injuryDuration = document.getElementById("injuryDuration").value.trim();
+
       player.healthStatus = "injured";
-      player.injuryType = document.getElementById("injuryType").value.trim();
-      player.unavailableDuration = document.getElementById("injuryDuration").value.trim();
+      player.injuryType = injuryType;
+      player.unavailableDuration = injuryDuration;
+
+      if (!player.injuries) player.injuries = [];
+      player.injuries.push({
+        from: new Date().toISOString().slice(0, 10),
+        until: injuryDuration || "offen",
+        type: injuryType || "nicht angegeben"
+      });
+
       renderApp();
+    }
+
+    function createTraining() {
+      const title = document.getElementById("trainingTitle").value.trim();
+      const date = document.getElementById("trainingDate").value;
+      const time = document.getElementById("trainingTime").value;
+      const location = document.getElementById("trainingLocation").value.trim();
+      const notes = document.getElementById("trainingNotes").value.trim();
+      const voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore").value || 0);
+      const voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore").value || 0);
+
+      if (!title || !date || !time) {
+        alert("Bitte mindestens Titel, Datum und Uhrzeit ausfüllen.");
+        return;
+      }
+
+      trainings.push({
+        id: "t" + Date.now(),
+        title,
+        date,
+        time,
+        location,
+        notes,
+        voteOpensHoursBefore,
+        voteClosesHoursBefore
+      });
+
+      renderApp();
+    }
+
+    function startTrainingEdit(trainingId) {
+      state.editingTrainingId = trainingId;
+      state.currentView = "trainings";
+      renderApp();
+    }
+
+    function cancelTrainingEdit() {
+      state.editingTrainingId = null;
+      renderApp();
+    }
+
+    function updateTraining() {
+      const training = trainings.find(t => t.id === state.editingTrainingId);
+      if (!training) return;
+
+      training.title = document.getElementById("trainingTitle").value.trim();
+      training.date = document.getElementById("trainingDate").value;
+      training.time = document.getElementById("trainingTime").value;
+      training.location = document.getElementById("trainingLocation").value.trim();
+      training.notes = document.getElementById("trainingNotes").value.trim();
+      training.voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore").value || 0);
+      training.voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore").value || 0);
+
+      state.editingTrainingId = null;
+      renderApp();
+    }
+
+    function searchPlayerStats() {
+      state.playerStatsSearch = document.getElementById("playerStatsSearchInput").value.trim();
+      renderStatsView();
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
     if (state.currentUser) {
