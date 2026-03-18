@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Danube Dragons Attendance</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0b1020;
+      color: #f3f4f6;
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+    }
+
+    .sidebar {
+      background: #121934;
+      border-right: 1px solid #243056;
+      padding: 24px;
+    }
+
+    .brand {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 10px;
+    }
+
+    .nav button {
+      background: #18213f;
+      color: white;
+      border: 1px solid #243056;
+      border-radius: 12px;
+      padding: 12px 14px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .main {
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .roleBadge {
+      background: #1d4ed8;
+      color: white;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .hero {
+      max-width: 780px;
+      margin: 80px auto;
+      background: #121934;
+      border: 1px solid #243056;
+      border-radius: 20px;
+      padding: 32px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    }
+
+    .hero h1 {
+      margin-top: 0;
+      font-size: 42px;
+      line-height: 1.1;
+    }
+
+    .hero p {
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+
+    .primaryButton, .secondaryButton, .button {
+      border: none;
+      border-radius: 12px;
+      min-height: 44px;
+      padding: 0 18px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .primaryButton, .button {
+      background: #2563eb;
+      color: white;
+    }
+
+    .secondaryButton {
+      background: #1e293b;
+      color: white;
+      border: 1px solid #334155;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.kpis {
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      margin-bottom: 24px;
+    }
+
+    .twoCol {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #121934;
+      border: 1px solid #243056;
+      border-radius: 18px;
+      padding: 20px;
+    }
+
+    .card h2, .card h3, .card p {
+      margin-top: 0;
+    }
+
+    .smallMuted {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    .kpi {
+      font-size: 30px;
+      font-weight: 700;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .input, .select, .textarea {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: white;
+      padding: 10px 12px;
+      min-height: 44px;
+    }
+
+    .textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .tableWrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #243056;
+      vertical-align: top;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .tagYes { background: #14532d; }
+    .tagNo { background: #7f1d1d; }
+    .tagMaybe { background: #334155; }
+    .tagOpen { background: #854d0e; }
+    .tagInjured { background: #7c3aed; }
+
+    .highlightRow {
+      background: rgba(251, 191, 36, 0.12);
+    }
+
+    .loginList li {
+      margin-bottom: 8px;
+    }
+
+    .statusButtons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section {
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid #243056;
+      }
+
+      .twoCol {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="landing">
+    <section class="hero">
+      <div class="roleBadge">Danube Dragons</div>
+      <h1>Attendance Dashboard</h1>
+      <p>
+        Interne Web App für Trainingszusagen, Spielerstatus, Auswertungen,
+        Unit-Filter und Admin-Verwaltung.
+      </p>
+      <div class="actions">
+        <button class="primaryButton" onclick="showLogin()">Zum Login</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="loginScreen" class="hidden">
+    <section class="hero">
+      <div class="roleBadge">Login</div>
+      <h1>Danube Dragons Zugang</h1>
+      <p class="smallMuted">
+        Demo-Version in nur einer Datei. Session bleibt lokal im Browser gespeichert.
+      </p>
+
+      <div class="card">
+        <div class="field">
+          <label for="loginUsername">Loginname</label>
+          <input id="loginUsername" class="input" placeholder="z. B. sgamperl" />
+        </div>
+
+        <div class="field">
+          <label for="loginPassword">Passwort</label>
+          <input id="loginPassword" class="input" type="password" placeholder="Passwort" />
+        </div>
+
+        <button class="button" onclick="login()">Anmelden</button>
+        <p id="loginError" class="smallMuted"></p>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <h3>Demo-Nutzer</h3>
+        <ul class="loginList">
+          <li>Spieler: <strong>sgamperl</strong> / <strong>test123</strong></li>
+          <li>Admin Coach: <strong>coachweber</strong> / <strong>test123</strong></li>
+          <li>Hauptadmin: <strong>hauptadmin</strong> / <strong>test123</strong></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <div id="appScreen" class="hidden app">
+    <aside class="sidebar">
+      <div class="brand">Danube Dragons</div>
+      <div class="nav" id="nav"></div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="screenTitle" style="margin:0;">Dashboard</h1>
+          <div class="smallMuted" id="screenSubtitle">Demoansicht</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <div class="roleBadge" id="roleBadge">Rolle</div>
+          <button class="secondaryButton" onclick="logout()">Abmelden</button>
+        </div>
+      </div>
+
+      <div id="content"></div>
+    </main>
+  </div>
+
+  <script>
+    const units = ["OL", "QB", "WR", "TE", "RB", "LB", "DB", "DL", "K"];
+
+    const users = [
+      { username: "sgamperl", password: "test123", role: "player", displayName: "Stefan Gamperl", playerId: "p1" },
+      { username: "coachweber", password: "test123", role: "adminCoach", displayName: "Coach Weber" },
+      { username: "hauptadmin", password: "test123", role: "headAdmin", displayName: "Hauptadmin" }
+    ];
+
+    const players = [
+      {
+        id: "p1",
+        username: "sgamperl",
+        firstName: "Stefan",
+        lastName: "Gamperl",
+        birthday: "1998-03-10",
+        position: "LB",
+        unit: "LB",
+        active: true,
+        healthStatus: "fit",
+        injuryType: "",
+        unavailableDuration: ""
+      },
+      {
+        id: "p2",
+        username: "mfrank",
+        firstName: "Michael",
+        lastName: "Frank",
+        birthday: "2000-09-12",
+        position: "WR",
+        unit: "WR",
+        active: true,
+        healthStatus: "injured",
+        injuryType: "Oberschenkel",
+        unavailableDuration: "2 Wochen"
+      },
+      {
+        id: "p3",
+        username: "dschmid",
+        firstName: "David",
+        lastName: "Schmid",
+        birthday: "2001-06-02",
+        position: "OL",
+        unit: "OL",
+        active: true,
+        healthStatus: "fit",
+        injuryType: "",
+        unavailableDuration: ""
+      }
+    ];
+
+    const trainings = [
+      {
+        id: "t1",
+        title: "Teamtraining Dienstag",
+        date: "2026-03-19",
+        time: "19:00",
+        location: "Sportzentrum Nord",
+        notes: "Pads mitbringen"
+      },
+      {
+        id: "t2",
+        title: "Teamtraining Donnerstag",
+        date: "2026-03-21",
+        time: "19:00",
+        location: "Sportzentrum Nord",
+        notes: "Special Teams Fokus"
+      }
+    ];
+
+    const responses = {
+      t1: {
+        p1: { status: "yes", updatedAt: "2026-03-19 08:10", changedOnEventDay: true },
+        p3: { status: "no", updatedAt: "2026-03-18 19:35", changedOnEventDay: false }
+      },
+      t2: {
+        p1: { status: "maybe", updatedAt: "2026-03-20 18:20", changedOnEventDay: false },
+        p3: { status: "yes", updatedAt: "2026-03-21 09:00", changedOnEventDay: true }
+      }
+    };
+
+    let state = {
+      currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
+      currentView: "dashboard",
+      selectedTrainingId: "t1",
+      filterUnit: "all"
+    };
+
+    function saveSession() {
+      localStorage.setItem("dd_user", JSON.stringify(state.currentUser));
+    }
+
+    function fullName(player) {
+      return player.firstName + " " + player.lastName;
+    }
+
+    function showLanding() {
+      document.getElementById("landing").classList.remove("hidden");
+      document.getElementById("loginScreen").classList.add("hidden");
+      document.getElementById("appScreen").classList.add("hidden");
+    }
+
+    function showLogin() {
+      document.getElementById("landing").classList.add("hidden");
+      document.getElementById("loginScreen").classList.remove("hidden");
+      document.getElementById("appScreen").classList.add("hidden");
+    }
+
+    function showApp() {
+      document.getElementById("landing").classList.add("hidden");
+      document.getElementById("loginScreen").classList.add("hidden");
+      document.getElementById("appScreen").classList.remove("hidden");
+      renderApp();
+    }
+
+    function login() {
+      const username = document.getElementById("loginUsername").value.trim();
+      const password = document.getElementById("loginPassword").value.trim();
+      const user = users.find(u => u.username === username && u.password === password);
+
+      if (!user) {
+        document.getElementById("loginError").textContent = "Loginname oder Passwort ist falsch.";
+        return;
+      }
+
+      state.currentUser = user;
+      saveSession();
+      state.currentView = "dashboard";
+      showApp();
+    }
+
+    function logout() {
+      state.currentUser = null;
+      localStorage.removeItem("dd_user");
+      showLanding();
+    }
+
+    function setView(view) {
+      state.currentView = view;
+      renderApp();
+    }
+
+    function getStatusTag(status) {
+      if (status === "yes") return '<span class="tag tagYes">Zusage</span>';
+      if (status === "no") return '<span class="tag tagNo">Absage</span>';
+      if (status === "maybe") return '<span class="tag tagMaybe">Unsicher</span>';
+      return '<span class="tag tagOpen">Keine Antwort</span>';
+    }
+
+    function renderNav() {
+      const nav = document.getElementById("nav");
+      const role = state.currentUser.role;
+
+      let items = [
+        { key: "dashboard", label: "Dashboard" }
+      ];
+
+      if (role === "player") {
+        items.push(
+          { key: "trainings", label: "Meine Trainings" },
+          { key: "health", label: "Mein Status" },
+          { key: "profile", label: "Mein Profil" }
+        );
+      }
+
+      if (role === "adminCoach" || role === "headAdmin") {
+        items.push(
+          { key: "trainings", label: "Trainings" },
+          { key: "players", label: "Spieler" },
+          { key: "reports", label: "Auswertungen" },
+          { key: "stats", label: "Statistiken" }
+        );
+      }
+
+      if (role === "headAdmin") {
+        items.push(
+          { key: "coaches", label: "Coaches" }
+        );
+      }
+
+      nav.innerHTML = items.map(item =>
+        `<button onclick="setView('${item.key}')">${item.label}</button>`
+      ).join("");
+    }
+
+    function renderApp() {
+      renderNav();
+      document.getElementById("roleBadge").textContent = state.currentUser.role;
+      if (state.currentUser.role === "player") {
+        renderPlayerView();
+      } else {
+        renderCoachView();
+      }
+    }
+
+    function renderPlayerView() {
+      const player = players.find(p => p.id === state.currentUser.playerId);
+      const content = document.getElementById("content");
+
+      if (state.currentView === "health") {
+        document.getElementById("screenTitle").textContent = "Mein Status";
+        document.getElementById("screenSubtitle").textContent = "Verletzt/Krank oder fit";
+
+        content.innerHTML = `
+          <div class="card">
+            <h2>Gesundheitsstatus</h2>
+            <div class="smallMuted">Spieler können nur ihre eigenen Daten sehen.</div>
+            <div class="statusButtons">
+              <button class="button" onclick="setHealthStatus('fit')">Fit</button>
+              <button class="secondaryButton" onclick="setHealthStatus('injured')">Verletzt/Krank</button>
+            </div>
+
+            <div class="field">
+              <label>Art der Verletzung</label>
+              <input id="injuryType" class="input" value="${player.injuryType || ""}" />
+            </div>
+
+            <div class="field">
+              <label>Voraussichtliche Verhinderungsdauer</label>
+              <input id="injuryDuration" class="input" value="${player.unavailableDuration || ""}" placeholder="z. B. 10 Tage oder 3 Wochen" />
+            </div>
+
+            <button class="button" onclick="saveHealthStatus()">Speichern</button>
+
+            <p class="smallMuted" style="margin-top: 12px;">
+              Aktueller Status: ${player.healthStatus === "injured" ? "Verletzt/Krank" : "Fit"}
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.currentView === "profile") {
+        document.getElementById("screenTitle").textContent = "Mein Profil";
+        document.getElementById("screenSubtitle").textContent = "Nur eigene Daten";
+
+        content.innerHTML = `
+          <div class="card">
+            <h2>${fullName(player)}</h2>
+            <p><strong>Loginname:</strong> ${player.username}</p>
+            <p><strong>Geburtstag:</strong> ${player.birthday}</p>
+            <p><strong>Position:</strong> ${player.position}</p>
+            <p><strong>Unit:</strong> ${player.unit}</p>
+            <p><strong>Gesundheit:</strong> ${player.healthStatus === "injured" ? "Verletzt/Krank" : "Fit"}</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.currentView === "trainings") {
+        document.getElementById("screenTitle").textContent = "Meine Trainings";
+        document.getElementById("screenSubtitle").textContent = "Zusage, Absage oder Unsicher";
+
+        const trainingCards = trainings.map(training => {
+          const response = (responses[training.id] || {})[player.id];
+          const status = response ? response.status : "open";
+          const exempt = player.healthStatus === "injured";
+
+          return `
+            <div class="card">
+              <h3>${training.title}</h3>
+              <p>${training.date} um ${training.time}</p>
+              <p>${training.location}</p>
+              <p class="smallMuted">${training.notes}</p>
+              <p><strong>Status:</strong> ${getStatusTag(status)}</p>
+              ${exempt ? `<p class="smallMuted">Du bist aktuell Verletzt/Krank und musst nicht abstimmen.</p>` : `
+                <div class="statusButtons">
+                  <button class="button" onclick="setPlayerResponse('${training.id}','yes')">Zusage</button>
+                  <button class="secondaryButton" onclick="setPlayerResponse('${training.id}','maybe')">Unsicher</button>
+                  <button class="secondaryButton" onclick="setPlayerResponse('${training.id}','no')">Absage</button>
+                </div>
+              `}
+            </div>
+          `;
+        }).join("");
+
+        content.innerHTML = trainingCards;
+        return;
+      }
+
+      document.getElementById("screenTitle").textContent = "Spieler Dashboard";
+      document.getElementById("screenSubtitle").textContent = "Nur eigene Übersicht";
+
+      const myResponses = trainings.map(t => {
+        const response = (responses[t.id] || {})[player.id];
+        return {
+          title: t.title,
+          status: response ? response.status : "open",
+          updatedAt: response ? response.updatedAt : "offen"
+        };
+      });
+
+      content.innerHTML = `
+        <div class="grid kpis">
+          <div class="card">
+            <div class="smallMuted">Mein Status</div>
+            <div class="kpi">${player.healthStatus === "injured" ? "Verletzt" : "Fit"}</div>
+          </div>
+          <div class="card">
+            <div class="smallMuted">Position</div>
+            <div class="kpi">${player.position}</div>
+          </div>
+          <div class="card">
+            <div class="smallMuted">Unit</div>
+            <div class="kpi">${player.unit}</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Meine letzten Rückmeldungen</h2>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Training</th>
+                  <th>Status</th>
+                  <th>Letzte Änderung</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myResponses.map(row => `
+                  <tr>
+                    <td>${row.title}</td>
+                    <td>${getStatusTag(row.status)}</td>
+                    <td>${row.updatedAt}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCoachView() {
+      const content = document.getElementById("content");
+
+      if (state.currentView === "players") {
+        document.getElementById("screenTitle").textContent = "Spieler";
+        document.getElementById("screenSubtitle").textContent = "Admin Coaches dürfen Spieler anlegen, bearbeiten und deaktivieren";
+
+        content.innerHTML = `
+          <div class="twoCol">
+            <div class="card">
+              <h2>Spieler anlegen</h2>
+              <div class="field"><label>Vorname</label><input class="input" placeholder="Vorname" /></div>
+              <div class="field"><label>Nachname</label><input class="input" placeholder="Nachname" /></div>
+              <div class="field"><label>Loginname</label><input class="input" placeholder="z. B. sgamperl" /></div>
+              <div class="field">
+                <label>Position</label>
+                <select class="select">${units.map(u => `<option>${u}</option>`).join("")}</select>
+              </div>
+              <button class="button">Demo speichern</button>
+              <p class="smallMuted" style="margin-top: 12px;">Einladelink kommt in der echten Version dazu.</p>
+            </div>
+
+            <div class="card">
+              <h2>Bestehende Spieler</h2>
+              <div class="tableWrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Position</th>
+                      <th>Unit</th>
+                      <th>Gesundheit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${players.map(p => `
+                      <tr>
+                        <td>${fullName(p)}</td>
+                        <td>${p.position}</td>
+                        <td>${p.unit}</td>
+                        <td>${p.healthStatus === "injured" ? '<span class="tag tagInjured">Verletzt/Krank</span>' : 'Fit'}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.currentView === "trainings") {
+        document.getElementById("screenTitle").textContent = "Trainings";
+        document.getElementById("screenSubtitle").textContent = "Trainings erstellen und bearbeiten";
+
+        content.innerHTML = `
+          <div class="twoCol">
+            <div class="card">
+              <h2>Training erstellen</h2>
+              <div class="field"><label>Titel</label><input class="input" placeholder="z. B. Teamtraining Dienstag" /></div>
+              <div class="field"><label>Datum</label><input class="input" type="date" /></div>
+              <div class="field"><label>Uhrzeit</label><input class="input" type="time" /></div>
+              <div class="field"><label>Ort</label><input class="input" placeholder="Sportzentrum Nord" /></div>
+              <div class="field"><label>Notizen</label><textarea class="textarea" placeholder="Pads mitbringen"></textarea></div>
+              <button class="button">Demo speichern</button>
+            </div>
+
+            <div class="card">
+              <h2>Kommende Trainings</h2>
+              ${trainings.map(t => `
+                <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
+                  <strong>${t.title}</strong>
+                  <p style="margin:8px 0 0 0;">${t.date} um ${t.time}</p>
+                  <p style="margin:8px 0 0 0;">${t.location}</p>
+                  <p class="smallMuted" style="margin:8px 0 0 0;">${t.notes}</p>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.currentView === "stats") {
+        document.getElementById("screenTitle").textContent = "Statistiken";
+        document.getElementById("screenSubtitle").textContent = "Anwesenheit gesamt, je Position und je Spieler";
+
+        const byPosition = units.map(unit => {
+          const unitPlayers = players.filter(p => p.position === unit);
+          const possible = unitPlayers.length * trainings.length;
+          let attends = 0;
+          trainings.forEach(t => {
+            unitPlayers.forEach(p => {
+              if ((responses[t.id] || {})[p.id]?.status === "yes") attends++;
+            });
+          });
+          return { unit, attends, possible };
+        }).filter(x => x.possible > 0);
+
+        content.innerHTML = `
+          <div class="twoCol">
+            <div class="card">
+              <h2>Anwesenheit je Position</h2>
+              <div class="tableWrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Position</th>
+                      <th>Zusage</th>
+                      <th>Möglich</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${byPosition.map(row => `
+                      <tr>
+                        <td>${row.unit}</td>
+                        <td>${row.attends}</td>
+                        <td>${row.possible}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Anwesenheit je Spieler</h2>
+              <div class="tableWrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Spieler</th>
+                      <th>Zusage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${players.map(p => {
+                      let attends = 0;
+                      trainings.forEach(t => {
+                        if ((responses[t.id] || {})[p.id]?.status === "yes") attends++;
+                      });
+                      return `
+                        <tr>
+                          <td>${fullName(p)}</td>
+                          <td>${attends}</td>
+                        </tr>
+                      `;
+                    }).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (state.currentView === "coaches" && state.currentUser.role === "headAdmin") {
+        document.getElementById("screenTitle").textContent = "Coaches";
+        document.getElementById("screenSubtitle").textContent = "Nur Hauptadmin darf Coaches anlegen";
+
+        content.innerHTML = `
+          <div class="card">
+            <h2>Coach anlegen</h2>
+            <div class="field"><label>Name</label><input class="input" placeholder="Coach Name" /></div>
+            <div class="field"><label>Loginname</label><input class="input" placeholder="coachlogin" /></div>
+            <div class="field"><label>Passwort</label><input class="input" type="password" placeholder="Passwort" /></div>
+            <div class="field">
+              <label>Rolle</label>
+              <select class="select">
+                <option>adminCoach</option>
+                <option>headAdmin</option>
+              </select>
+            </div>
+            <button class="button">Demo speichern</button>
+          </div>
+        `;
+        return;
+      }
+
+      document.getElementById("screenTitle").textContent = "Coach Dashboard";
+      document.getElementById("screenSubtitle").textContent = "Unit-Filter, fehlende Antworten und Änderungen am Eventtag";
+
+      const selectedTraining = trainings.find(t => t.id === state.selectedTrainingId) || trainings[0];
+      const selectedResponses = responses[selectedTraining.id] || {};
+      const filteredPlayers = players.filter(p => state.filterUnit === "all" ? true : p.unit === state.filterUnit);
+
+      const yesCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "yes").length;
+      const noCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "no").length;
+      const maybeCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "maybe").length;
+      const openCount = filteredPlayers.filter(p => !selectedResponses[p.id] && p.healthStatus !== "injured").length;
+
+      content.innerHTML = `
+        <div class="grid kpis">
+          <div class="card"><div class="smallMuted">Zusage</div><div class="kpi">${yesCount}</div></div>
+          <div class="card"><div class="smallMuted">Absage</div><div class="kpi">${noCount}</div></div>
+          <div class="card"><div class="smallMuted">Unsicher</div><div class="kpi">${maybeCount}</div></div>
+          <div class="card"><div class="smallMuted">Keine Antwort</div><div class="kpi">${openCount}</div></div>
+        </div>
+
+        <div class="twoCol">
+          <div class="card">
+            <h2>Nächstes Training</h2>
+            <div class="field">
+              <label>Training</label>
+              <select class="select" onchange="changeTraining(this.value)">
+                ${trainings.map(t => `<option value="${t.id}" ${t.id === state.selectedTrainingId ? "selected" : ""}>${t.title}</option>`).join("")}
+              </select>
+            </div>
+            <p><strong>${selectedTraining.title}</strong></p>
+            <p>${selectedTraining.date} um ${selectedTraining.time}</p>
+            <p>${selectedTraining.location}</p>
+            <p class="smallMuted">${selectedTraining.notes}</p>
+          </div>
+
+          <div class="card">
+            <h2>Filter</h2>
+            <div class="field">
+              <label>Unit</label>
+              <select class="select" onchange="changeUnit(this.value)">
+                <option value="all">Alle Units</option>
+                ${units.map(u => `<option value="${u}" ${u === state.filterUnit ? "selected" : ""}>${u}</option>`).join("")}
+              </select>
+            </div>
+            <p class="smallMuted">
+              Coaches sehen Zusage, Absage, Unsicher, keine Antwort, letzte Änderung und Eventtag-Änderungen.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Antworten</h2>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Spieler</th>
+                  <th>Position</th>
+                  <th>Unit</th>
+                  <th>Status</th>
+                  <th>Letzte Änderung</th>
+                  <th>Eventtag</th>
+                  <th>Gesundheit</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredPlayers.map(player => {
+                  const response = selectedResponses[player.id];
+                  const changed = response?.changedOnEventDay;
+                  const status = response ? response.status : "open";
+
+                  return `
+                    <tr class="${changed ? "highlightRow" : ""}">
+                      <td>${fullName(player)}</td>
+                      <td>${player.position}</td>
+                      <td>${player.unit}</td>
+                      <td>${getStatusTag(status)}</td>
+                      <td>${response ? response.updatedAt : "offen"}</td>
+                      <td>${changed ? "Ja" : ""}</td>
+                      <td>
+                        ${player.healthStatus === "injured"
+                          ? `<span class="tag tagInjured">Verletzt/Krank</span><br><span class="smallMuted">${player.injuryType || ""} ${player.unavailableDuration ? "· " + player.unavailableDuration : ""}</span>`
+                          : `Fit`
+                        }
+                      </td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function changeTraining(trainingId) {
+      state.selectedTrainingId = trainingId;
+      renderApp();
+    }
+
+    function changeUnit(unit) {
+      state.filterUnit = unit;
+      renderApp();
+    }
+
+    function setPlayerResponse(trainingId, status) {
+      const playerId = state.currentUser.playerId;
+      responses[trainingId] = responses[trainingId] || {};
+      const training = trainings.find(t => t.id === trainingId);
+
+      responses[trainingId][playerId] = {
+        status,
+        updatedAt: training.date + " 12:00",
+        changedOnEventDay: true
+      };
+
+      renderApp();
+    }
+
+    function setHealthStatus(status) {
+      const player = players.find(p => p.id === state.currentUser.playerId);
+      player.healthStatus = status;
+      if (status === "fit") {
+        player.injuryType = "";
+        player.unavailableDuration = "";
+      }
+      renderApp();
+    }
+
+    function saveHealthStatus() {
+      const player = players.find(p => p.id === state.currentUser.playerId);
+      player.healthStatus = "injured";
+      player.injuryType = document.getElementById("injuryType").value.trim();
+      player.unavailableDuration = document.getElementById("injuryDuration").value.trim();
+      renderApp();
+    }
+
+    if (state.currentUser) {
+      showApp();
+    } else {
+      showLanding();
+    }
+  </script>
+</body>
+</html>
