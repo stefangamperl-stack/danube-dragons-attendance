@@ -106,7 +106,7 @@
       margin-top: 24px;
     }
 
-    .primaryButton, .secondaryButton, .button, .dangerButton {
+    .primaryButton, .secondaryButton, .button, .dangerButton, .warnButton {
       border: none;
       border-radius: 12px;
       min-height: 44px;
@@ -128,6 +128,11 @@
 
     .dangerButton {
       background: #7f1d1d;
+      color: white;
+    }
+
+    .warnButton {
+      background: #854d0e;
       color: white;
     }
 
@@ -213,6 +218,11 @@
       vertical-align: top;
     }
 
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
     .tag {
       display: inline-block;
       padding: 6px 10px;
@@ -243,10 +253,6 @@
       margin-bottom: 12px;
     }
 
-    .section {
-      margin-bottom: 24px;
-    }
-
     .timeline {
       display: grid;
       gap: 12px;
@@ -263,6 +269,27 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+    }
+
+    .accordionHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .accordionBody {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid #243056;
+    }
+
+    .inlineInfo {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
     }
 
     @media (max-width: 900px) {
@@ -361,9 +388,9 @@
     const units = ["OL", "QB", "WR", "TE", "RB", "LB", "DB", "DL", "K"];
 
     const users = [
-      { username: "sgamperl", password: "test123", role: "player", displayName: "Stefan Gamperl", playerId: "p1" },
-      { username: "coachweber", password: "test123", role: "adminCoach", displayName: "Coach Weber" },
-      { username: "hauptadmin", password: "test123", role: "headAdmin", displayName: "Hauptadmin" }
+      { id: "u1", username: "sgamperl", password: "test123", role: "player", displayName: "Stefan Gamperl", playerId: "p1", email: "sgamperl@example.com" },
+      { id: "u2", username: "coachweber", password: "test123", role: "adminCoach", displayName: "Coach Weber", email: "coachweber@example.com" },
+      { id: "u3", username: "hauptadmin", password: "test123", role: "headAdmin", displayName: "Hauptadmin", email: "hauptadmin@example.com" }
     ];
 
     const players = [
@@ -373,7 +400,6 @@
         firstName: "Stefan",
         lastName: "Gamperl",
         birthday: "1998-03-10",
-        position: "LB",
         unit: "LB",
         active: true,
         healthStatus: "fit",
@@ -387,7 +413,6 @@
         firstName: "Michael",
         lastName: "Frank",
         birthday: "2000-09-12",
-        position: "WR",
         unit: "WR",
         active: true,
         healthStatus: "injured",
@@ -407,14 +432,31 @@
         firstName: "David",
         lastName: "Schmid",
         birthday: "2001-06-02",
-        position: "OL",
         unit: "OL",
         active: true,
         healthStatus: "fit",
         injuryType: "",
         unavailableDuration: "",
         injuries: []
+      },
+      {
+        id: "p4",
+        username: "sfrank",
+        firstName: "Stefan",
+        lastName: "Frank",
+        birthday: "1999-11-22",
+        unit: "DB",
+        active: true,
+        healthStatus: "fit",
+        injuryType: "",
+        unavailableDuration: "",
+        injuries: []
       }
+    ];
+
+    const coaches = [
+      { id: "c1", name: "Coach Weber", username: "coachweber", role: "adminCoach", active: true, email: "coachweber@example.com" },
+      { id: "c2", name: "Hauptadmin", username: "hauptadmin", role: "headAdmin", active: true, email: "hauptadmin@example.com" }
     ];
 
     const trainings = [
@@ -437,27 +479,45 @@
         notes: "Special Teams Fokus",
         voteOpensHoursBefore: 72,
         voteClosesHoursBefore: 4
+      },
+      {
+        id: "t3",
+        title: "Gameday Walkthrough",
+        date: "2026-03-25",
+        time: "18:30",
+        location: "Clubhouse",
+        notes: "Ohne Pads",
+        voteOpensHoursBefore: 48,
+        voteClosesHoursBefore: 3
       }
     ];
 
     const responses = {
       t1: {
         p1: { status: "yes", updatedAt: "2026-03-19 08:10", changedOnEventDay: true },
-        p3: { status: "no", updatedAt: "2026-03-18 19:35", changedOnEventDay: false }
+        p3: { status: "no", updatedAt: "2026-03-18 19:35", changedOnEventDay: false },
+        p4: { status: "maybe", updatedAt: "2026-03-18 16:15", changedOnEventDay: false }
       },
       t2: {
         p1: { status: "maybe", updatedAt: "2026-03-20 18:20", changedOnEventDay: false },
         p3: { status: "yes", updatedAt: "2026-03-21 09:00", changedOnEventDay: true }
-      }
+      },
+      t3: {}
     };
 
     let state = {
       currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
       currentView: "dashboard",
       selectedTrainingId: "t1",
+      reportsTrainingId: "t1",
       filterUnit: "all",
       editingTrainingId: null,
-      playerStatsSearch: ""
+      playerSearchValue: "",
+      expandedPlayerSearchId: null,
+      playersSort: { key: "name", dir: "asc" },
+      reportsSort: { key: "name", dir: "asc" },
+      editPlayerId: null,
+      editCoachId: null
     };
 
     function saveSession() {
@@ -542,7 +602,7 @@
           { key: "trainings", label: "Trainings" },
           { key: "players", label: "Spieler" },
           { key: "reports", label: "Auswertungen" },
-          { key: "stats", label: "Statistiken" }
+          { key: "playerSearch", label: "Spielersuche" }
         );
       }
 
@@ -613,7 +673,6 @@
             <h2>${fullName(player)}</h2>
             <p><strong>Loginname:</strong> ${player.username}</p>
             <p><strong>Geburtstag:</strong> ${player.birthday}</p>
-            <p><strong>Position:</strong> ${player.position}</p>
             <p><strong>Unit:</strong> ${player.unit}</p>
             <p><strong>Gesundheit:</strong> ${player.healthStatus === "injured" ? "Verletzt/Krank" : "Fit"}</p>
           </div>
@@ -654,16 +713,17 @@
       }
 
       document.getElementById("screenTitle").textContent = "Spieler Dashboard";
-      document.getElementById("screenSubtitle").textContent = "Nur eigene Übersicht";
+      document.getElementById("screenSubtitle").textContent = "Nur kommendes Training";
 
-      const myResponses = trainings.map(t => {
-        const response = (responses[t.id] || {})[player.id];
-        return {
-          title: t.title,
-          status: response ? response.status : "open",
-          updatedAt: response ? response.updatedAt : "offen"
-        };
-      });
+      const upcomingTraining = getUpcomingTraining();
+
+      if (!upcomingTraining) {
+        content.innerHTML = `<div class="card"><p>Kein kommendes Training gefunden.</p></div>`;
+        return;
+      }
+
+      const myResponse = (responses[upcomingTraining.id] || {})[player.id];
+      const myStatus = myResponse ? myResponse.status : "open";
 
       content.innerHTML = `
         <div class="grid kpis">
@@ -672,37 +732,22 @@
             <div class="kpi">${player.healthStatus === "injured" ? "Verletzt" : "Fit"}</div>
           </div>
           <div class="card">
-            <div class="smallMuted">Position</div>
-            <div class="kpi">${player.position}</div>
-          </div>
-          <div class="card">
             <div class="smallMuted">Unit</div>
             <div class="kpi">${player.unit}</div>
+          </div>
+          <div class="card">
+            <div class="smallMuted">Nächstes Training</div>
+            <div class="kpi">${upcomingTraining.date}</div>
           </div>
         </div>
 
         <div class="card">
-          <h2>Meine letzten Rückmeldungen</h2>
-          <div class="tableWrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Training</th>
-                  <th>Status</th>
-                  <th>Letzte Änderung</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${myResponses.map(row => `
-                  <tr>
-                    <td>${row.title}</td>
-                    <td>${getStatusTag(row.status)}</td>
-                    <td>${row.updatedAt}</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-            </table>
-          </div>
+          <h2>Kommendes Training</h2>
+          <p><strong>${upcomingTraining.title}</strong></p>
+          <p>${upcomingTraining.date} um ${upcomingTraining.time}</p>
+          <p>${upcomingTraining.location}</p>
+          <p class="smallMuted">${upcomingTraining.notes}</p>
+          <p><strong>Mein Status:</strong> ${getStatusTag(myStatus)}</p>
         </div>
       `;
     }
@@ -711,162 +756,39 @@
       const content = document.getElementById("content");
 
       if (state.currentView === "players") {
-        document.getElementById("screenTitle").textContent = "Spieler";
-        document.getElementById("screenSubtitle").textContent = "Admin Coaches dürfen Spieler anlegen, bearbeiten und deaktivieren";
-
-        content.innerHTML = `
-          <div class="twoCol">
-            <div class="card">
-              <h2>Spieler anlegen</h2>
-              <div class="field"><label>Vorname</label><input class="input" placeholder="Vorname" /></div>
-              <div class="field"><label>Nachname</label><input class="input" placeholder="Nachname" /></div>
-              <div class="field"><label>Loginname</label><input class="input" placeholder="z. B. sgamperl" /></div>
-              <div class="field">
-                <label>Position</label>
-                <select class="select">${units.map(u => `<option>${u}</option>`).join("")}</select>
-              </div>
-              <button class="button">Demo speichern</button>
-              <p class="smallMuted" style="margin-top: 12px;">Einladelink kommt in der echten Version dazu.</p>
-            </div>
-
-            <div class="card">
-              <h2>Bestehende Spieler</h2>
-              <div class="tableWrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Position</th>
-                      <th>Unit</th>
-                      <th>Gesundheit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${players.map(p => `
-                      <tr>
-                        <td>${fullName(p)}</td>
-                        <td>${p.position}</td>
-                        <td>${p.unit}</td>
-                        <td>${p.healthStatus === "injured" ? '<span class="tag tagInjured">Verletzt/Krank</span>' : 'Fit'}</td>
-                      </tr>
-                    `).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        `;
+        renderPlayersView();
         return;
       }
 
       if (state.currentView === "trainings") {
-        document.getElementById("screenTitle").textContent = "Trainings";
-        document.getElementById("screenSubtitle").textContent = "Trainings erstellen und bearbeiten";
-
-        const editTraining = state.editingTrainingId
-          ? trainings.find(t => t.id === state.editingTrainingId)
-          : null;
-
-        content.innerHTML = `
-          <div class="twoCol">
-            <div class="card">
-              <h2>${editTraining ? "Training bearbeiten" : "Training erstellen"}</h2>
-
-              <div class="field">
-                <label>Titel</label>
-                <input id="trainingTitle" class="input" placeholder="z. B. Teamtraining Dienstag" value="${editTraining ? escapeHtml(editTraining.title) : ""}" />
-              </div>
-
-              <div class="field">
-                <label>Datum</label>
-                <input id="trainingDate" class="input" type="date" value="${editTraining ? editTraining.date : ""}" />
-              </div>
-
-              <div class="field">
-                <label>Uhrzeit</label>
-                <input id="trainingTime" class="input" type="time" value="${editTraining ? editTraining.time : ""}" />
-              </div>
-
-              <div class="field">
-                <label>Ort</label>
-                <input id="trainingLocation" class="input" placeholder="Sportzentrum Nord" value="${editTraining ? escapeHtml(editTraining.location) : ""}" />
-              </div>
-
-              <div class="field">
-                <label>Notizen</label>
-                <textarea id="trainingNotes" class="textarea" placeholder="Pads mitbringen">${editTraining ? escapeHtml(editTraining.notes) : ""}</textarea>
-              </div>
-
-              <div class="field">
-                <label>Abstimmung startet X Stunden vor Beginn</label>
-                <input id="voteOpensHoursBefore" class="input" type="number" min="0" value="${editTraining ? editTraining.voteOpensHoursBefore : 72}" />
-              </div>
-
-              <div class="field">
-                <label>Abstimmung endet X Stunden vor Beginn</label>
-                <input id="voteClosesHoursBefore" class="input" type="number" min="0" value="${editTraining ? editTraining.voteClosesHoursBefore : 6}" />
-              </div>
-
-              <div class="rowActions">
-                <button class="button" onclick="${editTraining ? "updateTraining()" : "createTraining()"}">
-                  ${editTraining ? "Training speichern" : "Training erstellen"}
-                </button>
-                ${editTraining ? `<button class="secondaryButton" onclick="cancelTrainingEdit()">Abbrechen</button>` : ""}
-              </div>
-            </div>
-
-            <div class="card">
-              <h2>Trainingsliste</h2>
-              ${trainings.map(t => `
-                <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
-                  <strong>${t.title}</strong>
-                  <p style="margin:8px 0 0 0;">${t.date} um ${t.time}</p>
-                  <p style="margin:8px 0 0 0;">${t.location}</p>
-                  <p class="smallMuted" style="margin:8px 0 0 0;">${t.notes}</p>
-                  <p class="smallMuted" style="margin:8px 0 0 0;">Abstimmung: ${t.voteOpensHoursBefore}h bis ${t.voteClosesHoursBefore}h vor Beginn</p>
-                  <div class="rowActions" style="margin-top:10px;">
-                    <button class="secondaryButton" onclick="startTrainingEdit('${t.id}')">Bearbeiten</button>
-                  </div>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        `;
+        renderTrainingsView();
         return;
       }
 
-      if (state.currentView === "stats") {
-        renderStatsView();
+      if (state.currentView === "reports") {
+        renderReportsView();
+        return;
+      }
+
+      if (state.currentView === "playerSearch") {
+        renderPlayerSearchView();
         return;
       }
 
       if (state.currentView === "coaches" && state.currentUser.role === "headAdmin") {
-        document.getElementById("screenTitle").textContent = "Coaches";
-        document.getElementById("screenSubtitle").textContent = "Nur Hauptadmin darf Coaches anlegen";
-
-        content.innerHTML = `
-          <div class="card">
-            <h2>Coach anlegen</h2>
-            <div class="field"><label>Name</label><input class="input" placeholder="Coach Name" /></div>
-            <div class="field"><label>Loginname</label><input class="input" placeholder="coachlogin" /></div>
-            <div class="field"><label>Passwort</label><input class="input" type="password" placeholder="Passwort" /></div>
-            <div class="field">
-              <label>Rolle</label>
-              <select class="select">
-                <option>adminCoach</option>
-                <option>headAdmin</option>
-              </select>
-            </div>
-            <button class="button">Demo speichern</button>
-          </div>
-        `;
+        renderCoachesView();
         return;
       }
 
       document.getElementById("screenTitle").textContent = "Coach Dashboard";
-      document.getElementById("screenSubtitle").textContent = "Unit-Filter, fehlende Antworten und Änderungen am Eventtag";
+      document.getElementById("screenSubtitle").textContent = "Nur kommendes Training";
 
-      const selectedTraining = trainings.find(t => t.id === state.selectedTrainingId) || trainings[0];
+      const selectedTraining = getUpcomingTraining();
+      if (!selectedTraining) {
+        content.innerHTML = `<div class="card"><p>Kein kommendes Training gefunden.</p></div>`;
+        return;
+      }
+
       const selectedResponses = responses[selectedTraining.id] || {};
       const filteredPlayers = players.filter(p => state.filterUnit === "all" ? true : p.unit === state.filterUnit);
 
@@ -885,11 +807,201 @@
 
         <div class="twoCol">
           <div class="card">
-            <h2>Nächstes Training</h2>
+            <h2>Kommendes Training</h2>
+            <p><strong>${selectedTraining.title}</strong></p>
+            <p>${selectedTraining.date} um ${selectedTraining.time}</p>
+            <p>${selectedTraining.location}</p>
+            <p class="smallMuted">${selectedTraining.notes}</p>
+            <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
+          </div>
+
+          <div class="card">
+            <h2>Filter</h2>
+            <div class="field">
+              <label>Unit</label>
+              <select class="select" onchange="changeUnit(this.value)">
+                <option value="all">Alle Units</option>
+                ${units.map(u => `<option value="${u}" ${u === state.filterUnit ? "selected" : ""}>${u}</option>`).join("")}
+              </select>
+            </div>
+            <p class="smallMuted">Die vollständige Trainingsauswertung findest du unter Auswertungen.</p>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPlayersView() {
+      const content = document.getElementById("content");
+      document.getElementById("screenTitle").textContent = "Spieler";
+      document.getElementById("screenSubtitle").textContent = "Spieler anlegen, bearbeiten, löschen und Passwort-Reset senden";
+
+      const sortedPlayers = getSortedPlayers(players, state.playersSort);
+
+      const editPlayer = state.editPlayerId ? players.find(p => p.id === state.editPlayerId) : null;
+
+      content.innerHTML = `
+        <div class="twoCol">
+          <div class="card">
+            <h2>${editPlayer ? "Spieler bearbeiten" : "Spieler anlegen"}</h2>
+            <div class="field"><label>Vorname</label><input id="playerFirstName" class="input" value="${editPlayer ? escapeHtml(editPlayer.firstName) : ""}" placeholder="Vorname" /></div>
+            <div class="field"><label>Nachname</label><input id="playerLastName" class="input" value="${editPlayer ? escapeHtml(editPlayer.lastName) : ""}" placeholder="Nachname" /></div>
+            <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${editPlayer ? escapeHtml(editPlayer.username) : ""}" placeholder="z. B. sgamperl" /></div>
+            <div class="field"><label>Geburtstag</label><input id="playerBirthday" class="input" type="date" value="${editPlayer ? editPlayer.birthday : ""}" /></div>
+            <div class="field">
+              <label>Unit</label>
+              <select id="playerUnit" class="select">
+                ${units.map(u => `<option value="${u}" ${editPlayer && editPlayer.unit === u ? "selected" : ""}>${u}</option>`).join("")}
+              </select>
+            </div>
+            <div class="rowActions">
+              <button class="button" onclick="${editPlayer ? "updatePlayer()" : "createPlayer()"}">${editPlayer ? "Spieler speichern" : "Spieler anlegen"}</button>
+              ${editPlayer ? `<button class="secondaryButton" onclick="cancelPlayerEdit()">Abbrechen</button>` : ""}
+            </div>
+            <p class="smallMuted" style="margin-top: 12px;">Einladelink ist in dieser Demo als spätere Produktfunktion vorgesehen.</p>
+          </div>
+
+          <div class="card">
+            <h2>Bestehende Spieler</h2>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="sortable" onclick="setPlayersSort('name')">Name</th>
+                    <th class="sortable" onclick="setPlayersSort('unit')">Unit</th>
+                    <th class="sortable" onclick="setPlayersSort('birthday')">Geburtstag</th>
+                    <th class="sortable" onclick="setPlayersSort('health')">Gesundheit</th>
+                    <th>Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${sortedPlayers.map(p => `
+                    <tr>
+                      <td>${fullName(p)}</td>
+                      <td>${p.unit}</td>
+                      <td>${p.birthday}</td>
+                      <td>${p.healthStatus === "injured" ? '<span class="tag tagInjured">Verletzt/Krank</span>' : 'Fit'}</td>
+                      <td>
+                        <div class="rowActions">
+                          <button class="secondaryButton" onclick="startPlayerEdit('${p.id}')">Bearbeiten</button>
+                          <button class="warnButton" onclick="adminSetInjury('${p.id}')">Verletzung</button>
+                          ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${p.id}')">Reset-Link</button>` : ""}
+                          ${state.currentUser.role === "headAdmin" ? `<button class="dangerButton" onclick="deletePlayer('${p.id}')">Löschen</button>` : ""}
+                        </div>
+                      </td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderTrainingsView() {
+      const content = document.getElementById("content");
+      document.getElementById("screenTitle").textContent = "Trainings";
+      document.getElementById("screenSubtitle").textContent = "Trainings erstellen, bearbeiten und nur als Hauptadmin löschen";
+
+      const editTraining = state.editingTrainingId ? trainings.find(t => t.id === state.editingTrainingId) : null;
+
+      content.innerHTML = `
+        <div class="twoCol">
+          <div class="card">
+            <h2>${editTraining ? "Training bearbeiten" : "Training erstellen"}</h2>
+
+            <div class="field">
+              <label>Titel</label>
+              <input id="trainingTitle" class="input" placeholder="z. B. Teamtraining Dienstag" value="${editTraining ? escapeHtml(editTraining.title) : ""}" />
+            </div>
+
+            <div class="field">
+              <label>Datum</label>
+              <input id="trainingDate" class="input" type="date" value="${editTraining ? editTraining.date : ""}" />
+            </div>
+
+            <div class="field">
+              <label>Uhrzeit</label>
+              <input id="trainingTime" class="input" type="time" value="${editTraining ? editTraining.time : ""}" />
+            </div>
+
+            <div class="field">
+              <label>Ort</label>
+              <input id="trainingLocation" class="input" placeholder="Sportzentrum Nord" value="${editTraining ? escapeHtml(editTraining.location) : ""}" />
+            </div>
+
+            <div class="field">
+              <label>Notizen</label>
+              <textarea id="trainingNotes" class="textarea" placeholder="Pads mitbringen">${editTraining ? escapeHtml(editTraining.notes) : ""}</textarea>
+            </div>
+
+            <div class="field">
+              <label>Abstimmung startet X Stunden vor Beginn</label>
+              <input id="voteOpensHoursBefore" class="input" type="number" min="0" value="${editTraining ? editTraining.voteOpensHoursBefore : 72}" />
+            </div>
+
+            <div class="field">
+              <label>Abstimmung endet X Stunden vor Beginn</label>
+              <input id="voteClosesHoursBefore" class="input" type="number" min="0" value="${editTraining ? editTraining.voteClosesHoursBefore : 6}" />
+            </div>
+
+            <div class="rowActions">
+              <button class="button" onclick="${editTraining ? "updateTraining()" : "createTraining()"}">${editTraining ? "Training speichern" : "Training erstellen"}</button>
+              ${editTraining ? `<button class="secondaryButton" onclick="cancelTrainingEdit()">Abbrechen</button>` : ""}
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Trainingsliste</h2>
+            ${trainings.map(t => `
+              <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
+                <strong>${t.title}</strong>
+                <p style="margin:8px 0 0 0;">${t.date} um ${t.time}</p>
+                <p style="margin:8px 0 0 0;">${t.location}</p>
+                <p class="smallMuted" style="margin:8px 0 0 0;">${t.notes}</p>
+                <p class="smallMuted" style="margin:8px 0 0 0;">Abstimmung: ${t.voteOpensHoursBefore}h bis ${t.voteClosesHoursBefore}h vor Beginn</p>
+                <div class="rowActions" style="margin-top:10px;">
+                  <button class="secondaryButton" onclick="startTrainingEdit('${t.id}')">Bearbeiten</button>
+                  ${state.currentUser.role === "headAdmin" ? `<button class="dangerButton" onclick="deleteTraining('${t.id}')">Löschen</button>` : ""}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderReportsView() {
+      const content = document.getElementById("content");
+      document.getElementById("screenTitle").textContent = "Auswertungen";
+      document.getElementById("screenSubtitle").textContent = "Kommende, vergangene und zukünftige Trainings mit bearbeitbaren Antworten";
+
+      const selectedTraining = trainings.find(t => t.id === state.reportsTrainingId) || trainings[0];
+      const selectedResponses = responses[selectedTraining.id] || {};
+
+      let filteredPlayers = players.filter(p => state.filterUnit === "all" ? true : p.unit === state.filterUnit);
+      filteredPlayers = getSortedPlayers(filteredPlayers, state.reportsSort);
+
+      const yesCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "yes").length;
+      const noCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "no").length;
+      const maybeCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "maybe").length;
+      const openCount = filteredPlayers.filter(p => !selectedResponses[p.id] && p.healthStatus !== "injured").length;
+
+      content.innerHTML = `
+        <div class="grid kpis">
+          <div class="card"><div class="smallMuted">Zusage</div><div class="kpi">${yesCount}</div></div>
+          <div class="card"><div class="smallMuted">Absage</div><div class="kpi">${noCount}</div></div>
+          <div class="card"><div class="smallMuted">Unsicher</div><div class="kpi">${maybeCount}</div></div>
+          <div class="card"><div class="smallMuted">Keine Antwort</div><div class="kpi">${openCount}</div></div>
+        </div>
+
+        <div class="twoCol">
+          <div class="card">
+            <h2>Training auswählen</h2>
             <div class="field">
               <label>Training</label>
-              <select class="select" onchange="changeTraining(this.value)">
-                ${trainings.map(t => `<option value="${t.id}" ${t.id === state.selectedTrainingId ? "selected" : ""}>${t.title}</option>`).join("")}
+              <select class="select" onchange="changeReportsTraining(this.value)">
+                ${trainings.map(t => `<option value="${t.id}" ${t.id === state.reportsTrainingId ? "selected" : ""}>${t.title} · ${t.date}</option>`).join("")}
               </select>
             </div>
             <p><strong>${selectedTraining.title}</strong></p>
@@ -908,9 +1020,6 @@
                 ${units.map(u => `<option value="${u}" ${u === state.filterUnit ? "selected" : ""}>${u}</option>`).join("")}
               </select>
             </div>
-            <p class="smallMuted">
-              Coaches sehen Zusage, Absage, Unsicher, keine Antwort, letzte Änderung und Eventtag-Änderungen.
-            </p>
           </div>
         </div>
 
@@ -920,13 +1029,13 @@
             <table>
               <thead>
                 <tr>
-                  <th>Spieler</th>
-                  <th>Position</th>
-                  <th>Unit</th>
-                  <th>Status</th>
-                  <th>Letzte Änderung</th>
+                  <th class="sortable" onclick="setReportsSort('name')">Spieler</th>
+                  <th class="sortable" onclick="setReportsSort('unit')">Unit</th>
+                  <th class="sortable" onclick="setReportsSort('status')">Status</th>
+                  <th class="sortable" onclick="setReportsSort('updatedAt')">Letzte Änderung</th>
                   <th>Eventtag</th>
                   <th>Gesundheit</th>
+                  <th>Aktionen</th>
                 </tr>
               </thead>
               <tbody>
@@ -938,7 +1047,6 @@
                   return `
                     <tr class="${changed ? "highlightRow" : ""}">
                       <td>${fullName(player)}</td>
-                      <td>${player.position}</td>
                       <td>${player.unit}</td>
                       <td>${getStatusTag(status)}</td>
                       <td>${response ? response.updatedAt : "offen"}</td>
@@ -948,6 +1056,14 @@
                           ? `<span class="tag tagInjured">Verletzt/Krank</span><br><span class="smallMuted">${player.injuryType || ""} ${player.unavailableDuration ? "· " + player.unavailableDuration : ""}</span>`
                           : `Fit`
                         }
+                      </td>
+                      <td>
+                        <div class="rowActions">
+                          <button class="button" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','yes')">Zusage</button>
+                          <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','maybe')">Unsicher</button>
+                          <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','no')">Absage</button>
+                          <button class="warnButton" onclick="adminSetInjury('${player.id}')">Verletzung</button>
+                        </div>
                       </td>
                     </tr>
                   `;
@@ -959,116 +1075,240 @@
       `;
     }
 
-    function renderStatsView() {
+    function renderPlayerSearchView() {
       const content = document.getElementById("content");
-      document.getElementById("screenTitle").textContent = "Statistiken";
-      document.getElementById("screenSubtitle").textContent = "Suche nach einem Spieler";
+      document.getElementById("screenTitle").textContent = "Spielersuche";
+      document.getElementById("screenSubtitle").textContent = "Passende Spieler finden und ausklappen";
 
-      const search = state.playerStatsSearch.trim().toLowerCase();
-      const matchedPlayer = players.find(p => fullName(p).toLowerCase().includes(search));
+      const search = state.playerSearchValue.trim().toLowerCase();
+      const matches = search
+        ? players.filter(p => fullName(p).toLowerCase().includes(search))
+        : [];
 
-      let resultHtml = `
+      content.innerHTML = `
         <div class="card">
           <h2>Spieler suchen</h2>
           <div class="field">
             <label>Name</label>
-            <input id="playerStatsSearchInput" class="input" value="${escapeHtml(state.playerStatsSearch)}" placeholder="z. B. Stefan Gamperl" />
+            <input id="playerSearchInput" class="input" value="${escapeHtml(state.playerSearchValue)}" placeholder="z. B. Stefan oder Frank" />
           </div>
-          <button class="button" onclick="searchPlayerStats()">Suchen</button>
+          <button class="button" onclick="searchPlayers()">Suchen</button>
         </div>
+
+        ${search ? `
+          <div class="card" style="margin-top: 24px;">
+            <h2>Treffer</h2>
+            ${matches.length === 0 ? `<p>Keine Spieler gefunden.</p>` : matches.map(player => {
+              const expanded = state.expandedPlayerSearchId === player.id;
+              const stats = getPlayerStats(player.id);
+              return `
+                <div style="border:1px solid #243056; border-radius:14px; padding:14px; margin-bottom:12px;">
+                  <div class="accordionHeader" onclick="togglePlayerSearchDetails('${player.id}')">
+                    <div>
+                      <strong>${fullName(player)}</strong>
+                      <div class="inlineInfo smallMuted">
+                        <span>Unit: ${player.unit}</span>
+                        <span>Geburtstag: ${player.birthday}</span>
+                        <span>Loginname: ${player.username}</span>
+                      </div>
+                    </div>
+                    <div class="secondaryButton">${expanded ? "Zuklappen" : "Ausklappen"}</div>
+                  </div>
+
+                  ${expanded ? `
+                    <div class="accordionBody">
+                      <div class="grid kpis">
+                        <div class="card">
+                          <div class="smallMuted">Zusage</div>
+                          <div class="kpi">${stats.yes}</div>
+                        </div>
+                        <div class="card">
+                          <div class="smallMuted">Absage</div>
+                          <div class="kpi">${stats.no}</div>
+                        </div>
+                        <div class="card">
+                          <div class="smallMuted">Unsicher</div>
+                          <div class="kpi">${stats.maybe}</div>
+                        </div>
+                        <div class="card">
+                          <div class="smallMuted">Nicht abgestimmt</div>
+                          <div class="kpi">${stats.open}</div>
+                        </div>
+                      </div>
+
+                      <div class="twoCol">
+                        <div class="card">
+                          <h3>Verletzungen</h3>
+                          ${player.injuries && player.injuries.length > 0 ? player.injuries.map(injury => `
+                            <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
+                              <p><strong>Art:</strong> ${injury.type}</p>
+                              <p><strong>Von:</strong> ${injury.from}</p>
+                              <p><strong>Bis:</strong> ${injury.until}</p>
+                            </div>
+                          `).join("") : `<p class="smallMuted">Keine gespeicherten Verletzungszeiträume.</p>`}
+                        </div>
+
+                        <div class="card">
+                          <h3>Verwaltung</h3>
+                          <div class="rowActions">
+                            <button class="secondaryButton" onclick="startPlayerEdit('${player.id}'); setView('players');">Bearbeiten</button>
+                            <button class="warnButton" onclick="adminSetInjury('${player.id}')">Verletzung</button>
+                            ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${player.id}')">Reset-Link</button>` : ""}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="card">
+                        <h3>Zeitleiste vergangener Trainings</h3>
+                        <div class="timeline">
+                          ${stats.timeline.map(item => `
+                            <div class="timelineItem">
+                              <strong>${item.training.title}</strong>
+                              <p style="margin:8px 0 0 0;">${item.training.date} um ${item.training.time}</p>
+                              <p style="margin:8px 0 0 0;">Status: ${getStatusTag(item.status)}</p>
+                              <p class="smallMuted" style="margin:8px 0 0 0;">Letzte Änderung: ${item.response ? item.response.updatedAt : "offen"}</p>
+                            </div>
+                          `).join("")}
+                        </div>
+                      </div>
+                    </div>
+                  ` : ""}
+                </div>
+              `;
+            }).join("")}
+          </div>
+        ` : ""}
       `;
-
-      if (search && matchedPlayer) {
-        let yes = 0;
-        let no = 0;
-        let maybe = 0;
-        let open = 0;
-
-        const timeline = trainings.map(training => {
-          const response = (responses[training.id] || {})[matchedPlayer.id];
-          const status = response ? response.status : "open";
-
-          if (status === "yes") yes++;
-          else if (status === "no") no++;
-          else if (status === "maybe") maybe++;
-          else open++;
-
-          return {
-            training,
-            response,
-            status
-          };
-        });
-
-        resultHtml += `
-          <div class="threeCol">
-            <div class="card">
-              <div class="smallMuted">Zusage</div>
-              <div class="kpi">${yes}</div>
-            </div>
-            <div class="card">
-              <div class="smallMuted">Absage</div>
-              <div class="kpi">${no}</div>
-            </div>
-            <div class="card">
-              <div class="smallMuted">Nicht abgestimmt</div>
-              <div class="kpi">${open}</div>
-            </div>
-          </div>
-
-          <div class="twoCol">
-            <div class="card">
-              <h2>Spielerprofil</h2>
-              <p><strong>Name:</strong> ${fullName(matchedPlayer)}</p>
-              <p><strong>Position:</strong> ${matchedPlayer.position}</p>
-              <p><strong>Unit:</strong> ${matchedPlayer.unit}</p>
-            </div>
-
-            <div class="card">
-              <h2>Verletzungen</h2>
-              ${matchedPlayer.injuries && matchedPlayer.injuries.length > 0 ? matchedPlayer.injuries.map(injury => `
-                <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
-                  <p><strong>Art:</strong> ${injury.type}</p>
-                  <p><strong>Von:</strong> ${injury.from}</p>
-                  <p><strong>Bis:</strong> ${injury.until}</p>
-                </div>
-              `).join("") : `<p class="smallMuted">Keine gespeicherten Verletzungszeiträume.</p>`}
-            </div>
-          </div>
-
-          <div class="card">
-            <h2>Zeitleiste vergangener Trainings</h2>
-            <div class="timeline">
-              ${timeline.map(item => `
-                <div class="timelineItem">
-                  <strong>${item.training.title}</strong>
-                  <p style="margin:8px 0 0 0;">${item.training.date} um ${item.training.time}</p>
-                  <p style="margin:8px 0 0 0;">Status: ${getStatusTag(item.status)}</p>
-                  <p class="smallMuted" style="margin:8px 0 0 0;">Letzte Änderung: ${item.response ? item.response.updatedAt : "offen"}</p>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        `;
-      } else if (search) {
-        resultHtml += `
-          <div class="card">
-            <p>Kein Spieler gefunden.</p>
-          </div>
-        `;
-      }
-
-      content.innerHTML = resultHtml;
     }
 
-    function changeTraining(trainingId) {
-      state.selectedTrainingId = trainingId;
-      renderApp();
+    function renderCoachesView() {
+      const content = document.getElementById("content");
+      document.getElementById("screenTitle").textContent = "Coaches";
+      document.getElementById("screenSubtitle").textContent = "Nur Hauptadmin darf Coaches anlegen, bearbeiten, löschen und Reset-Links senden";
+
+      const editCoach = state.editCoachId ? coaches.find(c => c.id === state.editCoachId) : null;
+
+      content.innerHTML = `
+        <div class="twoCol">
+          <div class="card">
+            <h2>${editCoach ? "Coach bearbeiten" : "Coach anlegen"}</h2>
+            <div class="field"><label>Name</label><input id="coachName" class="input" value="${editCoach ? escapeHtml(editCoach.name) : ""}" placeholder="Coach Name" /></div>
+            <div class="field"><label>Loginname</label><input id="coachUsername" class="input" value="${editCoach ? escapeHtml(editCoach.username) : ""}" placeholder="coachlogin" /></div>
+            <div class="field"><label>E-Mail</label><input id="coachEmail" class="input" value="${editCoach ? escapeHtml(editCoach.email || "") : ""}" placeholder="coach@example.com" /></div>
+            <div class="field">
+              <label>Rolle</label>
+              <select id="coachRole" class="select">
+                <option value="adminCoach" ${editCoach && editCoach.role === "adminCoach" ? "selected" : ""}>adminCoach</option>
+                <option value="headAdmin" ${editCoach && editCoach.role === "headAdmin" ? "selected" : ""}>headAdmin</option>
+              </select>
+            </div>
+            <div class="rowActions">
+              <button class="button" onclick="${editCoach ? "updateCoach()" : "createCoach()"}">${editCoach ? "Coach speichern" : "Coach anlegen"}</button>
+              ${editCoach ? `<button class="secondaryButton" onclick="cancelCoachEdit()">Abbrechen</button>` : ""}
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Bestehende Coaches</h2>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Loginname</th>
+                    <th>Rolle</th>
+                    <th>Aktionen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${coaches.map(c => `
+                    <tr>
+                      <td>${c.name}</td>
+                      <td>${c.username}</td>
+                      <td>${c.role}</td>
+                      <td>
+                        <div class="rowActions">
+                          <button class="secondaryButton" onclick="startCoachEdit('${c.id}')">Bearbeiten</button>
+                          <button class="secondaryButton" onclick="sendResetLink('coach','${c.id}')">Reset-Link</button>
+                          <button class="dangerButton" onclick="deleteCoach('${c.id}')">Löschen</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function getUpcomingTraining() {
+      return [...trainings].sort((a, b) => {
+        const da = a.date + "T" + a.time;
+        const db = b.date + "T" + b.time;
+        return da.localeCompare(db);
+      })[0] || null;
+    }
+
+    function getSortedPlayers(list, sortState) {
+      const copy = [...list];
+      copy.sort((a, b) => {
+        let av = "";
+        let bv = "";
+
+        if (sortState.key === "name") {
+          av = fullName(a).toLowerCase();
+          bv = fullName(b).toLowerCase();
+        } else if (sortState.key === "unit") {
+          av = a.unit;
+          bv = b.unit;
+        } else if (sortState.key === "birthday") {
+          av = a.birthday;
+          bv = b.birthday;
+        } else if (sortState.key === "health") {
+          av = a.healthStatus;
+          bv = b.healthStatus;
+        } else if (sortState.key === "status") {
+          av = ((responses[state.reportsTrainingId] || {})[a.id]?.status) || "open";
+          bv = ((responses[state.reportsTrainingId] || {})[b.id]?.status) || "open";
+        } else if (sortState.key === "updatedAt") {
+          av = ((responses[state.reportsTrainingId] || {})[a.id]?.updatedAt) || "";
+          bv = ((responses[state.reportsTrainingId] || {})[b.id]?.updatedAt) || "";
+        }
+
+        const result = String(av).localeCompare(String(bv));
+        return sortState.dir === "asc" ? result : -result;
+      });
+      return copy;
+    }
+
+    function setPlayersSort(key) {
+      if (state.playersSort.key === key) {
+        state.playersSort.dir = state.playersSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        state.playersSort = { key, dir: "asc" };
+      }
+      renderPlayersView();
+    }
+
+    function setReportsSort(key) {
+      if (state.reportsSort.key === key) {
+        state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        state.reportsSort = { key, dir: "asc" };
+      }
+      renderReportsView();
     }
 
     function changeUnit(unit) {
       state.filterUnit = unit;
       renderApp();
+    }
+
+    function changeReportsTraining(trainingId) {
+      state.reportsTrainingId = trainingId;
+      renderReportsView();
     }
 
     function setPlayerResponse(trainingId, status) {
@@ -1083,6 +1323,19 @@
       };
 
       renderApp();
+    }
+
+    function setCoachResponse(trainingId, playerId, status) {
+      responses[trainingId] = responses[trainingId] || {};
+      const training = trainings.find(t => t.id === trainingId);
+
+      responses[trainingId][playerId] = {
+        status,
+        updatedAt: training.date + " 12:00",
+        changedOnEventDay: true
+      };
+
+      renderReportsView();
     }
 
     function setHealthStatus(status) {
@@ -1114,6 +1367,26 @@
       renderApp();
     }
 
+    function adminSetInjury(playerId) {
+      const player = players.find(p => p.id === playerId);
+      const injuryType = prompt("Art der Verletzung/Krankheit für " + fullName(player), player.injuryType || "");
+      if (injuryType === null) return;
+      const injuryDuration = prompt("Voraussichtliche Verhinderungsdauer", player.unavailableDuration || "");
+      if (injuryDuration === null) return;
+
+      player.healthStatus = "injured";
+      player.injuryType = injuryType;
+      player.unavailableDuration = injuryDuration;
+      if (!player.injuries) player.injuries = [];
+      player.injuries.push({
+        from: new Date().toISOString().slice(0, 10),
+        until: injuryDuration || "offen",
+        type: injuryType || "nicht angegeben"
+      });
+
+      renderApp();
+    }
+
     function createTraining() {
       const title = document.getElementById("trainingTitle").value.trim();
       const date = document.getElementById("trainingDate").value;
@@ -1128,8 +1401,10 @@
         return;
       }
 
+      const newId = "t" + Date.now();
+
       trainings.push({
-        id: "t" + Date.now(),
+        id: newId,
         title,
         date,
         time,
@@ -1139,18 +1414,19 @@
         voteClosesHoursBefore
       });
 
-      renderApp();
+      state.editingTrainingId = null;
+      state.reportsTrainingId = newId;
+      renderTrainingsView();
     }
 
     function startTrainingEdit(trainingId) {
       state.editingTrainingId = trainingId;
-      state.currentView = "trainings";
-      renderApp();
+      renderTrainingsView();
     }
 
     function cancelTrainingEdit() {
       state.editingTrainingId = null;
-      renderApp();
+      renderTrainingsView();
     }
 
     function updateTraining() {
@@ -1166,12 +1442,195 @@
       training.voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore").value || 0);
 
       state.editingTrainingId = null;
-      renderApp();
+      renderTrainingsView();
     }
 
-    function searchPlayerStats() {
-      state.playerStatsSearch = document.getElementById("playerStatsSearchInput").value.trim();
-      renderStatsView();
+    function deleteTraining(trainingId) {
+      if (state.currentUser.role !== "headAdmin") return;
+      const training = trainings.find(t => t.id === trainingId);
+      if (!training) return;
+      if (!confirm("Training wirklich löschen: " + training.title + "?")) return;
+
+      const index = trainings.findIndex(t => t.id === trainingId);
+      trainings.splice(index, 1);
+      delete responses[trainingId];
+      if (state.editingTrainingId === trainingId) state.editingTrainingId = null;
+      if (state.reportsTrainingId === trainingId) state.reportsTrainingId = trainings[0]?.id || null;
+      renderTrainingsView();
+    }
+
+    function createPlayer() {
+      const firstName = document.getElementById("playerFirstName").value.trim();
+      const lastName = document.getElementById("playerLastName").value.trim();
+      const username = document.getElementById("playerUsername").value.trim();
+      const birthday = document.getElementById("playerBirthday").value;
+      const unit = document.getElementById("playerUnit").value;
+
+      if (!firstName || !lastName || !username || !birthday || !unit) {
+        alert("Bitte alle Felder ausfüllen.");
+        return;
+      }
+
+      players.push({
+        id: "p" + Date.now(),
+        username,
+        firstName,
+        lastName,
+        birthday,
+        unit,
+        active: true,
+        healthStatus: "fit",
+        injuryType: "",
+        unavailableDuration: "",
+        injuries: []
+      });
+
+      renderPlayersView();
+    }
+
+    function startPlayerEdit(playerId) {
+      state.editPlayerId = playerId;
+      renderPlayersView();
+    }
+
+    function cancelPlayerEdit() {
+      state.editPlayerId = null;
+      renderPlayersView();
+    }
+
+    function updatePlayer() {
+      const player = players.find(p => p.id === state.editPlayerId);
+      if (!player) return;
+
+      player.firstName = document.getElementById("playerFirstName").value.trim();
+      player.lastName = document.getElementById("playerLastName").value.trim();
+      player.username = document.getElementById("playerUsername").value.trim();
+      player.birthday = document.getElementById("playerBirthday").value;
+      player.unit = document.getElementById("playerUnit").value;
+
+      state.editPlayerId = null;
+      renderPlayersView();
+    }
+
+    function deletePlayer(playerId) {
+      if (state.currentUser.role !== "headAdmin") return;
+      const player = players.find(p => p.id === playerId);
+      if (!player) return;
+      if (!confirm("Spieler wirklich löschen: " + fullName(player) + "?")) return;
+
+      const index = players.findIndex(p => p.id === playerId);
+      players.splice(index, 1);
+      Object.keys(responses).forEach(trainingId => {
+        if (responses[trainingId][playerId]) delete responses[trainingId][playerId];
+      });
+      renderPlayersView();
+    }
+
+    function createCoach() {
+      const name = document.getElementById("coachName").value.trim();
+      const username = document.getElementById("coachUsername").value.trim();
+      const email = document.getElementById("coachEmail").value.trim();
+      const role = document.getElementById("coachRole").value;
+
+      if (!name || !username || !role) {
+        alert("Bitte alle Pflichtfelder ausfüllen.");
+        return;
+      }
+
+      coaches.push({
+        id: "c" + Date.now(),
+        name,
+        username,
+        role,
+        active: true,
+        email
+      });
+
+      renderCoachesView();
+    }
+
+    function startCoachEdit(coachId) {
+      state.editCoachId = coachId;
+      renderCoachesView();
+    }
+
+    function cancelCoachEdit() {
+      state.editCoachId = null;
+      renderCoachesView();
+    }
+
+    function updateCoach() {
+      const coach = coaches.find(c => c.id === state.editCoachId);
+      if (!coach) return;
+
+      coach.name = document.getElementById("coachName").value.trim();
+      coach.username = document.getElementById("coachUsername").value.trim();
+      coach.email = document.getElementById("coachEmail").value.trim();
+      coach.role = document.getElementById("coachRole").value;
+
+      state.editCoachId = null;
+      renderCoachesView();
+    }
+
+    function deleteCoach(coachId) {
+      if (state.currentUser.role !== "headAdmin") return;
+      const coach = coaches.find(c => c.id === coachId);
+      if (!coach) return;
+      if (!confirm("Coach wirklich löschen: " + coach.name + "?")) return;
+
+      const index = coaches.findIndex(c => c.id === coachId);
+      coaches.splice(index, 1);
+      renderCoachesView();
+    }
+
+    function sendResetLink(type, id) {
+      if (state.currentUser.role !== "headAdmin") return;
+
+      if (type === "player") {
+        const player = players.find(p => p.id === id);
+        if (!player) return;
+        alert("Passwort-Reset-Link wurde an den Spieler geschickt: " + fullName(player));
+      } else {
+        const coach = coaches.find(c => c.id === id);
+        if (!coach) return;
+        alert("Passwort-Reset-Link wurde an den Coach geschickt: " + coach.name);
+      }
+    }
+
+    function searchPlayers() {
+      state.playerSearchValue = document.getElementById("playerSearchInput").value.trim();
+      state.expandedPlayerSearchId = null;
+      renderPlayerSearchView();
+    }
+
+    function togglePlayerSearchDetails(playerId) {
+      state.expandedPlayerSearchId = state.expandedPlayerSearchId === playerId ? null : playerId;
+      renderPlayerSearchView();
+    }
+
+    function getPlayerStats(playerId) {
+      let yes = 0;
+      let no = 0;
+      let maybe = 0;
+      let open = 0;
+
+      const timeline = trainings.map(training => {
+        const response = (responses[training.id] || {})[playerId];
+        const status = response ? response.status : "open";
+
+        if (status === "yes") yes++;
+        else if (status === "no") no++;
+        else if (status === "maybe") maybe++;
+        else open++;
+
+        return {
+          training,
+          response,
+          status
+        };
+      });
+
+      return { yes, no, maybe, open, timeline };
     }
 
     function escapeHtml(value) {
