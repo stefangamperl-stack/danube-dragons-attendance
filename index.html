@@ -146,6 +146,11 @@
       margin-bottom: 24px;
     }
 
+    .grid.unitSummary {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      margin-bottom: 24px;
+    }
+
     .twoCol {
       display: grid;
       gap: 16px;
@@ -236,6 +241,7 @@
     .tagMaybe { background: #334155; }
     .tagOpen { background: #854d0e; }
     .tagInjured { background: #7c3aed; }
+    .tagLimited { background: #0f766e; }
 
     .highlightRow {
       background: rgba(251, 191, 36, 0.12);
@@ -290,6 +296,27 @@
       gap: 10px;
       flex-wrap: wrap;
       margin-top: 8px;
+    }
+
+    .unitPills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .unitPill {
+      background: #18213f;
+      color: white;
+      border: 1px solid #243056;
+      border-radius: 999px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    .unitPill.active {
+      background: #2563eb;
+      border-color: #2563eb;
     }
 
     @media (max-width: 900px) {
@@ -386,6 +413,8 @@
 
   <script>
     const units = ["OL", "QB", "WR", "TE", "RB", "LB", "DB", "DL", "K"];
+    const offenseUnits = ["QB", "WR", "TE", "OL", "RB"];
+    const defenseUnits = ["DL", "LB", "DB"];
 
     const users = [
       { id: "u1", username: "sgamperl", password: "test123", role: "player", displayName: "Stefan Gamperl", playerId: "p1", email: "sgamperl@example.com" },
@@ -451,6 +480,19 @@
         injuryType: "",
         unavailableDuration: "",
         injuries: []
+      },
+      {
+        id: "p5",
+        username: "twalker",
+        firstName: "Thomas",
+        lastName: "Walker",
+        birthday: "1997-07-08",
+        unit: "LB",
+        active: true,
+        healthStatus: "fit",
+        injuryType: "",
+        unavailableDuration: "",
+        injuries: []
       }
     ];
 
@@ -496,11 +538,13 @@
       t1: {
         p1: { status: "yes", updatedAt: "2026-03-19 08:10", changedOnEventDay: true },
         p3: { status: "no", updatedAt: "2026-03-18 19:35", changedOnEventDay: false },
-        p4: { status: "maybe", updatedAt: "2026-03-18 16:15", changedOnEventDay: false }
+        p4: { status: "maybe", updatedAt: "2026-03-18 16:15", changedOnEventDay: false },
+        p5: { status: "yes", updatedAt: "2026-03-18 17:20", changedOnEventDay: false }
       },
       t2: {
         p1: { status: "maybe", updatedAt: "2026-03-20 18:20", changedOnEventDay: false },
-        p3: { status: "yes", updatedAt: "2026-03-21 09:00", changedOnEventDay: true }
+        p3: { status: "yes", updatedAt: "2026-03-21 09:00", changedOnEventDay: true },
+        p4: { status: "yes", updatedAt: "2026-03-20 12:00", changedOnEventDay: false }
       },
       t3: {}
     };
@@ -517,7 +561,9 @@
       playersSort: { key: "name", dir: "asc" },
       reportsSort: { key: "name", dir: "asc" },
       editPlayerId: null,
-      editCoachId: null
+      editCoachId: null,
+      playerListSearch: "",
+      playerListUnit: "all"
     };
 
     function saveSession() {
@@ -574,10 +620,17 @@
       renderApp();
     }
 
+    function getPlayerTrainingStatus(player, trainingId) {
+      const response = (responses[trainingId] || {})[player.id];
+      if (player.healthStatus === "injured") return "limited";
+      return response ? response.status : "open";
+    }
+
     function getStatusTag(status) {
       if (status === "yes") return '<span class="tag tagYes">Zusage</span>';
       if (status === "no") return '<span class="tag tagNo">Absage</span>';
       if (status === "maybe") return '<span class="tag tagMaybe">Unsicher</span>';
+      if (status === "limited") return '<span class="tag tagLimited">Limited</span>';
       return '<span class="tag tagOpen">Keine Antwort</span>';
     }
 
@@ -682,12 +735,11 @@
 
       if (state.currentView === "trainings") {
         document.getElementById("screenTitle").textContent = "Meine Trainings";
-        document.getElementById("screenSubtitle").textContent = "Zusage, Absage oder Unsicher";
+        document.getElementById("screenSubtitle").textContent = "Zusage, Absage, Unsicher oder automatisch Limited";
 
         const trainingCards = trainings.map(training => {
-          const response = (responses[training.id] || {})[player.id];
-          const status = response ? response.status : "open";
-          const exempt = player.healthStatus === "injured";
+          const status = getPlayerTrainingStatus(player, training.id);
+          const limited = status === "limited";
 
           return `
             <div class="card">
@@ -697,7 +749,7 @@
               <p class="smallMuted">${training.notes}</p>
               <p><strong>Abstimmung offen:</strong> ${training.voteOpensHoursBefore}h bis ${training.voteClosesHoursBefore}h vor Beginn</p>
               <p><strong>Status:</strong> ${getStatusTag(status)}</p>
-              ${exempt ? `<p class="smallMuted">Du bist aktuell Verletzt/Krank und musst nicht abstimmen.</p>` : `
+              ${limited ? `<p class="smallMuted">Während des Verletzungszeitraums bist du automatisch Limited. Für andere Optionen musst du zuerst deinen Status auf Fit ändern.</p>` : `
                 <div class="statusButtons">
                   <button class="button" onclick="setPlayerResponse('${training.id}','yes')">Zusage</button>
                   <button class="secondaryButton" onclick="setPlayerResponse('${training.id}','maybe')">Unsicher</button>
@@ -722,8 +774,7 @@
         return;
       }
 
-      const myResponse = (responses[upcomingTraining.id] || {})[player.id];
-      const myStatus = myResponse ? myResponse.status : "open";
+      const myStatus = getPlayerTrainingStatus(player, upcomingTraining.id);
 
       content.innerHTML = `
         <div class="grid kpis">
@@ -789,19 +840,26 @@
         return;
       }
 
-      const selectedResponses = responses[selectedTraining.id] || {};
       const filteredPlayers = players.filter(p => state.filterUnit === "all" ? true : p.unit === state.filterUnit);
 
-      const yesCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "yes").length;
-      const noCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "no").length;
-      const maybeCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "maybe").length;
-      const openCount = filteredPlayers.filter(p => !selectedResponses[p.id] && p.healthStatus !== "injured").length;
+      const yesCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "yes").length;
+      const noCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "no").length;
+      const maybeCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "maybe").length;
+      const limitedCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "limited").length;
+      const openCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "open").length;
+
+      const summaryCards = renderDashboardUnitSummary(selectedTraining.id);
 
       content.innerHTML = `
+        <div class="grid unitSummary">
+          ${summaryCards}
+        </div>
+
         <div class="grid kpis">
           <div class="card"><div class="smallMuted">Zusage</div><div class="kpi">${yesCount}</div></div>
           <div class="card"><div class="smallMuted">Absage</div><div class="kpi">${noCount}</div></div>
           <div class="card"><div class="smallMuted">Unsicher</div><div class="kpi">${maybeCount}</div></div>
+          <div class="card"><div class="smallMuted">Limited</div><div class="kpi">${limitedCount}</div></div>
           <div class="card"><div class="smallMuted">Keine Antwort</div><div class="kpi">${openCount}</div></div>
         </div>
 
@@ -833,11 +891,19 @@
     function renderPlayersView() {
       const content = document.getElementById("content");
       document.getElementById("screenTitle").textContent = "Spieler";
-      document.getElementById("screenSubtitle").textContent = "Spieler anlegen, bearbeiten, löschen und Passwort-Reset senden";
-
-      const sortedPlayers = getSortedPlayers(players, state.playersSort);
+      document.getElementById("screenSubtitle").textContent = "Suche nach Spieler oder klicke auf eine Unit";
 
       const editPlayer = state.editPlayerId ? players.find(p => p.id === state.editPlayerId) : null;
+
+      let filtered = [...players];
+      if (state.playerListSearch.trim()) {
+        const search = state.playerListSearch.trim().toLowerCase();
+        filtered = filtered.filter(p => fullName(p).toLowerCase().includes(search));
+      } else if (state.playerListUnit !== "all") {
+        filtered = filtered.filter(p => p.unit === state.playerListUnit);
+      }
+
+      filtered.sort((a, b) => fullName(a).localeCompare(fullName(b)));
 
       content.innerHTML = `
         <div class="twoCol">
@@ -857,24 +923,40 @@
               <button class="button" onclick="${editPlayer ? "updatePlayer()" : "createPlayer()"}">${editPlayer ? "Spieler speichern" : "Spieler anlegen"}</button>
               ${editPlayer ? `<button class="secondaryButton" onclick="cancelPlayerEdit()">Abbrechen</button>` : ""}
             </div>
-            <p class="smallMuted" style="margin-top: 12px;">Einladelink ist in dieser Demo als spätere Produktfunktion vorgesehen.</p>
           </div>
 
           <div class="card">
-            <h2>Bestehende Spieler</h2>
-            <div class="tableWrap">
+            <h2>Spieler finden</h2>
+            <div class="field">
+              <label>Suche nach Name</label>
+              <input id="playerListSearchInput" class="input" value="${escapeHtml(state.playerListSearch)}" placeholder="z. B. Stefan" />
+            </div>
+            <div class="rowActions">
+              <button class="button" onclick="searchPlayerList()">Suchen</button>
+              <button class="secondaryButton" onclick="clearPlayerListSearch()">Zurücksetzen</button>
+            </div>
+
+            <div style="margin-top: 16px;">
+              <div class="smallMuted" style="margin-bottom: 10px;">Oder nach Unit filtern</div>
+              <div class="unitPills">
+                <button class="unitPill ${state.playerListUnit === "all" ? "active" : ""}" onclick="setPlayerListUnit('all')">Alle</button>
+                ${units.map(u => `<button class="unitPill ${state.playerListUnit === u ? "active" : ""}" onclick="setPlayerListUnit('${u}')">${u}</button>`).join("")}
+              </div>
+            </div>
+
+            <div class="tableWrap" style="margin-top: 16px;">
               <table>
                 <thead>
                   <tr>
-                    <th class="sortable" onclick="setPlayersSort('name')">Name</th>
-                    <th class="sortable" onclick="setPlayersSort('unit')">Unit</th>
-                    <th class="sortable" onclick="setPlayersSort('birthday')">Geburtstag</th>
-                    <th class="sortable" onclick="setPlayersSort('health')">Gesundheit</th>
+                    <th>Name</th>
+                    <th>Unit</th>
+                    <th>Geburtstag</th>
+                    <th>Gesundheit</th>
                     <th>Aktionen</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${sortedPlayers.map(p => `
+                  ${filtered.map(p => `
                     <tr>
                       <td>${fullName(p)}</td>
                       <td>${p.unit}</td>
@@ -890,6 +972,7 @@
                       </td>
                     </tr>
                   `).join("")}
+                  ${filtered.length === 0 ? `<tr><td colspan="5">Keine Spieler gefunden.</td></tr>` : ""}
                 </tbody>
               </table>
             </div>
@@ -977,21 +1060,22 @@
       document.getElementById("screenSubtitle").textContent = "Kommende, vergangene und zukünftige Trainings mit bearbeitbaren Antworten";
 
       const selectedTraining = trainings.find(t => t.id === state.reportsTrainingId) || trainings[0];
-      const selectedResponses = responses[selectedTraining.id] || {};
 
       let filteredPlayers = players.filter(p => state.filterUnit === "all" ? true : p.unit === state.filterUnit);
       filteredPlayers = getSortedPlayers(filteredPlayers, state.reportsSort);
 
-      const yesCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "yes").length;
-      const noCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "no").length;
-      const maybeCount = filteredPlayers.filter(p => selectedResponses[p.id]?.status === "maybe").length;
-      const openCount = filteredPlayers.filter(p => !selectedResponses[p.id] && p.healthStatus !== "injured").length;
+      const yesCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "yes").length;
+      const noCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "no").length;
+      const maybeCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "maybe").length;
+      const limitedCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "limited").length;
+      const openCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "open").length;
 
       content.innerHTML = `
         <div class="grid kpis">
           <div class="card"><div class="smallMuted">Zusage</div><div class="kpi">${yesCount}</div></div>
           <div class="card"><div class="smallMuted">Absage</div><div class="kpi">${noCount}</div></div>
           <div class="card"><div class="smallMuted">Unsicher</div><div class="kpi">${maybeCount}</div></div>
+          <div class="card"><div class="smallMuted">Limited</div><div class="kpi">${limitedCount}</div></div>
           <div class="card"><div class="smallMuted">Keine Antwort</div><div class="kpi">${openCount}</div></div>
         </div>
 
@@ -1040,16 +1124,16 @@
               </thead>
               <tbody>
                 ${filteredPlayers.map(player => {
-                  const response = selectedResponses[player.id];
+                  const response = (responses[selectedTraining.id] || {})[player.id];
                   const changed = response?.changedOnEventDay;
-                  const status = response ? response.status : "open";
+                  const status = getPlayerTrainingStatus(player, selectedTraining.id);
 
                   return `
                     <tr class="${changed ? "highlightRow" : ""}">
                       <td>${fullName(player)}</td>
                       <td>${player.unit}</td>
                       <td>${getStatusTag(status)}</td>
-                      <td>${response ? response.updatedAt : "offen"}</td>
+                      <td>${response ? response.updatedAt : (status === "limited" ? "automatisch" : "offen")}</td>
                       <td>${changed ? "Ja" : ""}</td>
                       <td>
                         ${player.healthStatus === "injured"
@@ -1059,10 +1143,15 @@
                       </td>
                       <td>
                         <div class="rowActions">
-                          <button class="button" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','yes')">Zusage</button>
-                          <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','maybe')">Unsicher</button>
-                          <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','no')">Absage</button>
-                          <button class="warnButton" onclick="adminSetInjury('${player.id}')">Verletzung</button>
+                          ${status === "limited" ? `
+                            <button class="warnButton" onclick="adminSetInjury('${player.id}')">Verletzung bearbeiten</button>
+                            <button class="secondaryButton" onclick="setPlayerFit('${player.id}')">Auf Fit setzen</button>
+                          ` : `
+                            <button class="button" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','yes')">Zusage</button>
+                            <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','maybe')">Unsicher</button>
+                            <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','no')">Absage</button>
+                            <button class="warnButton" onclick="adminSetInjury('${player.id}')">Verletzung</button>
+                          `}
                         </div>
                       </td>
                     </tr>
@@ -1131,6 +1220,10 @@
                           <div class="kpi">${stats.maybe}</div>
                         </div>
                         <div class="card">
+                          <div class="smallMuted">Limited</div>
+                          <div class="kpi">${stats.limited}</div>
+                        </div>
+                        <div class="card">
                           <div class="smallMuted">Nicht abgestimmt</div>
                           <div class="kpi">${stats.open}</div>
                         </div>
@@ -1166,7 +1259,7 @@
                               <strong>${item.training.title}</strong>
                               <p style="margin:8px 0 0 0;">${item.training.date} um ${item.training.time}</p>
                               <p style="margin:8px 0 0 0;">Status: ${getStatusTag(item.status)}</p>
-                              <p class="smallMuted" style="margin:8px 0 0 0;">Letzte Änderung: ${item.response ? item.response.updatedAt : "offen"}</p>
+                              <p class="smallMuted" style="margin:8px 0 0 0;">Letzte Änderung: ${item.response ? item.response.updatedAt : (item.status === "limited" ? "automatisch" : "offen")}</p>
                             </div>
                           `).join("")}
                         </div>
@@ -1270,8 +1363,8 @@
           av = a.healthStatus;
           bv = b.healthStatus;
         } else if (sortState.key === "status") {
-          av = ((responses[state.reportsTrainingId] || {})[a.id]?.status) || "open";
-          bv = ((responses[state.reportsTrainingId] || {})[b.id]?.status) || "open";
+          av = getPlayerTrainingStatus(a, state.reportsTrainingId);
+          bv = getPlayerTrainingStatus(b, state.reportsTrainingId);
         } else if (sortState.key === "updatedAt") {
           av = ((responses[state.reportsTrainingId] || {})[a.id]?.updatedAt) || "";
           bv = ((responses[state.reportsTrainingId] || {})[b.id]?.updatedAt) || "";
@@ -1313,6 +1406,12 @@
 
     function setPlayerResponse(trainingId, status) {
       const playerId = state.currentUser.playerId;
+      const player = players.find(p => p.id === playerId);
+      if (player.healthStatus === "injured") {
+        alert("Während des Verletzungszeitraums bist du automatisch Limited. Setze dich zuerst auf Fit.");
+        return;
+      }
+
       responses[trainingId] = responses[trainingId] || {};
       const training = trainings.find(t => t.id === trainingId);
 
@@ -1326,6 +1425,12 @@
     }
 
     function setCoachResponse(trainingId, playerId, status) {
+      const player = players.find(p => p.id === playerId);
+      if (player.healthStatus === "injured") {
+        alert("Spieler ist aktuell Verletzt/Krank und daher automatisch Limited. Setze ihn zuerst auf Fit.");
+        return;
+      }
+
       responses[trainingId] = responses[trainingId] || {};
       const training = trainings.find(t => t.id === trainingId);
 
@@ -1345,6 +1450,14 @@
         player.injuryType = "";
         player.unavailableDuration = "";
       }
+      renderApp();
+    }
+
+    function setPlayerFit(playerId) {
+      const player = players.find(p => p.id === playerId);
+      player.healthStatus = "fit";
+      player.injuryType = "";
+      player.unavailableDuration = "";
       renderApp();
     }
 
@@ -1608,19 +1721,40 @@
       renderPlayerSearchView();
     }
 
+    function searchPlayerList() {
+      state.playerListSearch = document.getElementById("playerListSearchInput").value.trim();
+      state.playerListUnit = "all";
+      renderPlayersView();
+    }
+
+    function clearPlayerListSearch() {
+      state.playerListSearch = "";
+      state.playerListUnit = "all";
+      renderPlayersView();
+    }
+
+    function setPlayerListUnit(unit) {
+      state.playerListUnit = unit;
+      state.playerListSearch = "";
+      renderPlayersView();
+    }
+
     function getPlayerStats(playerId) {
       let yes = 0;
       let no = 0;
       let maybe = 0;
+      let limited = 0;
       let open = 0;
 
       const timeline = trainings.map(training => {
         const response = (responses[training.id] || {})[playerId];
-        const status = response ? response.status : "open";
+        const player = players.find(p => p.id === playerId);
+        const status = getPlayerTrainingStatus(player, training.id);
 
         if (status === "yes") yes++;
         else if (status === "no") no++;
         else if (status === "maybe") maybe++;
+        else if (status === "limited") limited++;
         else open++;
 
         return {
@@ -1630,7 +1764,44 @@
         };
       });
 
-      return { yes, no, maybe, open, timeline };
+      return { yes, no, maybe, limited, open, timeline };
+    }
+
+    function renderDashboardUnitSummary(trainingId) {
+      const cards = [];
+
+      const offensePlayers = players.filter(p => offenseUnits.includes(p.unit));
+      const defensePlayers = players.filter(p => defenseUnits.includes(p.unit));
+
+      const offenseYes = offensePlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+      const defenseYes = defensePlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+
+      cards.push(`
+        <div class="card">
+          <div class="smallMuted">Offense</div>
+          <div class="kpi">${offenseYes}/${offensePlayers.length}</div>
+        </div>
+      `);
+
+      cards.push(`
+        <div class="card">
+          <div class="smallMuted">Defense</div>
+          <div class="kpi">${defenseYes}/${defensePlayers.length}</div>
+        </div>
+      `);
+
+      units.forEach(unit => {
+        const unitPlayers = players.filter(p => p.unit === unit);
+        const unitYes = unitPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+        cards.push(`
+          <div class="card">
+            <div class="smallMuted">${unit}s</div>
+            <div class="kpi">${unitYes}/${unitPlayers.length}</div>
+          </div>
+        `);
+      });
+
+      return cards.join("");
     }
 
     function escapeHtml(value) {
