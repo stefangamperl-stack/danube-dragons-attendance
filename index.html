@@ -319,6 +319,41 @@
       border-color: #2563eb;
     }
 
+    .chartWrap {
+      height: 320px;
+      background: #0f172a;
+      border: 1px solid #243056;
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .chartSvg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+
+    .legendItem {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legendSwatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+    }
+
     @media (max-width: 900px) {
       .app {
         grid-template-columns: 1fr;
@@ -412,8 +447,9 @@
   </div>
 
   <script>
-    const units = ["OL", "QB", "WR", "TE", "RB", "LB", "DB", "DL", "K"];
-    const offenseUnits = ["QB", "WR", "TE", "OL", "RB"];
+    const orderedGroups = ["Offense", "Defense", "K", "QB", "OL", "RB", "WR", "TE", "DL", "LB", "DB"];
+    const unitOrder = ["K", "QB", "OL", "RB", "WR", "TE", "DL", "LB", "DB"];
+    const offenseUnits = ["QB", "OL", "RB", "WR", "TE"];
     const defenseUnits = ["DL", "LB", "DB"];
 
     const users = [
@@ -449,6 +485,7 @@
         unavailableDuration: "2 Wochen",
         injuries: [
           {
+            id: "inj1",
             from: "2026-03-15",
             until: "2026-03-29",
             type: "Oberschenkel"
@@ -488,6 +525,32 @@
         lastName: "Walker",
         birthday: "1997-07-08",
         unit: "LB",
+        active: true,
+        healthStatus: "fit",
+        injuryType: "",
+        unavailableDuration: "",
+        injuries: []
+      },
+      {
+        id: "p6",
+        username: "kking",
+        firstName: "Kevin",
+        lastName: "King",
+        birthday: "1996-01-14",
+        unit: "QB",
+        active: true,
+        healthStatus: "fit",
+        injuryType: "",
+        unavailableDuration: "",
+        injuries: []
+      },
+      {
+        id: "p7",
+        username: "bbrown",
+        firstName: "Ben",
+        lastName: "Brown",
+        birthday: "1995-02-20",
+        unit: "K",
         active: true,
         healthStatus: "fit",
         injuryType: "",
@@ -539,12 +602,16 @@
         p1: { status: "yes", updatedAt: "2026-03-19 08:10", changedOnEventDay: true },
         p3: { status: "no", updatedAt: "2026-03-18 19:35", changedOnEventDay: false },
         p4: { status: "maybe", updatedAt: "2026-03-18 16:15", changedOnEventDay: false },
-        p5: { status: "yes", updatedAt: "2026-03-18 17:20", changedOnEventDay: false }
+        p5: { status: "yes", updatedAt: "2026-03-18 17:20", changedOnEventDay: false },
+        p6: { status: "yes", updatedAt: "2026-03-18 12:20", changedOnEventDay: false },
+        p7: { status: "yes", updatedAt: "2026-03-18 13:15", changedOnEventDay: false }
       },
       t2: {
         p1: { status: "maybe", updatedAt: "2026-03-20 18:20", changedOnEventDay: false },
         p3: { status: "yes", updatedAt: "2026-03-21 09:00", changedOnEventDay: true },
-        p4: { status: "yes", updatedAt: "2026-03-20 12:00", changedOnEventDay: false }
+        p4: { status: "yes", updatedAt: "2026-03-20 12:00", changedOnEventDay: false },
+        p5: { status: "no", updatedAt: "2026-03-20 11:00", changedOnEventDay: false },
+        p6: { status: "yes", updatedAt: "2026-03-20 09:00", changedOnEventDay: false }
       },
       t3: {}
     };
@@ -552,18 +619,19 @@
     let state = {
       currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
       currentView: "dashboard",
-      selectedTrainingId: "t1",
       reportsTrainingId: "t1",
-      filterUnit: "all",
+      filterGroup: "all",
+      filterResponse: "all",
       editingTrainingId: null,
       playerSearchValue: "",
       expandedPlayerSearchId: null,
-      playersSort: { key: "name", dir: "asc" },
       reportsSort: { key: "name", dir: "asc" },
       editPlayerId: null,
       editCoachId: null,
       playerListSearch: "",
-      playerListUnit: "all"
+      playerListGroup: "all",
+      editingLimitationPlayerId: null,
+      editingLimitationId: null
     };
 
     function saveSession() {
@@ -572,6 +640,22 @@
 
     function fullName(player) {
       return player.firstName + " " + player.lastName;
+    }
+
+    function getGroupLabelForUnit(unit) {
+      if (offenseUnits.includes(unit)) return "Offense";
+      if (defenseUnits.includes(unit)) return "Defense";
+      return unit;
+    }
+
+    function getOrderedFilterOptions() {
+      return orderedGroups;
+    }
+
+    function getPlayersForGroup(group) {
+      if (group === "Offense") return players.filter(p => offenseUnits.includes(p.unit));
+      if (group === "Defense") return players.filter(p => defenseUnits.includes(p.unit));
+      return players.filter(p => p.unit === group);
     }
 
     function showLanding() {
@@ -620,6 +704,12 @@
       renderApp();
     }
 
+    function limitationIsCurrent(limitation) {
+      if (!limitation.until) return true;
+      const today = new Date().toISOString().slice(0, 10);
+      return limitation.until >= today;
+    }
+
     function getPlayerTrainingStatus(player, trainingId) {
       const response = (responses[trainingId] || {})[player.id];
       if (player.healthStatus === "injured") return "limited";
@@ -652,10 +742,12 @@
 
       if (role === "adminCoach" || role === "headAdmin") {
         items.push(
-          { key: "trainings", label: "Trainings" },
-          { key: "players", label: "Spieler" },
-          { key: "reports", label: "Auswertungen" },
-          { key: "playerSearch", label: "Spielersuche" }
+          { key: "trainings", label: "Trainings bearbeiten" },
+          { key: "players", label: "Spielermanagement" },
+          { key: "reports", label: "Auswertung" },
+          { key: "limitations", label: "Limitations" },
+          { key: "playerSearch", label: "Spielersuche" },
+          { key: "statistics", label: "Statistik" }
         );
       }
 
@@ -727,6 +819,7 @@
             <p><strong>Loginname:</strong> ${player.username}</p>
             <p><strong>Geburtstag:</strong> ${player.birthday}</p>
             <p><strong>Unit:</strong> ${player.unit}</p>
+            <p><strong>Gruppe:</strong> ${getGroupLabelForUnit(player.unit)}</p>
             <p><strong>Gesundheit:</strong> ${player.healthStatus === "injured" ? "Verletzt/Krank" : "Fit"}</p>
           </div>
         `;
@@ -737,7 +830,9 @@
         document.getElementById("screenTitle").textContent = "Meine Trainings";
         document.getElementById("screenSubtitle").textContent = "Zusage, Absage, Unsicher oder automatisch Limited";
 
-        const trainingCards = trainings.map(training => {
+        const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+
+        const trainingCards = orderedTrainings.map(training => {
           const status = getPlayerTrainingStatus(player, training.id);
           const limited = status === "limited";
 
@@ -821,8 +916,18 @@
         return;
       }
 
+      if (state.currentView === "limitations") {
+        renderLimitationsView();
+        return;
+      }
+
       if (state.currentView === "playerSearch") {
         renderPlayerSearchView();
+        return;
+      }
+
+      if (state.currentView === "statistics") {
+        renderStatisticsView();
         return;
       }
 
@@ -840,7 +945,7 @@
         return;
       }
 
-      const filteredPlayers = players.filter(p => state.filterUnit === "all" ? true : p.unit === state.filterUnit);
+      const filteredPlayers = players.filter(p => filterPlayerByGroup(p, state.filterGroup));
 
       const yesCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "yes").length;
       const noCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "no").length;
@@ -876,13 +981,13 @@
           <div class="card">
             <h2>Filter</h2>
             <div class="field">
-              <label>Unit</label>
-              <select class="select" onchange="changeUnit(this.value)">
-                <option value="all">Alle Units</option>
-                ${units.map(u => `<option value="${u}" ${u === state.filterUnit ? "selected" : ""}>${u}</option>`).join("")}
+              <label>Gruppe / Unit</label>
+              <select class="select" onchange="changeGroupFilter(this.value)">
+                <option value="all">Alle</option>
+                ${getOrderedFilterOptions().map(g => `<option value="${g}" ${g === state.filterGroup ? "selected" : ""}>${g}</option>`).join("")}
               </select>
             </div>
-            <p class="smallMuted">Die vollständige Trainingsauswertung findest du unter Auswertungen.</p>
+            <p class="smallMuted">Die vollständige Trainingsauswertung findest du unter Auswertung.</p>
           </div>
         </div>
       `;
@@ -890,8 +995,8 @@
 
     function renderPlayersView() {
       const content = document.getElementById("content");
-      document.getElementById("screenTitle").textContent = "Spieler";
-      document.getElementById("screenSubtitle").textContent = "Suche nach Spieler oder klicke auf eine Unit";
+      document.getElementById("screenTitle").textContent = "Spielermanagement";
+      document.getElementById("screenSubtitle").textContent = "Suche nach Spieler oder klicke auf eine Gruppe / Unit";
 
       const editPlayer = state.editPlayerId ? players.find(p => p.id === state.editPlayerId) : null;
 
@@ -899,8 +1004,8 @@
       if (state.playerListSearch.trim()) {
         const search = state.playerListSearch.trim().toLowerCase();
         filtered = filtered.filter(p => fullName(p).toLowerCase().includes(search));
-      } else if (state.playerListUnit !== "all") {
-        filtered = filtered.filter(p => p.unit === state.playerListUnit);
+      } else if (state.playerListGroup !== "all") {
+        filtered = filtered.filter(p => filterPlayerByGroup(p, state.playerListGroup));
       }
 
       filtered.sort((a, b) => fullName(a).localeCompare(fullName(b)));
@@ -916,7 +1021,7 @@
             <div class="field">
               <label>Unit</label>
               <select id="playerUnit" class="select">
-                ${units.map(u => `<option value="${u}" ${editPlayer && editPlayer.unit === u ? "selected" : ""}>${u}</option>`).join("")}
+                ${unitOrder.map(u => `<option value="${u}" ${editPlayer && editPlayer.unit === u ? "selected" : ""}>${u}</option>`).join("")}
               </select>
             </div>
             <div class="rowActions">
@@ -937,10 +1042,10 @@
             </div>
 
             <div style="margin-top: 16px;">
-              <div class="smallMuted" style="margin-bottom: 10px;">Oder nach Unit filtern</div>
+              <div class="smallMuted" style="margin-bottom: 10px;">Oder nach Gruppe / Unit filtern</div>
               <div class="unitPills">
-                <button class="unitPill ${state.playerListUnit === "all" ? "active" : ""}" onclick="setPlayerListUnit('all')">Alle</button>
-                ${units.map(u => `<button class="unitPill ${state.playerListUnit === u ? "active" : ""}" onclick="setPlayerListUnit('${u}')">${u}</button>`).join("")}
+                <button class="unitPill ${state.playerListGroup === "all" ? "active" : ""}" onclick="setPlayerListGroup('all')">Alle</button>
+                ${getOrderedFilterOptions().map(g => `<button class="unitPill ${state.playerListGroup === g ? "active" : ""}" onclick="setPlayerListGroup('${g}')">${g}</button>`).join("")}
               </div>
             </div>
 
@@ -949,6 +1054,7 @@
                 <thead>
                   <tr>
                     <th>Name</th>
+                    <th>Gruppe</th>
                     <th>Unit</th>
                     <th>Geburtstag</th>
                     <th>Gesundheit</th>
@@ -959,6 +1065,7 @@
                   ${filtered.map(p => `
                     <tr>
                       <td>${fullName(p)}</td>
+                      <td>${getGroupLabelForUnit(p.unit)}</td>
                       <td>${p.unit}</td>
                       <td>${p.birthday}</td>
                       <td>${p.healthStatus === "injured" ? '<span class="tag tagInjured">Verletzt/Krank</span>' : 'Fit'}</td>
@@ -972,7 +1079,7 @@
                       </td>
                     </tr>
                   `).join("")}
-                  ${filtered.length === 0 ? `<tr><td colspan="5">Keine Spieler gefunden.</td></tr>` : ""}
+                  ${filtered.length === 0 ? `<tr><td colspan="6">Keine Spieler gefunden.</td></tr>` : ""}
                 </tbody>
               </table>
             </div>
@@ -983,10 +1090,11 @@
 
     function renderTrainingsView() {
       const content = document.getElementById("content");
-      document.getElementById("screenTitle").textContent = "Trainings";
+      document.getElementById("screenTitle").textContent = "Trainings bearbeiten";
       document.getElementById("screenSubtitle").textContent = "Trainings erstellen, bearbeiten und nur als Hauptadmin löschen";
 
       const editTraining = state.editingTrainingId ? trainings.find(t => t.id === state.editingTrainingId) : null;
+      const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 
       content.innerHTML = `
         <div class="twoCol">
@@ -1036,7 +1144,7 @@
 
           <div class="card">
             <h2>Trainingsliste</h2>
-            ${trainings.map(t => `
+            ${orderedTrainings.map(t => `
               <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
                 <strong>${t.title}</strong>
                 <p style="margin:8px 0 0 0;">${t.date} um ${t.time}</p>
@@ -1056,12 +1164,15 @@
 
     function renderReportsView() {
       const content = document.getElementById("content");
-      document.getElementById("screenTitle").textContent = "Auswertungen";
+      document.getElementById("screenTitle").textContent = "Auswertung";
       document.getElementById("screenSubtitle").textContent = "Kommende, vergangene und zukünftige Trainings mit bearbeitbaren Antworten";
 
       const selectedTraining = trainings.find(t => t.id === state.reportsTrainingId) || trainings[0];
 
-      let filteredPlayers = players.filter(p => state.filterUnit === "all" ? true : p.unit === state.filterUnit);
+      let filteredPlayers = players.filter(p => filterPlayerByGroup(p, state.filterGroup));
+      if (state.filterResponse !== "all") {
+        filteredPlayers = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === state.filterResponse);
+      }
       filteredPlayers = getSortedPlayers(filteredPlayers, state.reportsSort);
 
       const yesCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "yes").length;
@@ -1071,6 +1182,10 @@
       const openCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "open").length;
 
       content.innerHTML = `
+        <div class="grid unitSummary">
+          ${renderDashboardUnitSummary(selectedTraining.id)}
+        </div>
+
         <div class="grid kpis">
           <div class="card"><div class="smallMuted">Zusage</div><div class="kpi">${yesCount}</div></div>
           <div class="card"><div class="smallMuted">Absage</div><div class="kpi">${noCount}</div></div>
@@ -1085,7 +1200,7 @@
             <div class="field">
               <label>Training</label>
               <select class="select" onchange="changeReportsTraining(this.value)">
-                ${trainings.map(t => `<option value="${t.id}" ${t.id === state.reportsTrainingId ? "selected" : ""}>${t.title} · ${t.date}</option>`).join("")}
+                ${[...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(t => `<option value="${t.id}" ${t.id === state.reportsTrainingId ? "selected" : ""}>${t.title} · ${t.date}</option>`).join("")}
               </select>
             </div>
             <p><strong>${selectedTraining.title}</strong></p>
@@ -1098,10 +1213,21 @@
           <div class="card">
             <h2>Filter</h2>
             <div class="field">
-              <label>Unit</label>
-              <select class="select" onchange="changeUnit(this.value)">
-                <option value="all">Alle Units</option>
-                ${units.map(u => `<option value="${u}" ${u === state.filterUnit ? "selected" : ""}>${u}</option>`).join("")}
+              <label>Gruppe / Unit</label>
+              <select class="select" onchange="changeGroupFilter(this.value)">
+                <option value="all">Alle</option>
+                ${getOrderedFilterOptions().map(g => `<option value="${g}" ${g === state.filterGroup ? "selected" : ""}>${g}</option>`).join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label>Antwortstatus</label>
+              <select class="select" onchange="changeResponseFilter(this.value)">
+                <option value="all" ${state.filterResponse === "all" ? "selected" : ""}>Alle</option>
+                <option value="yes" ${state.filterResponse === "yes" ? "selected" : ""}>Zusage</option>
+                <option value="no" ${state.filterResponse === "no" ? "selected" : ""}>Absage</option>
+                <option value="limited" ${state.filterResponse === "limited" ? "selected" : ""}>Limited</option>
+                <option value="maybe" ${state.filterResponse === "maybe" ? "selected" : ""}>Unsicher</option>
+                <option value="open" ${state.filterResponse === "open" ? "selected" : ""}>Keine Antwort</option>
               </select>
             </div>
           </div>
@@ -1114,6 +1240,7 @@
               <thead>
                 <tr>
                   <th class="sortable" onclick="setReportsSort('name')">Spieler</th>
+                  <th class="sortable" onclick="setReportsSort('group')">Gruppe</th>
                   <th class="sortable" onclick="setReportsSort('unit')">Unit</th>
                   <th class="sortable" onclick="setReportsSort('status')">Status</th>
                   <th class="sortable" onclick="setReportsSort('updatedAt')">Letzte Änderung</th>
@@ -1131,6 +1258,7 @@
                   return `
                     <tr class="${changed ? "highlightRow" : ""}">
                       <td>${fullName(player)}</td>
+                      <td>${getGroupLabelForUnit(player.unit)}</td>
                       <td>${player.unit}</td>
                       <td>${getStatusTag(status)}</td>
                       <td>${response ? response.updatedAt : (status === "limited" ? "automatisch" : "offen")}</td>
@@ -1144,13 +1272,13 @@
                       <td>
                         <div class="rowActions">
                           ${status === "limited" ? `
-                            <button class="warnButton" onclick="adminSetInjury('${player.id}')">Verletzung bearbeiten</button>
+                            <button class="warnButton" onclick="openLimitationEdit('${player.id}')">Limitation bearbeiten</button>
                             <button class="secondaryButton" onclick="setPlayerFit('${player.id}')">Auf Fit setzen</button>
                           ` : `
                             <button class="button" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','yes')">Zusage</button>
                             <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','maybe')">Unsicher</button>
                             <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','no')">Absage</button>
-                            <button class="warnButton" onclick="adminSetInjury('${player.id}')">Verletzung</button>
+                            <button class="warnButton" onclick="openLimitationEdit('${player.id}')">Limitation</button>
                           `}
                         </div>
                       </td>
@@ -1160,6 +1288,98 @@
               </tbody>
             </table>
           </div>
+        </div>
+      `;
+    }
+
+    function renderLimitationsView() {
+      const content = document.getElementById("content");
+      document.getElementById("screenTitle").textContent = "Limitations";
+      document.getElementById("screenSubtitle").textContent = "Aktuell Limited und vergangene Limitations bearbeiten";
+
+      const player = state.editingLimitationPlayerId ? players.find(p => p.id === state.editingLimitationPlayerId) : null;
+      const currentLimitations = [];
+      const pastLimitations = [];
+
+      players.forEach(p => {
+        (p.injuries || []).forEach(lim => {
+          const item = { player: p, limitation: lim };
+          if (limitationIsCurrent(lim)) currentLimitations.push(item);
+          else pastLimitations.push(item);
+        });
+      });
+
+      currentLimitations.sort((a, b) => fullName(a.player).localeCompare(fullName(b.player)));
+      pastLimitations.sort((a, b) => fullName(a.player).localeCompare(fullName(b.player)));
+
+      content.innerHTML = `
+        <div class="twoCol">
+          <div class="card">
+            <h2>${player ? `Limitation für ${fullName(player)}` : "Limitation erfassen"}</h2>
+
+            <div class="field">
+              <label>Spieler</label>
+              <select id="limitationPlayer" class="select">
+                ${players.sort((a, b) => fullName(a).localeCompare(fullName(b))).map(p => `
+                  <option value="${p.id}" ${player && p.id === player.id ? "selected" : ""}>${fullName(p)} · ${p.unit}</option>
+                `).join("")}
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Art</label>
+              <input id="limitationType" class="input" value="${state.editingLimitationId && player ? escapeHtml(findLimitation(player, state.editingLimitationId)?.type || "") : ""}" placeholder="z. B. Knöchel, Schulter, Krankheit" />
+            </div>
+
+            <div class="field">
+              <label>Start</label>
+              <input id="limitationFrom" class="input" type="date" value="${state.editingLimitationId && player ? (findLimitation(player, state.editingLimitationId)?.from || "") : ""}" />
+            </div>
+
+            <div class="field">
+              <label>Ende</label>
+              <input id="limitationUntil" class="input" type="date" value="${state.editingLimitationId && player ? (findLimitation(player, state.editingLimitationId)?.until || "") : ""}" />
+            </div>
+
+            <div class="rowActions">
+              <button class="button" onclick="${state.editingLimitationId ? "updateLimitation()" : "createLimitation()"}">${state.editingLimitationId ? "Limitation speichern" : "Limitation anlegen"}</button>
+              ${state.editingLimitationId ? `<button class="secondaryButton" onclick="cancelLimitationEdit()">Abbrechen</button>` : ""}
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Aktuell Limited</h2>
+            ${currentLimitations.length === 0 ? `<p>Keine aktuellen Limitations.</p>` : currentLimitations.map(item => `
+              <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
+                <strong>${fullName(item.player)}</strong>
+                <p style="margin:8px 0 0 0;">Gruppe: ${getGroupLabelForUnit(item.player.unit)} · Unit: ${item.player.unit}</p>
+                <p style="margin:8px 0 0 0;">Art: ${item.limitation.type}</p>
+                <p style="margin:8px 0 0 0;">Von: ${item.limitation.from}</p>
+                <p style="margin:8px 0 0 0;">Bis: ${item.limitation.until || "offen"}</p>
+                <div class="rowActions" style="margin-top:10px;">
+                  <button class="secondaryButton" onclick="startLimitationEdit('${item.player.id}','${item.limitation.id}')">Bearbeiten</button>
+                  <button class="dangerButton" onclick="deleteLimitation('${item.player.id}','${item.limitation.id}')">Löschen</button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Vergangen</h2>
+          ${pastLimitations.length === 0 ? `<p>Keine vergangenen Limitations.</p>` : pastLimitations.map(item => `
+            <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
+              <strong>${fullName(item.player)}</strong>
+              <p style="margin:8px 0 0 0;">Gruppe: ${getGroupLabelForUnit(item.player.unit)} · Unit: ${item.player.unit}</p>
+              <p style="margin:8px 0 0 0;">Art: ${item.limitation.type}</p>
+              <p style="margin:8px 0 0 0;">Von: ${item.limitation.from}</p>
+              <p style="margin:8px 0 0 0;">Bis: ${item.limitation.until || "offen"}</p>
+              <div class="rowActions" style="margin-top:10px;">
+                <button class="secondaryButton" onclick="startLimitationEdit('${item.player.id}','${item.limitation.id}')">Bearbeiten</button>
+                <button class="dangerButton" onclick="deleteLimitation('${item.player.id}','${item.limitation.id}')">Löschen</button>
+              </div>
+            </div>
+          `).join("")}
         </div>
       `;
     }
@@ -1196,6 +1416,7 @@
                     <div>
                       <strong>${fullName(player)}</strong>
                       <div class="inlineInfo smallMuted">
+                        <span>Gruppe: ${getGroupLabelForUnit(player.unit)}</span>
                         <span>Unit: ${player.unit}</span>
                         <span>Geburtstag: ${player.birthday}</span>
                         <span>Loginname: ${player.username}</span>
@@ -1245,7 +1466,7 @@
                           <h3>Verwaltung</h3>
                           <div class="rowActions">
                             <button class="secondaryButton" onclick="startPlayerEdit('${player.id}'); setView('players');">Bearbeiten</button>
-                            <button class="warnButton" onclick="adminSetInjury('${player.id}')">Verletzung</button>
+                            <button class="warnButton" onclick="openLimitationEdit('${player.id}')">Limitation</button>
                             ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${player.id}')">Reset-Link</button>` : ""}
                           </div>
                         </div>
@@ -1271,6 +1492,154 @@
             }).join("")}
           </div>
         ` : ""}
+      `;
+    }
+
+    function renderStatisticsView() {
+      const content = document.getElementById("content");
+      document.getElementById("screenTitle").textContent = "Statistik";
+      document.getElementById("screenSubtitle").textContent = "Vergangene Trainings als Zahlen, Prozent und Diagramm";
+
+      const pastTrainings = [...trainings].filter(t => true).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+
+      const rows = pastTrainings.map(training => {
+        const eligiblePlayers = players.filter(p => getPlayerTrainingStatus(p, training.id) !== "limited");
+        const total = players.length;
+        const yes = players.filter(p => getPlayerTrainingStatus(p, training.id) === "yes").length;
+        const no = players.filter(p => getPlayerTrainingStatus(p, training.id) === "no").length;
+        const maybe = players.filter(p => getPlayerTrainingStatus(p, training.id) === "maybe").length;
+        const limited = players.filter(p => getPlayerTrainingStatus(p, training.id) === "limited").length;
+        const open = players.filter(p => getPlayerTrainingStatus(p, training.id) === "open").length;
+
+        const eligibleTotal = eligiblePlayers.length || 1;
+        return {
+          training,
+          total,
+          yes,
+          no,
+          maybe,
+          limited,
+          open,
+          yesPct: Math.round((yes / eligibleTotal) * 100),
+          noPct: Math.round((no / eligibleTotal) * 100),
+          maybePct: Math.round((maybe / eligibleTotal) * 100),
+          openPct: Math.round((open / eligibleTotal) * 100)
+        };
+      });
+
+      const overallEligible = rows.reduce((sum, r) => sum + Math.max(r.total - r.limited, 0), 0) || 1;
+      const overallYes = rows.reduce((sum, r) => sum + r.yes, 0);
+      const overallNo = rows.reduce((sum, r) => sum + r.no, 0);
+      const overallMaybe = rows.reduce((sum, r) => sum + r.maybe, 0);
+      const overallLimited = rows.reduce((sum, r) => sum + r.limited, 0);
+      const overallOpen = rows.reduce((sum, r) => sum + r.open, 0);
+
+      content.innerHTML = `
+        <div class="grid kpis">
+          <div class="card"><div class="smallMuted">Gesamt Zusagen</div><div class="kpi">${overallYes}</div></div>
+          <div class="card"><div class="smallMuted">Gesamt Absagen</div><div class="kpi">${overallNo}</div></div>
+          <div class="card"><div class="smallMuted">Gesamt Unsicher</div><div class="kpi">${overallMaybe}</div></div>
+          <div class="card"><div class="smallMuted">Gesamt Limited</div><div class="kpi">${overallLimited}</div></div>
+          <div class="card"><div class="smallMuted">Gesamt Keine Antwort</div><div class="kpi">${overallOpen}</div></div>
+          <div class="card"><div class="smallMuted">Zusagequote</div><div class="kpi">${Math.round((overallYes / overallEligible) * 100)}%</div></div>
+        </div>
+
+        <div class="card">
+          <h2>Verlauf als Diagramm</h2>
+          <div class="chartWrap">
+            ${buildStatisticsChart(rows)}
+          </div>
+          <div class="legend">
+            <div class="legendItem"><span class="legendSwatch" style="background:#22c55e;"></span> Zusage %</div>
+            <div class="legendItem"><span class="legendSwatch" style="background:#ef4444;"></span> Absage %</div>
+            <div class="legendItem"><span class="legendSwatch" style="background:#94a3b8;"></span> Unsicher %</div>
+            <div class="legendItem"><span class="legendSwatch" style="background:#f59e0b;"></span> Keine Antwort %</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+          <h2>Vergangene Trainings</h2>
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Training</th>
+                  <th>Datum</th>
+                  <th>Zusage</th>
+                  <th>Absage</th>
+                  <th>Unsicher</th>
+                  <th>Limited</th>
+                  <th>Keine Antwort</th>
+                  <th>Zusage %</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>
+                    <td>${r.training.title}</td>
+                    <td>${r.training.date}</td>
+                    <td>${r.yes}</td>
+                    <td>${r.no}</td>
+                    <td>${r.maybe}</td>
+                    <td>${r.limited}</td>
+                    <td>${r.open}</td>
+                    <td>${r.yesPct}%</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function buildStatisticsChart(rows) {
+      if (!rows.length) {
+        return `<div class="smallMuted">Keine Daten vorhanden.</div>`;
+      }
+
+      const width = 900;
+      const height = 260;
+      const paddingX = 50;
+      const paddingY = 30;
+      const innerWidth = width - paddingX * 2;
+      const innerHeight = height - paddingY * 2;
+      const stepX = rows.length > 1 ? innerWidth / (rows.length - 1) : 0;
+
+      function pointY(value) {
+        return paddingY + innerHeight - (value / 100) * innerHeight;
+      }
+
+      function buildPath(key) {
+        return rows.map((row, index) => {
+          const x = paddingX + index * stepX;
+          const y = pointY(row[key]);
+          return `${index === 0 ? "M" : "L"} ${x} ${y}`;
+        }).join(" ");
+      }
+
+      const labels = rows.map((row, index) => {
+        const x = paddingX + index * stepX;
+        return `<text x="${x}" y="${height - 6}" fill="#cbd5e1" font-size="12" text-anchor="middle">${row.training.date.slice(5)}</text>`;
+      }).join("");
+
+      const horizontalLines = [0,25,50,75,100].map(v => {
+        const y = pointY(v);
+        return `
+          <line x1="${paddingX}" y1="${y}" x2="${width - paddingX}" y2="${y}" stroke="#243056" />
+          <text x="10" y="${y + 4}" fill="#cbd5e1" font-size="12">${v}%</text>
+        `;
+      }).join("");
+
+      return `
+        <svg class="chartSvg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+          ${horizontalLines}
+          <path d="${buildPath("yesPct")}" fill="none" stroke="#22c55e" stroke-width="3" />
+          <path d="${buildPath("noPct")}" fill="none" stroke="#ef4444" stroke-width="3" />
+          <path d="${buildPath("maybePct")}" fill="none" stroke="#94a3b8" stroke-width="3" />
+          <path d="${buildPath("openPct")}" fill="none" stroke="#f59e0b" stroke-width="3" />
+          ${labels}
+        </svg>
       `;
     }
 
@@ -1344,6 +1713,13 @@
       })[0] || null;
     }
 
+    function filterPlayerByGroup(player, group) {
+      if (group === "all") return true;
+      if (group === "Offense") return offenseUnits.includes(player.unit);
+      if (group === "Defense") return defenseUnits.includes(player.unit);
+      return player.unit === group;
+    }
+
     function getSortedPlayers(list, sortState) {
       const copy = [...list];
       copy.sort((a, b) => {
@@ -1353,15 +1729,12 @@
         if (sortState.key === "name") {
           av = fullName(a).toLowerCase();
           bv = fullName(b).toLowerCase();
+        } else if (sortState.key === "group") {
+          av = getGroupLabelForUnit(a.unit);
+          bv = getGroupLabelForUnit(b.unit);
         } else if (sortState.key === "unit") {
           av = a.unit;
           bv = b.unit;
-        } else if (sortState.key === "birthday") {
-          av = a.birthday;
-          bv = b.birthday;
-        } else if (sortState.key === "health") {
-          av = a.healthStatus;
-          bv = b.healthStatus;
         } else if (sortState.key === "status") {
           av = getPlayerTrainingStatus(a, state.reportsTrainingId);
           bv = getPlayerTrainingStatus(b, state.reportsTrainingId);
@@ -1376,15 +1749,6 @@
       return copy;
     }
 
-    function setPlayersSort(key) {
-      if (state.playersSort.key === key) {
-        state.playersSort.dir = state.playersSort.dir === "asc" ? "desc" : "asc";
-      } else {
-        state.playersSort = { key, dir: "asc" };
-      }
-      renderPlayersView();
-    }
-
     function setReportsSort(key) {
       if (state.reportsSort.key === key) {
         state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
@@ -1394,9 +1758,14 @@
       renderReportsView();
     }
 
-    function changeUnit(unit) {
-      state.filterUnit = unit;
+    function changeGroupFilter(group) {
+      state.filterGroup = group;
       renderApp();
+    }
+
+    function changeResponseFilter(value) {
+      state.filterResponse = value;
+      renderReportsView();
     }
 
     function changeReportsTraining(trainingId) {
@@ -1472,32 +1841,106 @@
 
       if (!player.injuries) player.injuries = [];
       player.injuries.push({
+        id: "inj" + Date.now(),
         from: new Date().toISOString().slice(0, 10),
-        until: injuryDuration || "offen",
+        until: injuryDuration || "",
         type: injuryType || "nicht angegeben"
       });
 
       renderApp();
     }
 
-    function adminSetInjury(playerId) {
-      const player = players.find(p => p.id === playerId);
-      const injuryType = prompt("Art der Verletzung/Krankheit für " + fullName(player), player.injuryType || "");
-      if (injuryType === null) return;
-      const injuryDuration = prompt("Voraussichtliche Verhinderungsdauer", player.unavailableDuration || "");
-      if (injuryDuration === null) return;
+    function openLimitationEdit(playerId) {
+      state.editingLimitationPlayerId = playerId;
+      state.editingLimitationId = null;
+      state.currentView = "limitations";
+      renderLimitationsView();
+    }
 
-      player.healthStatus = "injured";
-      player.injuryType = injuryType;
-      player.unavailableDuration = injuryDuration;
+    function findLimitation(player, limitationId) {
+      return (player.injuries || []).find(l => l.id === limitationId);
+    }
+
+    function createLimitation() {
+      const playerId = document.getElementById("limitationPlayer").value;
+      const type = document.getElementById("limitationType").value.trim();
+      const from = document.getElementById("limitationFrom").value;
+      const until = document.getElementById("limitationUntil").value;
+
+      if (!playerId || !type || !from) {
+        alert("Bitte Spieler, Art und Start ausfüllen.");
+        return;
+      }
+
+      const player = players.find(p => p.id === playerId);
       if (!player.injuries) player.injuries = [];
       player.injuries.push({
-        from: new Date().toISOString().slice(0, 10),
-        until: injuryDuration || "offen",
-        type: injuryType || "nicht angegeben"
+        id: "inj" + Date.now(),
+        type,
+        from,
+        until
       });
+      player.healthStatus = "injured";
+      player.injuryType = type;
+      player.unavailableDuration = until || "";
 
-      renderApp();
+      state.editingLimitationPlayerId = null;
+      state.editingLimitationId = null;
+      renderLimitationsView();
+    }
+
+    function startLimitationEdit(playerId, limitationId) {
+      state.editingLimitationPlayerId = playerId;
+      state.editingLimitationId = limitationId;
+      renderLimitationsView();
+    }
+
+    function cancelLimitationEdit() {
+      state.editingLimitationPlayerId = null;
+      state.editingLimitationId = null;
+      renderLimitationsView();
+    }
+
+    function updateLimitation() {
+      const player = players.find(p => p.id === state.editingLimitationPlayerId);
+      if (!player) return;
+      const limitation = findLimitation(player, state.editingLimitationId);
+      if (!limitation) return;
+
+      limitation.type = document.getElementById("limitationType").value.trim();
+      limitation.from = document.getElementById("limitationFrom").value;
+      limitation.until = document.getElementById("limitationUntil").value;
+
+      if (limitationIsCurrent(limitation)) {
+        player.healthStatus = "injured";
+        player.injuryType = limitation.type;
+        player.unavailableDuration = limitation.until || "";
+      }
+
+      state.editingLimitationPlayerId = null;
+      state.editingLimitationId = null;
+      renderLimitationsView();
+    }
+
+    function deleteLimitation(playerId, limitationId) {
+      const player = players.find(p => p.id === playerId);
+      if (!player) return;
+      if (!confirm("Limitation wirklich löschen?")) return;
+
+      player.injuries = (player.injuries || []).filter(l => l.id !== limitationId);
+
+      const current = (player.injuries || []).find(limitationIsCurrent);
+      if (current) {
+        player.healthStatus = "injured";
+        player.injuryType = current.type;
+        player.unavailableDuration = current.until || "";
+      } else {
+        player.healthStatus = "fit";
+        player.injuryType = "";
+        player.unavailableDuration = "";
+      }
+
+      renderLimitationsView();
     }
 
     function createTraining() {
@@ -1723,18 +2166,18 @@
 
     function searchPlayerList() {
       state.playerListSearch = document.getElementById("playerListSearchInput").value.trim();
-      state.playerListUnit = "all";
+      state.playerListGroup = "all";
       renderPlayersView();
     }
 
     function clearPlayerListSearch() {
       state.playerListSearch = "";
-      state.playerListUnit = "all";
+      state.playerListGroup = "all";
       renderPlayersView();
     }
 
-    function setPlayerListUnit(unit) {
-      state.playerListUnit = unit;
+    function setPlayerListGroup(group) {
+      state.playerListGroup = group;
       state.playerListSearch = "";
       renderPlayersView();
     }
@@ -1746,7 +2189,8 @@
       let limited = 0;
       let open = 0;
 
-      const timeline = trainings.map(training => {
+      const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const timeline = orderedTrainings.map(training => {
         const response = (responses[training.id] || {})[playerId];
         const player = players.find(p => p.id === playerId);
         const status = getPlayerTrainingStatus(player, training.id);
@@ -1770,33 +2214,15 @@
     function renderDashboardUnitSummary(trainingId) {
       const cards = [];
 
-      const offensePlayers = players.filter(p => offenseUnits.includes(p.unit));
-      const defensePlayers = players.filter(p => defenseUnits.includes(p.unit));
+      orderedGroups.forEach(group => {
+        const groupPlayers = getPlayersForGroup(group);
+        if (!groupPlayers.length) return;
 
-      const offenseYes = offensePlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
-      const defenseYes = defensePlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
-
-      cards.push(`
-        <div class="card">
-          <div class="smallMuted">Offense</div>
-          <div class="kpi">${offenseYes}/${offensePlayers.length}</div>
-        </div>
-      `);
-
-      cards.push(`
-        <div class="card">
-          <div class="smallMuted">Defense</div>
-          <div class="kpi">${defenseYes}/${defensePlayers.length}</div>
-        </div>
-      `);
-
-      units.forEach(unit => {
-        const unitPlayers = players.filter(p => p.unit === unit);
-        const unitYes = unitPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+        const groupYes = groupPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
         cards.push(`
           <div class="card">
-            <div class="smallMuted">${unit}s</div>
-            <div class="kpi">${unitYes}/${unitPlayers.length}</div>
+            <div class="smallMuted">${group}</div>
+            <div class="kpi">${groupYes}/${groupPlayers.length}</div>
           </div>
         `);
       });
