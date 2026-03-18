@@ -64,9 +64,27 @@
     .topbar {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 12px;
       margin-bottom: 24px;
+    }
+
+    .topbarRight {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .dateTimeBadge {
+      background: #18213f;
+      color: white;
+      border: 1px solid #243056;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: 700;
     }
 
     .roleBadge {
@@ -354,9 +372,23 @@
       border-radius: 999px;
     }
 
-    .filterSummary {
-      line-height: 1.8;
-      white-space: pre-line;
+    .statusSummary {
+      display: grid;
+      gap: 6px;
+      line-height: 1.7;
+    }
+
+    .statusSummaryRow {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid #243056;
+      padding-bottom: 4px;
+    }
+
+    .statusSummaryRow:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
     }
 
     @media (max-width: 900px) {
@@ -376,6 +408,10 @@
       .topbar {
         align-items: flex-start;
         flex-direction: column;
+      }
+
+      .topbarRight {
+        justify-content: flex-start;
       }
     }
   </style>
@@ -441,7 +477,8 @@
           <h1 id="screenTitle" style="margin:0;">Dashboard</h1>
           <div class="smallMuted" id="screenSubtitle">Demoansicht</div>
         </div>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div class="topbarRight">
+          <div class="dateTimeBadge" id="currentDateTime">--:--</div>
           <div class="roleBadge" id="roleBadge">Rolle</div>
           <button class="secondaryButton" onclick="logout()">Abmelden</button>
         </div>
@@ -458,7 +495,7 @@
     const defenseUnits = ["DL", "LB", "DB"];
 
     const users = [
-      { id: "u1", username: "sgamperl", password: "test123", role: "player", displayName: "Stefan Gamperl", playerId: "p1", email: "sgamperl@example.com" },
+      { id: "u1", username: "sgamperl", password: "test123", role: "player", displayName: "Stefan Gamperl", playerId: "p_lb_1", email: "sgamperl@example.com" },
       { id: "u2", username: "coachweber", password: "test123", role: "adminCoach", displayName: "Coach Weber", email: "coachweber@example.com" },
       { id: "u3", username: "hauptadmin", password: "test123", role: "headAdmin", displayName: "Hauptadmin", email: "hauptadmin@example.com" }
     ];
@@ -605,6 +642,7 @@
       currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
       currentView: "dashboard",
       reportsTrainingId: "t1",
+      selectedTrainingId: "t1",
       filterGroup: "all",
       filterResponse: "all",
       dashboardResponseFilter: "all",
@@ -622,6 +660,19 @@
 
     function saveSession() {
       localStorage.setItem("dd_user", JSON.stringify(state.currentUser));
+    }
+
+    function updateCurrentDateTime() {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yyyy = now.getFullYear();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const mi = String(now.getMinutes()).padStart(2, "0");
+      const el = document.getElementById("currentDateTime");
+      if (el) {
+        el.textContent = `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+      }
     }
 
     function fullName(player) {
@@ -668,6 +719,7 @@
       document.getElementById("landing").classList.add("hidden");
       document.getElementById("loginScreen").classList.add("hidden");
       document.getElementById("appScreen").classList.remove("hidden");
+      updateCurrentDateTime();
       renderApp();
     }
 
@@ -718,14 +770,26 @@
       return '<span class="tag tagOpen">Keine Antwort</span>';
     }
 
-    function renderFilterSummary() {
+    function getStatusCounts(trainingId, filteredPlayers) {
+      return {
+        yes: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length,
+        no: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "no").length,
+        maybe: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "maybe").length,
+        limited: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "limited").length,
+        open: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "open").length
+      };
+    }
+
+    function renderStatusSummary(counts) {
       return `
-Zusage
-Absage
-Unsicher
-Limited
-Keine Antwort
-      `.trim();
+        <div class="statusSummary">
+          <div class="statusSummaryRow"><span>Zusage</span><strong>${counts.yes}</strong></div>
+          <div class="statusSummaryRow"><span>Absage</span><strong>${counts.no}</strong></div>
+          <div class="statusSummaryRow"><span>Unsicher</span><strong>${counts.maybe}</strong></div>
+          <div class="statusSummaryRow"><span>Limited</span><strong>${counts.limited}</strong></div>
+          <div class="statusSummaryRow"><span>Keine Antwort</span><strong>${counts.open}</strong></div>
+        </div>
+      `;
     }
 
     function renderNav() {
@@ -767,6 +831,7 @@ Keine Antwort
     }
 
     function renderApp() {
+      updateCurrentDateTime();
       renderNav();
       document.getElementById("roleBadge").textContent = state.currentUser.role;
       if (state.currentUser.role === "player") {
@@ -903,8 +968,6 @@ Keine Antwort
     }
 
     function renderCoachView() {
-      const content = document.getElementById("content");
-
       if (state.currentView === "players") {
         renderPlayersView();
         return;
@@ -940,6 +1003,11 @@ Keine Antwort
         return;
       }
 
+      renderDashboardView();
+    }
+
+    function renderDashboardView() {
+      const content = document.getElementById("content");
       document.getElementById("screenTitle").textContent = "Coach Dashboard";
       document.getElementById("screenSubtitle").textContent = "Nur kommendes Training";
 
@@ -954,25 +1022,12 @@ Keine Antwort
         filteredPlayers = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === state.dashboardResponseFilter);
       }
 
-      const yesCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "yes").length;
-      const noCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "no").length;
-      const maybeCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "maybe").length;
-      const limitedCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "limited").length;
-      const openCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "open").length;
-
+      const counts = getStatusCounts(selectedTraining.id, filteredPlayers);
       const summaryCards = renderDashboardUnitSummary(selectedTraining.id);
 
       content.innerHTML = `
         <div class="grid unitSummary">
           ${summaryCards}
-        </div>
-
-        <div class="grid kpis">
-          <div class="card"><div class="smallMuted">Zusage</div><div class="kpi">${yesCount}</div></div>
-          <div class="card"><div class="smallMuted">Absage</div><div class="kpi">${noCount}</div></div>
-          <div class="card"><div class="smallMuted">Unsicher</div><div class="kpi">${maybeCount}</div></div>
-          <div class="card"><div class="smallMuted">Limited</div><div class="kpi">${limitedCount}</div></div>
-          <div class="card"><div class="smallMuted">Keine Antwort</div><div class="kpi">${openCount}</div></div>
         </div>
 
         <div class="twoCol">
@@ -1005,7 +1060,7 @@ Keine Antwort
                 <option value="open" ${state.dashboardResponseFilter === "open" ? "selected" : ""}>Keine Antwort</option>
               </select>
             </div>
-            <div class="smallMuted filterSummary">${renderFilterSummary()}</div>
+            ${renderStatusSummary(counts)}
           </div>
         </div>
 
@@ -1135,72 +1190,75 @@ Keine Antwort
     function renderTrainingsView() {
       const content = document.getElementById("content");
       document.getElementById("screenTitle").textContent = "Trainings bearbeiten";
-      document.getElementById("screenSubtitle").textContent = "Trainings erstellen, bearbeiten und nur als Hauptadmin löschen";
+      document.getElementById("screenSubtitle").textContent = "Training auswählen, dann bearbeiten oder löschen";
 
-      const editTraining = state.editingTrainingId ? trainings.find(t => t.id === state.editingTrainingId) : null;
       const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const selectedTraining = orderedTrainings.find(t => t.id === state.selectedTrainingId) || orderedTrainings[0];
+      if (selectedTraining) {
+        state.selectedTrainingId = selectedTraining.id;
+      }
 
       content.innerHTML = `
         <div class="twoCol">
           <div class="card">
-            <h2>${editTraining ? "Training bearbeiten" : "Training erstellen"}</h2>
+            <h2>Training auswählen</h2>
+            <div class="field">
+              <label>Trainingsliste</label>
+              <select id="trainingSelectDropdown" class="select" onchange="changeTrainingSelection(this.value)">
+                ${orderedTrainings.map(t => `<option value="${t.id}" ${selectedTraining && t.id === selectedTraining.id ? "selected" : ""}>${t.date} · ${t.title}</option>`).join("")}
+              </select>
+            </div>
+
+            ${selectedTraining ? `
+              <div class="rowActions">
+                <button class="secondaryButton" onclick="startTrainingEdit('${selectedTraining.id}')">Bearbeiten</button>
+                ${state.currentUser.role === "headAdmin" ? `<button class="dangerButton" onclick="deleteTraining('${selectedTraining.id}')">Löschen</button>` : ""}
+              </div>
+            ` : ""}
+          </div>
+
+          <div class="card">
+            <h2>${state.editingTrainingId ? "Training bearbeiten" : "Training erstellen"}</h2>
 
             <div class="field">
               <label>Titel</label>
-              <input id="trainingTitle" class="input" placeholder="z. B. Teamtraining Dienstag" value="${editTraining ? escapeHtml(editTraining.title) : ""}" />
+              <input id="trainingTitle" class="input" placeholder="z. B. Teamtraining Dienstag" value="${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.title) : ""}" />
             </div>
 
             <div class="field">
               <label>Datum</label>
-              <input id="trainingDate" class="input" type="date" value="${editTraining ? editTraining.date : ""}" />
+              <input id="trainingDate" class="input" type="date" value="${state.editingTrainingId && selectedTraining ? selectedTraining.date : ""}" />
             </div>
 
             <div class="field">
               <label>Uhrzeit</label>
-              <input id="trainingTime" class="input" type="time" value="${editTraining ? editTraining.time : ""}" />
+              <input id="trainingTime" class="input" type="time" value="${state.editingTrainingId && selectedTraining ? selectedTraining.time : ""}" />
             </div>
 
             <div class="field">
               <label>Ort</label>
-              <input id="trainingLocation" class="input" placeholder="Sportzentrum Nord" value="${editTraining ? escapeHtml(editTraining.location) : ""}" />
+              <input id="trainingLocation" class="input" placeholder="Sportzentrum Nord" value="${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.location) : ""}" />
             </div>
 
             <div class="field">
               <label>Notizen</label>
-              <textarea id="trainingNotes" class="textarea" placeholder="Pads mitbringen">${editTraining ? escapeHtml(editTraining.notes) : ""}</textarea>
+              <textarea id="trainingNotes" class="textarea" placeholder="Pads mitbringen">${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.notes) : ""}</textarea>
             </div>
 
             <div class="field">
               <label>Abstimmung startet X Stunden vor Beginn</label>
-              <input id="voteOpensHoursBefore" class="input" type="number" min="0" value="${editTraining ? editTraining.voteOpensHoursBefore : 72}" />
+              <input id="voteOpensHoursBefore" class="input" type="number" min="0" value="${state.editingTrainingId && selectedTraining ? selectedTraining.voteOpensHoursBefore : 72}" />
             </div>
 
             <div class="field">
               <label>Abstimmung endet X Stunden vor Beginn</label>
-              <input id="voteClosesHoursBefore" class="input" type="number" min="0" value="${editTraining ? editTraining.voteClosesHoursBefore : 6}" />
+              <input id="voteClosesHoursBefore" class="input" type="number" min="0" value="${state.editingTrainingId && selectedTraining ? selectedTraining.voteClosesHoursBefore : 6}" />
             </div>
 
             <div class="rowActions">
-              <button class="button" onclick="${editTraining ? "updateTraining()" : "createTraining()"}">${editTraining ? "Training speichern" : "Training erstellen"}</button>
-              ${editTraining ? `<button class="secondaryButton" onclick="cancelTrainingEdit()">Abbrechen</button>` : ""}
+              <button class="button" onclick="${state.editingTrainingId ? "updateTraining()" : "createTraining()"}">${state.editingTrainingId ? "Training speichern" : "Training erstellen"}</button>
+              ${state.editingTrainingId ? `<button class="secondaryButton" onclick="cancelTrainingEdit()">Abbrechen</button>` : ""}
             </div>
-          </div>
-
-          <div class="card">
-            <h2>Trainingsliste</h2>
-            ${orderedTrainings.map(t => `
-              <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
-                <strong>${t.title}</strong>
-                <p style="margin:8px 0 0 0;">${t.date} um ${t.time}</p>
-                <p style="margin:8px 0 0 0;">${t.location}</p>
-                <p class="smallMuted" style="margin:8px 0 0 0;">${t.notes}</p>
-                <p class="smallMuted" style="margin:8px 0 0 0;">Abstimmung: ${t.voteOpensHoursBefore}h bis ${t.voteClosesHoursBefore}h vor Beginn</p>
-                <div class="rowActions" style="margin-top:10px;">
-                  <button class="secondaryButton" onclick="startTrainingEdit('${t.id}')">Bearbeiten</button>
-                  ${state.currentUser.role === "headAdmin" ? `<button class="dangerButton" onclick="deleteTraining('${t.id}')">Löschen</button>` : ""}
-                </div>
-              </div>
-            `).join("")}
           </div>
         </div>
       `;
@@ -1211,7 +1269,8 @@ Keine Antwort
       document.getElementById("screenTitle").textContent = "Auswertung";
       document.getElementById("screenSubtitle").textContent = "Kommende, vergangene und zukünftige Trainings mit bearbeitbaren Antworten";
 
-      const selectedTraining = trainings.find(t => t.id === state.reportsTrainingId) || trainings[0];
+      const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const selectedTraining = orderedTrainings.find(t => t.id === state.reportsTrainingId) || orderedTrainings[0];
 
       let filteredPlayers = players.filter(p => filterPlayerByGroup(p, state.filterGroup));
       if (state.filterResponse !== "all") {
@@ -1219,41 +1278,29 @@ Keine Antwort
       }
       filteredPlayers = getSortedPlayers(filteredPlayers, state.reportsSort);
 
-      const yesCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "yes").length;
-      const noCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "no").length;
-      const maybeCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "maybe").length;
-      const limitedCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "limited").length;
-      const openCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "open").length;
+      const counts = getStatusCounts(selectedTraining.id, filteredPlayers);
 
       content.innerHTML = `
+        <div class="card" style="margin-bottom: 24px;">
+          <h2>Trainingsdatum auswählen</h2>
+          <div class="field">
+            <label>Datum</label>
+            <select class="select" onchange="changeReportsTraining(this.value)">
+              ${orderedTrainings.map(t => `<option value="${t.id}" ${t.id === selectedTraining.id ? "selected" : ""}>${t.date} · ${t.title}</option>`).join("")}
+            </select>
+          </div>
+          <p><strong>${selectedTraining.title}</strong></p>
+          <p>${selectedTraining.date} um ${selectedTraining.time}</p>
+          <p>${selectedTraining.location}</p>
+          <p class="smallMuted">${selectedTraining.notes}</p>
+          <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
+        </div>
+
         <div class="grid unitSummary">
           ${renderDashboardUnitSummary(selectedTraining.id)}
         </div>
 
-        <div class="grid kpis">
-          <div class="card"><div class="smallMuted">Zusage</div><div class="kpi">${yesCount}</div></div>
-          <div class="card"><div class="smallMuted">Absage</div><div class="kpi">${noCount}</div></div>
-          <div class="card"><div class="smallMuted">Unsicher</div><div class="kpi">${maybeCount}</div></div>
-          <div class="card"><div class="smallMuted">Limited</div><div class="kpi">${limitedCount}</div></div>
-          <div class="card"><div class="smallMuted">Keine Antwort</div><div class="kpi">${openCount}</div></div>
-        </div>
-
         <div class="twoCol">
-          <div class="card">
-            <h2>Training auswählen</h2>
-            <div class="field">
-              <label>Training</label>
-              <select class="select" onchange="changeReportsTraining(this.value)">
-                ${[...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)).map(t => `<option value="${t.id}" ${t.id === state.reportsTrainingId ? "selected" : ""}>${t.title} · ${t.date}</option>`).join("")}
-              </select>
-            </div>
-            <p><strong>${selectedTraining.title}</strong></p>
-            <p>${selectedTraining.date} um ${selectedTraining.time}</p>
-            <p>${selectedTraining.location}</p>
-            <p class="smallMuted">${selectedTraining.notes}</p>
-            <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
-          </div>
-
           <div class="card">
             <h2>Filter</h2>
             <div class="field">
@@ -1274,7 +1321,11 @@ Keine Antwort
                 <option value="open" ${state.filterResponse === "open" ? "selected" : ""}>Keine Antwort</option>
               </select>
             </div>
-            <div class="smallMuted filterSummary">${renderFilterSummary()}</div>
+          </div>
+
+          <div class="card">
+            <h2>Statusübersicht</h2>
+            ${renderStatusSummary(counts)}
           </div>
         </div>
 
@@ -1819,12 +1870,18 @@ Keine Antwort
 
     function changeDashboardResponseFilter(value) {
       state.dashboardResponseFilter = value;
-      renderCoachView();
+      renderDashboardView();
     }
 
     function changeReportsTraining(trainingId) {
       state.reportsTrainingId = trainingId;
       renderReportsView();
+    }
+
+    function changeTrainingSelection(trainingId) {
+      state.selectedTrainingId = trainingId;
+      state.editingTrainingId = null;
+      renderTrainingsView();
     }
 
     function setPlayerResponse(trainingId, status) {
@@ -2025,11 +2082,13 @@ Keine Antwort
       });
 
       state.editingTrainingId = null;
+      state.selectedTrainingId = newId;
       state.reportsTrainingId = newId;
       renderTrainingsView();
     }
 
     function startTrainingEdit(trainingId) {
+      state.selectedTrainingId = trainingId;
       state.editingTrainingId = trainingId;
       renderTrainingsView();
     }
@@ -2066,6 +2125,7 @@ Keine Antwort
       delete responses[trainingId];
       if (state.editingTrainingId === trainingId) state.editingTrainingId = null;
       if (state.reportsTrainingId === trainingId) state.reportsTrainingId = trainings[0]?.id || null;
+      if (state.selectedTrainingId === trainingId) state.selectedTrainingId = trainings[0]?.id || null;
       renderTrainingsView();
     }
 
@@ -2298,6 +2358,9 @@ Keine Antwort
     } else {
       showLanding();
     }
+
+    updateCurrentDateTime();
+    setInterval(updateCurrentDateTime, 30000);
   </script>
 </body>
 </html>
