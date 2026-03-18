@@ -511,7 +511,7 @@
         active: true,
         healthStatus: injured ? "injured" : "fit",
         injuryType: injured ? "Testverletzung" : "",
-        unavailableDuration: injured ? "2026-03-29" : "",
+        unavailableDuration: injured ? "29.03.2026" : "",
         injuries: injured ? [{
           id: "inj_" + id,
           from: "2026-03-15",
@@ -662,16 +662,42 @@
       localStorage.setItem("dd_user", JSON.stringify(state.currentUser));
     }
 
+    function formatDateDisplay(dateStr) {
+      if (!dateStr) return "";
+      const [y, m, d] = dateStr.split("-");
+      return `${d}.${m}.${y}`;
+    }
+
+    function formatDateTimeDisplay(dateObj) {
+      const dd = String(dateObj.getDate()).padStart(2, "0");
+      const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const yyyy = dateObj.getFullYear();
+      const hh = String(dateObj.getHours()).padStart(2, "0");
+      const mi = String(dateObj.getMinutes()).padStart(2, "0");
+      return `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+    }
+
+    function getTrainingStartDate(training) {
+      return new Date(`${training.date}T${training.time}:00`);
+    }
+
+    function getTrainingVoteDeadline(training) {
+      const start = getTrainingStartDate(training);
+      return new Date(start.getTime() - training.voteClosesHoursBefore * 60 * 60 * 1000);
+    }
+
+    function isTrainingPast(training) {
+      return new Date() > getTrainingStartDate(training);
+    }
+
+    function isPlayerVoteLocked(training) {
+      return new Date() > getTrainingVoteDeadline(training);
+    }
+
     function updateCurrentDateTime() {
-      const now = new Date();
-      const dd = String(now.getDate()).padStart(2, "0");
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const yyyy = now.getFullYear();
-      const hh = String(now.getHours()).padStart(2, "0");
-      const mi = String(now.getMinutes()).padStart(2, "0");
       const el = document.getElementById("currentDateTime");
       if (el) {
-        el.textContent = `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
+        el.textContent = formatDateTimeDisplay(new Date());
       }
     }
 
@@ -886,7 +912,7 @@
           <div class="card">
             <h2>${fullName(player)}</h2>
             <p><strong>Loginname:</strong> ${player.username}</p>
-            <p><strong>Geburtstag:</strong> ${player.birthday}</p>
+            <p><strong>Geburtstag:</strong> ${formatDateDisplay(player.birthday)}</p>
             <p><strong>Unit:</strong> ${player.unit}</p>
             <p><strong>Gruppe:</strong> ${getGroupLabelForUnit(player.unit)}</p>
             <p><strong>Gesundheit:</strong> ${player.healthStatus === "injured" ? "Verletzt/Krank" : "Fit"}</p>
@@ -897,29 +923,38 @@
 
       if (state.currentView === "trainings") {
         document.getElementById("screenTitle").textContent = "Meine Trainings";
-        document.getElementById("screenSubtitle").textContent = "Zusage, Absage, Unsicher oder automatisch Limited";
+        document.getElementById("screenSubtitle").textContent = "Vergangene Trainings sichtbar, Änderungen nur bis zur Frist";
 
-        const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
 
         const trainingCards = orderedTrainings.map(training => {
           const status = getPlayerTrainingStatus(player, training.id);
           const limited = status === "limited";
+          const locked = isPlayerVoteLocked(training);
+          const past = isTrainingPast(training);
+          const deadline = getTrainingVoteDeadline(training);
 
           return `
             <div class="card">
               <h3>${training.title}</h3>
-              <p>${training.date} um ${training.time}</p>
+              <p>${formatDateDisplay(training.date)} um ${training.time}</p>
               <p>${training.location}</p>
               <p class="smallMuted">${training.notes}</p>
-              <p><strong>Abstimmung offen:</strong> ${training.voteOpensHoursBefore}h bis ${training.voteClosesHoursBefore}h vor Beginn</p>
+              <p><strong>Abstimmung offen:</strong> bis ${formatDateDisplay(training.date)} · ${training.voteClosesHoursBefore}h vor Beginn</p>
+              <p><strong>Änderungsfrist endet:</strong> ${formatDateDisplay(training.date)} ${String(deadline.getHours()).padStart(2, "0")}:${String(deadline.getMinutes()).padStart(2, "0")}</p>
               <p><strong>Status:</strong> ${getStatusTag(status)}</p>
-              ${limited ? `<p class="smallMuted">Während des Verletzungszeitraums bist du automatisch Limited. Für andere Optionen musst du zuerst deinen Status auf Fit ändern.</p>` : `
+
+              ${limited ? `<p class="smallMuted">Während des Verletzungszeitraums bist du automatisch Limited. Für andere Optionen musst du zuerst deinen Status auf Fit ändern.</p>` : ""}
+              ${past ? `<p class="smallMuted">Dieses Training ist bereits vorbei. Die Antwort ist fixiert.</p>` : ""}
+              ${!past && !limited && locked ? `<p class="smallMuted">Die Frist zur Änderung deiner Antwort ist abgelaufen. Nur Coaches/Admins können jetzt noch ändern.</p>` : ""}
+
+              ${!past && !limited && !locked ? `
                 <div class="statusButtons">
                   <button class="button" onclick="setPlayerResponse('${training.id}','yes')">Zusage</button>
                   <button class="secondaryButton" onclick="setPlayerResponse('${training.id}','maybe')">Unsicher</button>
                   <button class="secondaryButton" onclick="setPlayerResponse('${training.id}','no')">Absage</button>
                 </div>
-              `}
+              ` : ""}
             </div>
           `;
         }).join("");
@@ -929,7 +964,7 @@
       }
 
       document.getElementById("screenTitle").textContent = "Spieler Dashboard";
-      document.getElementById("screenSubtitle").textContent = "Nur kommendes Training";
+      document.getElementById("screenSubtitle").textContent = "Nur nächstes kommendes Training";
 
       const upcomingTraining = getUpcomingTraining();
 
@@ -952,14 +987,14 @@
           </div>
           <div class="card">
             <div class="smallMuted">Nächstes Training</div>
-            <div class="kpi">${upcomingTraining.date}</div>
+            <div class="kpi">${formatDateDisplay(upcomingTraining.date)}</div>
           </div>
         </div>
 
         <div class="card">
           <h2>Kommendes Training</h2>
           <p><strong>${upcomingTraining.title}</strong></p>
-          <p>${upcomingTraining.date} um ${upcomingTraining.time}</p>
+          <p>${formatDateDisplay(upcomingTraining.date)} um ${upcomingTraining.time}</p>
           <p>${upcomingTraining.location}</p>
           <p class="smallMuted">${upcomingTraining.notes}</p>
           <p><strong>Mein Status:</strong> ${getStatusTag(myStatus)}</p>
@@ -1009,7 +1044,7 @@
     function renderDashboardView() {
       const content = document.getElementById("content");
       document.getElementById("screenTitle").textContent = "Coach Dashboard";
-      document.getElementById("screenSubtitle").textContent = "Nur kommendes Training";
+      document.getElementById("screenSubtitle").textContent = "Nur nächstes kommendes Training";
 
       const selectedTraining = getUpcomingTraining();
       if (!selectedTraining) {
@@ -1034,7 +1069,7 @@
           <div class="card">
             <h2>Kommendes Training</h2>
             <p><strong>${selectedTraining.title}</strong></p>
-            <p>${selectedTraining.date} um ${selectedTraining.time}</p>
+            <p>${formatDateDisplay(selectedTraining.date)} um ${selectedTraining.time}</p>
             <p>${selectedTraining.location}</p>
             <p class="smallMuted">${selectedTraining.notes}</p>
             <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
@@ -1166,7 +1201,7 @@
                       <td>${fullName(p)}</td>
                       <td>${getGroupLabelForUnit(p.unit)}</td>
                       <td>${p.unit}</td>
-                      <td>${p.birthday}</td>
+                      <td>${formatDateDisplay(p.birthday)}</td>
                       <td>${p.healthStatus === "injured" ? '<span class="tag tagInjured">Verletzt/Krank</span>' : 'Fit'}</td>
                       <td>
                         <div class="rowActions">
@@ -1192,7 +1227,7 @@
       document.getElementById("screenTitle").textContent = "Trainings bearbeiten";
       document.getElementById("screenSubtitle").textContent = "Training auswählen, dann bearbeiten oder löschen";
 
-      const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
       const selectedTraining = orderedTrainings.find(t => t.id === state.selectedTrainingId) || orderedTrainings[0];
       if (selectedTraining) {
         state.selectedTrainingId = selectedTraining.id;
@@ -1205,7 +1240,7 @@
             <div class="field">
               <label>Trainingsliste</label>
               <select id="trainingSelectDropdown" class="select" onchange="changeTrainingSelection(this.value)">
-                ${orderedTrainings.map(t => `<option value="${t.id}" ${selectedTraining && t.id === selectedTraining.id ? "selected" : ""}>${t.date} · ${t.title}</option>`).join("")}
+                ${orderedTrainings.map(t => `<option value="${t.id}" ${selectedTraining && t.id === selectedTraining.id ? "selected" : ""}>${formatDateDisplay(t.date)} · ${t.title}</option>`).join("")}
               </select>
             </div>
 
@@ -1269,7 +1304,7 @@
       document.getElementById("screenTitle").textContent = "Auswertung";
       document.getElementById("screenSubtitle").textContent = "Kommende, vergangene und zukünftige Trainings mit bearbeitbaren Antworten";
 
-      const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
       const selectedTraining = orderedTrainings.find(t => t.id === state.reportsTrainingId) || orderedTrainings[0];
 
       let filteredPlayers = players.filter(p => filterPlayerByGroup(p, state.filterGroup));
@@ -1286,11 +1321,11 @@
           <div class="field">
             <label>Datum</label>
             <select class="select" onchange="changeReportsTraining(this.value)">
-              ${orderedTrainings.map(t => `<option value="${t.id}" ${t.id === selectedTraining.id ? "selected" : ""}>${t.date} · ${t.title}</option>`).join("")}
+              ${orderedTrainings.map(t => `<option value="${t.id}" ${t.id === selectedTraining.id ? "selected" : ""}>${formatDateDisplay(t.date)} · ${t.title}</option>`).join("")}
             </select>
           </div>
           <p><strong>${selectedTraining.title}</strong></p>
-          <p>${selectedTraining.date} um ${selectedTraining.time}</p>
+          <p>${formatDateDisplay(selectedTraining.date)} um ${selectedTraining.time}</p>
           <p>${selectedTraining.location}</p>
           <p class="smallMuted">${selectedTraining.notes}</p>
           <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
@@ -1357,7 +1392,7 @@
                       <td>${getGroupLabelForUnit(player.unit)}</td>
                       <td>${player.unit}</td>
                       <td>${getStatusTag(status)}</td>
-                      <td>${response ? response.updatedAt : (status === "limited" ? "automatisch" : "offen")}</td>
+                      <td>${response ? `${formatDateDisplay(response.updatedAt.slice(0,10))} ${response.updatedAt.slice(11,16)}` : (status === "limited" ? "automatisch" : "offen")}</td>
                       <td>${changed ? "Ja" : ""}</td>
                       <td>
                         ${player.healthStatus === "injured"
@@ -1452,8 +1487,8 @@
                 <strong>${fullName(item.player)}</strong>
                 <p style="margin:8px 0 0 0;">Gruppe: ${getGroupLabelForUnit(item.player.unit)} · Unit: ${item.player.unit}</p>
                 <p style="margin:8px 0 0 0;">Art: ${item.limitation.type}</p>
-                <p style="margin:8px 0 0 0;">Von: ${item.limitation.from}</p>
-                <p style="margin:8px 0 0 0;">Bis: ${item.limitation.until || "offen"}</p>
+                <p style="margin:8px 0 0 0;">Von: ${formatDateDisplay(item.limitation.from)}</p>
+                <p style="margin:8px 0 0 0;">Bis: ${item.limitation.until ? formatDateDisplay(item.limitation.until) : "offen"}</p>
                 <div class="rowActions" style="margin-top:10px;">
                   <button class="secondaryButton" onclick="startLimitationEdit('${item.player.id}','${item.limitation.id}')">Bearbeiten</button>
                   <button class="dangerButton" onclick="deleteLimitation('${item.player.id}','${item.limitation.id}')">Löschen</button>
@@ -1470,8 +1505,8 @@
               <strong>${fullName(item.player)}</strong>
               <p style="margin:8px 0 0 0;">Gruppe: ${getGroupLabelForUnit(item.player.unit)} · Unit: ${item.player.unit}</p>
               <p style="margin:8px 0 0 0;">Art: ${item.limitation.type}</p>
-              <p style="margin:8px 0 0 0;">Von: ${item.limitation.from}</p>
-              <p style="margin:8px 0 0 0;">Bis: ${item.limitation.until || "offen"}</p>
+              <p style="margin:8px 0 0 0;">Von: ${formatDateDisplay(item.limitation.from)}</p>
+              <p style="margin:8px 0 0 0;">Bis: ${item.limitation.until ? formatDateDisplay(item.limitation.until) : "offen"}</p>
               <div class="rowActions" style="margin-top:10px;">
                 <button class="secondaryButton" onclick="startLimitationEdit('${item.player.id}','${item.limitation.id}')">Bearbeiten</button>
                 <button class="dangerButton" onclick="deleteLimitation('${item.player.id}','${item.limitation.id}')">Löschen</button>
@@ -1516,7 +1551,7 @@
                       <div class="inlineInfo smallMuted">
                         <span>Gruppe: ${getGroupLabelForUnit(player.unit)}</span>
                         <span>Unit: ${player.unit}</span>
-                        <span>Geburtstag: ${player.birthday}</span>
+                        <span>Geburtstag: ${formatDateDisplay(player.birthday)}</span>
                         <span>Loginname: ${player.username}</span>
                       </div>
                     </div>
@@ -1554,8 +1589,8 @@
                           ${player.injuries && player.injuries.length > 0 ? player.injuries.map(injury => `
                             <div style="border:1px solid #243056; border-radius:12px; padding:12px; margin-bottom:12px;">
                               <p><strong>Art:</strong> ${injury.type}</p>
-                              <p><strong>Von:</strong> ${injury.from}</p>
-                              <p><strong>Bis:</strong> ${injury.until}</p>
+                              <p><strong>Von:</strong> ${formatDateDisplay(injury.from)}</p>
+                              <p><strong>Bis:</strong> ${injury.until ? formatDateDisplay(injury.until) : "offen"}</p>
                             </div>
                           `).join("") : `<p class="smallMuted">Keine gespeicherten Verletzungszeiträume.</p>`}
                         </div>
@@ -1576,9 +1611,9 @@
                           ${stats.timeline.map(item => `
                             <div class="timelineItem">
                               <strong>${item.training.title}</strong>
-                              <p style="margin:8px 0 0 0;">${item.training.date} um ${item.training.time}</p>
+                              <p style="margin:8px 0 0 0;">${formatDateDisplay(item.training.date)} um ${item.training.time}</p>
                               <p style="margin:8px 0 0 0;">Status: ${getStatusTag(item.status)}</p>
-                              <p class="smallMuted" style="margin:8px 0 0 0;">Letzte Änderung: ${item.response ? item.response.updatedAt : (item.status === "limited" ? "automatisch" : "offen")}</p>
+                              <p class="smallMuted" style="margin:8px 0 0 0;">Letzte Änderung: ${item.response ? `${formatDateDisplay(item.response.updatedAt.slice(0,10))} ${item.response.updatedAt.slice(11,16)}` : (item.status === "limited" ? "automatisch" : "offen")}</p>
                             </div>
                           `).join("")}
                         </div>
@@ -1598,7 +1633,10 @@
       document.getElementById("screenTitle").textContent = "Statistik";
       document.getElementById("screenSubtitle").textContent = "Vergangene Trainings als Zahlen, Prozent und Diagramm";
 
-      const pastTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const now = new Date();
+      const pastTrainings = [...trainings]
+        .filter(t => getTrainingStartDate(t) < now)
+        .sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
 
       const rows = pastTrainings.map(training => {
         const total = players.length;
@@ -1676,7 +1714,7 @@
                 ${rows.map(r => `
                   <tr>
                     <td>${r.training.title}</td>
-                    <td>${r.training.date}</td>
+                    <td>${formatDateDisplay(r.training.date)}</td>
                     <td>${r.yes}</td>
                     <td>${r.no}</td>
                     <td>${r.maybe}</td>
@@ -1685,6 +1723,7 @@
                     <td>${r.yesPct}%</td>
                   </tr>
                 `).join("")}
+                ${rows.length === 0 ? `<tr><td colspan="8">Noch keine vergangenen Trainings vorhanden.</td></tr>` : ""}
               </tbody>
             </table>
           </div>
@@ -1719,7 +1758,7 @@
 
       const labels = rows.map((row, index) => {
         const x = paddingX + index * stepX;
-        return `<text x="${x}" y="${height - 6}" fill="#cbd5e1" font-size="12" text-anchor="middle">${row.training.date.slice(5)}</text>`;
+        return `<text x="${x}" y="${height - 6}" fill="#cbd5e1" font-size="12" text-anchor="middle">${formatDateDisplay(row.training.date).slice(0,5)}</text>`;
       }).join("");
 
       const horizontalLines = [0,25,50,75,100].map(v => {
@@ -1806,11 +1845,11 @@
     }
 
     function getUpcomingTraining() {
-      return [...trainings].sort((a, b) => {
-        const da = a.date + "T" + a.time;
-        const db = b.date + "T" + b.time;
-        return da.localeCompare(db);
-      })[0] || null;
+      const now = new Date();
+      const futureTrainings = [...trainings]
+        .filter(t => getTrainingStartDate(t) > now)
+        .sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
+      return futureTrainings[0] || null;
     }
 
     function filterPlayerByGroup(player, group) {
@@ -1887,17 +1926,22 @@
     function setPlayerResponse(trainingId, status) {
       const playerId = state.currentUser.playerId;
       const player = players.find(p => p.id === playerId);
+      const training = trainings.find(t => t.id === trainingId);
+
       if (player.healthStatus === "injured") {
         alert("Während des Verletzungszeitraums bist du automatisch Limited. Setze dich zuerst auf Fit.");
         return;
       }
 
-      responses[trainingId] = responses[trainingId] || {};
-      const training = trainings.find(t => t.id === trainingId);
+      if (isPlayerVoteLocked(training)) {
+        alert("Die Frist zur Änderung deiner Antwort ist abgelaufen. Nur Coaches/Admins können jetzt noch ändern.");
+        return;
+      }
 
+      responses[trainingId] = responses[trainingId] || {};
       responses[trainingId][playerId] = {
         status,
-        updatedAt: training.date + " 12:00",
+        updatedAt: `${training.date} 12:00`,
         changedOnEventDay: true
       };
 
@@ -1906,17 +1950,16 @@
 
     function setCoachResponse(trainingId, playerId, status) {
       const player = players.find(p => p.id === playerId);
+      const training = trainings.find(t => t.id === trainingId);
       if (player.healthStatus === "injured") {
         alert("Spieler ist aktuell Verletzt/Krank und daher automatisch Limited. Setze ihn zuerst auf Fit.");
         return;
       }
 
       responses[trainingId] = responses[trainingId] || {};
-      const training = trainings.find(t => t.id === trainingId);
-
       responses[trainingId][playerId] = {
         status,
-        updatedAt: training.date + " 12:00",
+        updatedAt: `${training.date} 12:00`,
         changedOnEventDay: true
       };
 
@@ -1993,7 +2036,7 @@
       });
       player.healthStatus = "injured";
       player.injuryType = type;
-      player.unavailableDuration = until || "";
+      player.unavailableDuration = until ? formatDateDisplay(until) : "";
 
       state.editingLimitationPlayerId = null;
       state.editingLimitationId = null;
@@ -2025,7 +2068,7 @@
       if (limitationIsCurrent(limitation)) {
         player.healthStatus = "injured";
         player.injuryType = limitation.type;
-        player.unavailableDuration = limitation.until || "";
+        player.unavailableDuration = limitation.until ? formatDateDisplay(limitation.until) : "";
       }
 
       state.editingLimitationPlayerId = null;
@@ -2044,7 +2087,7 @@
       if (current) {
         player.healthStatus = "injured";
         player.injuryType = current.type;
-        player.unavailableDuration = current.until || "";
+        player.unavailableDuration = current.until ? formatDateDisplay(current.until) : "";
       } else {
         player.healthStatus = "fit";
         player.injuryType = "";
@@ -2303,7 +2346,7 @@
       let limited = 0;
       let open = 0;
 
-      const orderedTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
       const timeline = orderedTrainings.map(training => {
         const response = (responses[training.id] || {})[playerId];
         const player = players.find(p => p.id === playerId);
