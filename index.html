@@ -142,7 +142,7 @@
     }
 
     .grid.kpis {
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       margin-bottom: 24px;
     }
 
@@ -354,6 +354,11 @@
       border-radius: 999px;
     }
 
+    .filterSummary {
+      line-height: 1.8;
+      white-space: pre-line;
+    }
+
     @media (max-width: 900px) {
       .app {
         grid-template-columns: 1fr;
@@ -458,105 +463,81 @@
       { id: "u3", username: "hauptadmin", password: "test123", role: "headAdmin", displayName: "Hauptadmin", email: "hauptadmin@example.com" }
     ];
 
+    function makePlayer(id, username, firstName, lastName, birthday, unit, injured = false) {
+      return {
+        id,
+        username,
+        firstName,
+        lastName,
+        birthday,
+        unit,
+        active: true,
+        healthStatus: injured ? "injured" : "fit",
+        injuryType: injured ? "Testverletzung" : "",
+        unavailableDuration: injured ? "2026-03-29" : "",
+        injuries: injured ? [{
+          id: "inj_" + id,
+          from: "2026-03-15",
+          until: "2026-03-29",
+          type: "Testverletzung"
+        }] : []
+      };
+    }
+
     const players = [
-      {
-        id: "p1",
-        username: "sgamperl",
-        firstName: "Stefan",
-        lastName: "Gamperl",
-        birthday: "1998-03-10",
-        unit: "LB",
-        active: true,
-        healthStatus: "fit",
-        injuryType: "",
-        unavailableDuration: "",
-        injuries: []
-      },
-      {
-        id: "p2",
-        username: "mfrank",
-        firstName: "Michael",
-        lastName: "Frank",
-        birthday: "2000-09-12",
-        unit: "WR",
-        active: true,
-        healthStatus: "injured",
-        injuryType: "Oberschenkel",
-        unavailableDuration: "2 Wochen",
-        injuries: [
-          {
-            id: "inj1",
-            from: "2026-03-15",
-            until: "2026-03-29",
-            type: "Oberschenkel"
-          }
-        ]
-      },
-      {
-        id: "p3",
-        username: "dschmid",
-        firstName: "David",
-        lastName: "Schmid",
-        birthday: "2001-06-02",
-        unit: "OL",
-        active: true,
-        healthStatus: "fit",
-        injuryType: "",
-        unavailableDuration: "",
-        injuries: []
-      },
-      {
-        id: "p4",
-        username: "sfrank",
-        firstName: "Stefan",
-        lastName: "Frank",
-        birthday: "1999-11-22",
-        unit: "DB",
-        active: true,
-        healthStatus: "fit",
-        injuryType: "",
-        unavailableDuration: "",
-        injuries: []
-      },
-      {
-        id: "p5",
-        username: "twalker",
-        firstName: "Thomas",
-        lastName: "Walker",
-        birthday: "1997-07-08",
-        unit: "LB",
-        active: true,
-        healthStatus: "fit",
-        injuryType: "",
-        unavailableDuration: "",
-        injuries: []
-      },
-      {
-        id: "p6",
-        username: "kking",
-        firstName: "Kevin",
-        lastName: "King",
-        birthday: "1996-01-14",
-        unit: "QB",
-        active: true,
-        healthStatus: "fit",
-        injuryType: "",
-        unavailableDuration: "",
-        injuries: []
-      },
-      {
-        id: "p7",
-        username: "bbrown",
-        firstName: "Ben",
-        lastName: "Brown",
-        birthday: "1995-02-20",
-        unit: "K",
-        active: true,
-        healthStatus: "fit",
-        injuryType: "",
-        unavailableDuration: "",
-        injuries: []
-      }
+      makePlayer("p_k_1","kmueller","Karl","Mueller","1996-01-14","K"),
+      makePlayer("p_k_2","kschmidt","Kevin","Schmidt","1997-02-10","K"),
+      makePlayer("p_k_3","kbecker","Konrad","Becker","1998-03-11","K"),
+      makePlayer("p_k_4","kfischer","Klaus","Fischer","1999-04-12","K"),
+      makePlayer("p_k_5","kweber","Kai","Weber","2000-05-13","K"),
+
+      makePlayer("p_qb_1","qadler","Quirin","Adler","1996-01-14","QB"),
+      makePlayer("p_qb_2","qbrandt","Quentin","Brandt","1997-02-10","QB"),
+      makePlayer("p_qb_3","qclaas","Quinn","Claas","1998-03-11","QB"),
+      makePlayer("p_qb_4","qdorn","Quirin","Dorn","1999-04-12","QB"),
+      makePlayer("p_qb_5","qengel","Quincy","Engel","2000-05-13","QB"),
+
+      makePlayer("p_ol_1","oacker","Oliver","Acker","1996-01-14","OL"),
+      makePlayer("p_ol_2","obach","Oskar","Bach","1997-02-10","OL"),
+      makePlayer("p_ol_3","ocosta","Otto","Costa","1998-03-11","OL"),
+      makePlayer("p_ol_4","odrexler","Oleg","Drexler","1999-04-12","OL"),
+      makePlayer("p_ol_5","oegger","Otis","Egger","2000-05-13","OL"),
+
+      makePlayer("p_rb_1","rahrer","Rene","Ahrer","1996-01-14","RB"),
+      makePlayer("p_rb_2","rberger","Roman","Berger","1997-02-10","RB"),
+      makePlayer("p_rb_3","rcelik","Rico","Celik","1998-03-11","RB"),
+      makePlayer("p_rb_4","rdittrich","Ralf","Dittrich","1999-04-12","RB"),
+      makePlayer("p_rb_5","reder","Ruben","Eder","2000-05-13","RB"),
+
+      makePlayer("p_wr_1","wahn","Walter","Ahn","1996-01-14","WR", true),
+      makePlayer("p_wr_2","wbrandt","Willi","Brandt","1997-02-10","WR"),
+      makePlayer("p_wr_3","wcerny","Werner","Cerny","1998-03-11","WR"),
+      makePlayer("p_wr_4","wdietz","Wolf","Dietz","1999-04-12","WR"),
+      makePlayer("p_wr_5","weckert","Willi","Eckert","2000-05-13","WR"),
+
+      makePlayer("p_te_1","talmer","Thomas","Almer","1996-01-14","TE"),
+      makePlayer("p_te_2","tboehm","Tobias","Boehm","1997-02-10","TE"),
+      makePlayer("p_te_3","tcramer","Theo","Cramer","1998-03-11","TE"),
+      makePlayer("p_te_4","tdanner","Tom","Danner","1999-04-12","TE"),
+      makePlayer("p_te_5","teberl","Toni","Eberl","2000-05-13","TE"),
+
+      makePlayer("p_dl_1","lahner","Lukas","Ahner","1996-01-14","DL"),
+      makePlayer("p_dl_2","lbruckner","Leon","Bruckner","1997-02-10","DL"),
+      makePlayer("p_dl_3","lcarter","Liam","Carter","1998-03-11","DL"),
+      makePlayer("p_dl_4","ldobler","Lorenz","Dobler","1999-04-12","DL"),
+      makePlayer("p_dl_5","lebner","Leo","Ebner","2000-05-13","DL"),
+
+      makePlayer("p_lb_1","sgamperl","Stefan","Gamperl","1998-03-10","LB"),
+      makePlayer("p_lb_2","lgruber","Lukas","Gruber","1997-02-10","LB"),
+      makePlayer("p_lb_3","lhaas","Leon","Haas","1998-03-11","LB"),
+      makePlayer("p_lb_4","lirmler","Lars","Irmler","1999-04-12","LB"),
+      makePlayer("p_lb_5","ljager","Luca","Jager","2000-05-13","LB"),
+
+      makePlayer("p_db_1","dacker","Daniel","Acker","1996-01-14","DB"),
+      makePlayer("p_db_2","dbrandner","David","Brandner","1997-02-10","DB"),
+      makePlayer("p_db_3","dcerwenka","Dario","Cerwenka","1998-03-11","DB"),
+      makePlayer("p_db_4","ddorn","Dominik","Dorn","1999-04-12","DB"),
+      makePlayer("p_db_5","deigner","Dennis","Eigner","2000-05-13","DB")
     ];
 
     const coaches = [
@@ -598,23 +579,27 @@
     ];
 
     const responses = {
-      t1: {
-        p1: { status: "yes", updatedAt: "2026-03-19 08:10", changedOnEventDay: true },
-        p3: { status: "no", updatedAt: "2026-03-18 19:35", changedOnEventDay: false },
-        p4: { status: "maybe", updatedAt: "2026-03-18 16:15", changedOnEventDay: false },
-        p5: { status: "yes", updatedAt: "2026-03-18 17:20", changedOnEventDay: false },
-        p6: { status: "yes", updatedAt: "2026-03-18 12:20", changedOnEventDay: false },
-        p7: { status: "yes", updatedAt: "2026-03-18 13:15", changedOnEventDay: false }
-      },
-      t2: {
-        p1: { status: "maybe", updatedAt: "2026-03-20 18:20", changedOnEventDay: false },
-        p3: { status: "yes", updatedAt: "2026-03-21 09:00", changedOnEventDay: true },
-        p4: { status: "yes", updatedAt: "2026-03-20 12:00", changedOnEventDay: false },
-        p5: { status: "no", updatedAt: "2026-03-20 11:00", changedOnEventDay: false },
-        p6: { status: "yes", updatedAt: "2026-03-20 09:00", changedOnEventDay: false }
-      },
+      t1: {},
+      t2: {},
       t3: {}
     };
+
+    function seedResponses() {
+      const statuses = ["yes", "no", "maybe", "open"];
+      trainings.forEach((training, tIndex) => {
+        players.forEach((player, pIndex) => {
+          if (player.healthStatus === "injured") return;
+          const status = statuses[(pIndex + tIndex) % statuses.length];
+          if (status === "open") return;
+          responses[training.id][player.id] = {
+            status,
+            updatedAt: `${training.date} ${String((8 + (pIndex % 10))).padStart(2, "0")}:00`,
+            changedOnEventDay: pIndex % 7 === 0
+          };
+        });
+      });
+    }
+    seedResponses();
 
     let state = {
       currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
@@ -622,6 +607,7 @@
       reportsTrainingId: "t1",
       filterGroup: "all",
       filterResponse: "all",
+      dashboardResponseFilter: "all",
       editingTrainingId: null,
       playerSearchValue: "",
       expandedPlayerSearchId: null,
@@ -640,6 +626,14 @@
 
     function fullName(player) {
       return player.firstName + " " + player.lastName;
+    }
+
+    function sortPlayersByLastName(list) {
+      return [...list].sort((a, b) => {
+        const last = a.lastName.localeCompare(b.lastName);
+        if (last !== 0) return last;
+        return a.firstName.localeCompare(b.firstName);
+      });
     }
 
     function getGroupLabelForUnit(unit) {
@@ -722,6 +716,16 @@
       if (status === "maybe") return '<span class="tag tagMaybe">Unsicher</span>';
       if (status === "limited") return '<span class="tag tagLimited">Limited</span>';
       return '<span class="tag tagOpen">Keine Antwort</span>';
+    }
+
+    function renderFilterSummary() {
+      return `
+Zusage
+Absage
+Unsicher
+Limited
+Keine Antwort
+      `.trim();
     }
 
     function renderNav() {
@@ -945,7 +949,10 @@
         return;
       }
 
-      const filteredPlayers = players.filter(p => filterPlayerByGroup(p, state.filterGroup));
+      let filteredPlayers = players.filter(p => filterPlayerByGroup(p, state.filterGroup));
+      if (state.dashboardResponseFilter !== "all") {
+        filteredPlayers = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === state.dashboardResponseFilter);
+      }
 
       const yesCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "yes").length;
       const noCount = filteredPlayers.filter(p => getPlayerTrainingStatus(p, selectedTraining.id) === "no").length;
@@ -987,9 +994,46 @@
                 ${getOrderedFilterOptions().map(g => `<option value="${g}" ${g === state.filterGroup ? "selected" : ""}>${g}</option>`).join("")}
               </select>
             </div>
-            <p class="smallMuted">Die vollständige Trainingsauswertung findest du unter Auswertung.</p>
+            <div class="field">
+              <label>Antwortstatus</label>
+              <select class="select" onchange="changeDashboardResponseFilter(this.value)">
+                <option value="all" ${state.dashboardResponseFilter === "all" ? "selected" : ""}>Alle</option>
+                <option value="yes" ${state.dashboardResponseFilter === "yes" ? "selected" : ""}>Zusage</option>
+                <option value="no" ${state.dashboardResponseFilter === "no" ? "selected" : ""}>Absage</option>
+                <option value="maybe" ${state.dashboardResponseFilter === "maybe" ? "selected" : ""}>Unsicher</option>
+                <option value="limited" ${state.dashboardResponseFilter === "limited" ? "selected" : ""}>Limited</option>
+                <option value="open" ${state.dashboardResponseFilter === "open" ? "selected" : ""}>Keine Antwort</option>
+              </select>
+            </div>
+            <div class="smallMuted filterSummary">${renderFilterSummary()}</div>
           </div>
         </div>
+
+        ${state.filterGroup !== "all" ? `
+          <div class="card">
+            <h2>${state.filterGroup} · Detailübersicht</h2>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Spieler</th>
+                    <th>Status</th>
+                    <th>Gesundheit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${sortPlayersByLastName(filteredPlayers).map(player => `
+                    <tr>
+                      <td>${fullName(player)}</td>
+                      <td>${getStatusTag(getPlayerTrainingStatus(player, selectedTraining.id))}</td>
+                      <td>${player.healthStatus === "injured" ? '<span class="tag tagInjured">Verletzt/Krank</span>' : 'Fit'}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ` : ""}
       `;
     }
 
@@ -1008,7 +1052,7 @@
         filtered = filtered.filter(p => filterPlayerByGroup(p, state.playerListGroup));
       }
 
-      filtered.sort((a, b) => fullName(a).localeCompare(fullName(b)));
+      filtered = sortPlayersByLastName(filtered);
 
       content.innerHTML = `
         <div class="twoCol">
@@ -1072,7 +1116,7 @@
                       <td>
                         <div class="rowActions">
                           <button class="secondaryButton" onclick="startPlayerEdit('${p.id}')">Bearbeiten</button>
-                          <button class="warnButton" onclick="adminSetInjury('${p.id}')">Verletzung</button>
+                          <button class="warnButton" onclick="openLimitationEdit('${p.id}')">Limitation</button>
                           ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${p.id}')">Reset-Link</button>` : ""}
                           ${state.currentUser.role === "headAdmin" ? `<button class="dangerButton" onclick="deletePlayer('${p.id}')">Löschen</button>` : ""}
                         </div>
@@ -1230,6 +1274,7 @@
                 <option value="open" ${state.filterResponse === "open" ? "selected" : ""}>Keine Antwort</option>
               </select>
             </div>
+            <div class="smallMuted filterSummary">${renderFilterSummary()}</div>
           </div>
         </div>
 
@@ -1309,8 +1354,10 @@
         });
       });
 
-      currentLimitations.sort((a, b) => fullName(a.player).localeCompare(fullName(b.player)));
-      pastLimitations.sort((a, b) => fullName(a.player).localeCompare(fullName(b.player)));
+      currentLimitations.sort((a, b) => a.player.lastName.localeCompare(b.player.lastName) || a.player.firstName.localeCompare(b.player.firstName));
+      pastLimitations.sort((a, b) => a.player.lastName.localeCompare(b.player.lastName) || a.player.firstName.localeCompare(b.player.firstName));
+
+      const dropdownPlayers = sortPlayersByLastName(players);
 
       content.innerHTML = `
         <div class="twoCol">
@@ -1320,7 +1367,7 @@
             <div class="field">
               <label>Spieler</label>
               <select id="limitationPlayer" class="select">
-                ${players.sort((a, b) => fullName(a).localeCompare(fullName(b))).map(p => `
+                ${dropdownPlayers.map(p => `
                   <option value="${p.id}" ${player && p.id === player.id ? "selected" : ""}>${fullName(p)} · ${p.unit}</option>
                 `).join("")}
               </select>
@@ -1391,7 +1438,7 @@
 
       const search = state.playerSearchValue.trim().toLowerCase();
       const matches = search
-        ? players.filter(p => fullName(p).toLowerCase().includes(search))
+        ? sortPlayersByLastName(players.filter(p => fullName(p).toLowerCase().includes(search)))
         : [];
 
       content.innerHTML = `
@@ -1445,7 +1492,7 @@
                           <div class="kpi">${stats.limited}</div>
                         </div>
                         <div class="card">
-                          <div class="smallMuted">Nicht abgestimmt</div>
+                          <div class="smallMuted">Keine Antwort</div>
                           <div class="kpi">${stats.open}</div>
                         </div>
                       </div>
@@ -1500,10 +1547,9 @@
       document.getElementById("screenTitle").textContent = "Statistik";
       document.getElementById("screenSubtitle").textContent = "Vergangene Trainings als Zahlen, Prozent und Diagramm";
 
-      const pastTrainings = [...trainings].filter(t => true).sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+      const pastTrainings = [...trainings].sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
 
       const rows = pastTrainings.map(training => {
-        const eligiblePlayers = players.filter(p => getPlayerTrainingStatus(p, training.id) !== "limited");
         const total = players.length;
         const yes = players.filter(p => getPlayerTrainingStatus(p, training.id) === "yes").length;
         const no = players.filter(p => getPlayerTrainingStatus(p, training.id) === "no").length;
@@ -1511,7 +1557,7 @@
         const limited = players.filter(p => getPlayerTrainingStatus(p, training.id) === "limited").length;
         const open = players.filter(p => getPlayerTrainingStatus(p, training.id) === "open").length;
 
-        const eligibleTotal = eligiblePlayers.length || 1;
+        const eligibleTotal = Math.max(total - limited, 1);
         return {
           training,
           total,
@@ -1523,6 +1569,7 @@
           yesPct: Math.round((yes / eligibleTotal) * 100),
           noPct: Math.round((no / eligibleTotal) * 100),
           maybePct: Math.round((maybe / eligibleTotal) * 100),
+          limitedPct: Math.round((limited / total) * 100),
           openPct: Math.round((open / eligibleTotal) * 100)
         };
       });
@@ -1553,6 +1600,7 @@
             <div class="legendItem"><span class="legendSwatch" style="background:#22c55e;"></span> Zusage %</div>
             <div class="legendItem"><span class="legendSwatch" style="background:#ef4444;"></span> Absage %</div>
             <div class="legendItem"><span class="legendSwatch" style="background:#94a3b8;"></span> Unsicher %</div>
+            <div class="legendItem"><span class="legendSwatch" style="background:#14b8a6;"></span> Limited %</div>
             <div class="legendItem"><span class="legendSwatch" style="background:#f59e0b;"></span> Keine Antwort %</div>
           </div>
         </div>
@@ -1637,6 +1685,7 @@
           <path d="${buildPath("yesPct")}" fill="none" stroke="#22c55e" stroke-width="3" />
           <path d="${buildPath("noPct")}" fill="none" stroke="#ef4444" stroke-width="3" />
           <path d="${buildPath("maybePct")}" fill="none" stroke="#94a3b8" stroke-width="3" />
+          <path d="${buildPath("limitedPct")}" fill="none" stroke="#14b8a6" stroke-width="3" />
           <path d="${buildPath("openPct")}" fill="none" stroke="#f59e0b" stroke-width="3" />
           ${labels}
         </svg>
@@ -1766,6 +1815,11 @@
     function changeResponseFilter(value) {
       state.filterResponse = value;
       renderReportsView();
+    }
+
+    function changeDashboardResponseFilter(value) {
+      state.dashboardResponseFilter = value;
+      renderCoachView();
     }
 
     function changeReportsTraining(trainingId) {
