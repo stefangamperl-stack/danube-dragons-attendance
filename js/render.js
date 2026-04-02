@@ -446,7 +446,8 @@ function renderPlayersView() {
           <h2>${editPlayer ? "Spieler bearbeiten" : "Spieler anlegen"}</h2>
           <div class="field"><label>Vorname</label><input id="playerFirstName" class="input" value="${editPlayer ? escapeHtml(editPlayer.firstName) : ""}" placeholder="Vorname" /></div>
           <div class="field"><label>Nachname</label><input id="playerLastName" class="input" value="${editPlayer ? escapeHtml(editPlayer.lastName) : ""}" placeholder="Nachname" /></div>
-          <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${editPlayer ? escapeHtml(editPlayer.username) : ""}" placeholder="z. B. sgamperl" /></div>
+          <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${editPlayer ? escapeHtml(editPlayer.username || "") : ""}" placeholder="z. B. sgamperl" /></div>
+          <div class="field"><label>E-Mail</label><input id="playerEmail" class="input" type="email" value="${editPlayer ? escapeHtml(editPlayer.email || "") : ""}" placeholder="spieler@example.com" /></div>
           <div class="field"><label>Geburtstag</label><input id="playerBirthday" class="input" type="date" value="${editPlayer ? editPlayer.birthday : ""}" /></div>
           <div class="field">
             <label>Unit</label>
