@@ -12,6 +12,8 @@ async function loadTrainingsFromSupabase() {
 
   trainings.length = 0;
 
+  const existingResponseKeys = new Set(Object.keys(responses));
+
   (data || []).forEach(row => {
     trainings.push({
       id: row.id,
@@ -27,14 +29,23 @@ async function loadTrainingsFromSupabase() {
     if (!responses[row.id]) {
       responses[row.id] = {};
     }
+
+    existingResponseKeys.delete(row.id);
   });
 
-  if (!state.selectedTrainingId && trainings[0]) {
-    state.selectedTrainingId = trainings[0].id;
+  existingResponseKeys.forEach(trainingId => {
+    delete responses[trainingId];
+  });
+
+  const selectedStillExists = state.selectedTrainingId && trainings.some(t => t.id === state.selectedTrainingId);
+  const reportsStillExists = state.reportsTrainingId && trainings.some(t => t.id === state.reportsTrainingId);
+
+  if (!selectedStillExists) {
+    state.selectedTrainingId = trainings[0]?.id || null;
   }
 
-  if (!state.reportsTrainingId && trainings[0]) {
-    state.reportsTrainingId = trainings[0].id;
+  if (!reportsStillExists) {
+    state.reportsTrainingId = trainings[0]?.id || null;
   }
 
   renderApp();
@@ -409,7 +420,7 @@ function deleteLimitation(playerId, limitationId) {
   renderLimitationsView();
 }
 
-function createTraining() {
+async function createTraining() {
   const title = document.getElementById("trainingTitle").value.trim();
   const date = document.getElementById("trainingDate").value;
   const time = document.getElementById("trainingTime").value;
@@ -423,23 +434,33 @@ function createTraining() {
     return;
   }
 
-  const newId = "t" + Date.now();
+  const { data, error } = await supabase
+    .from("trainings")
+    .insert([
+      {
+        title,
+        training_date: date,
+        training_time: time,
+        location,
+        notes,
+        vote_opens_hours_before: voteOpensHoursBefore,
+        vote_closes_hours_before: voteClosesHoursBefore
+      }
+    ])
+    .select()
+    .single();
 
-  trainings.push({
-    id: newId,
-    title,
-    date,
-    time,
-    location,
-    notes,
-    voteOpensHoursBefore,
-    voteClosesHoursBefore
-  });
+  if (error) {
+    console.error("Fehler beim Erstellen des Trainings:", error);
+    alert("Training konnte nicht gespeichert werden.");
+    return;
+  }
 
-  responses[newId] = {};
   state.editingTrainingId = null;
-  state.selectedTrainingId = newId;
-  state.reportsTrainingId = newId;
+  state.selectedTrainingId = data.id;
+  state.reportsTrainingId = data.id;
+
+  await loadTrainingsFromSupabase();
   renderTrainingsView();
 }
 
@@ -454,34 +475,81 @@ function cancelTrainingEdit() {
   renderTrainingsView();
 }
 
-function updateTraining() {
-  const training = trainings.find(t => t.id === state.editingTrainingId);
-  if (!training) return;
+async function updateTraining() {
+  const trainingId = state.editingTrainingId;
+  if (!trainingId) return;
 
-  training.title = document.getElementById("trainingTitle").value.trim();
-  training.date = document.getElementById("trainingDate").value;
-  training.time = document.getElementById("trainingTime").value;
-  training.location = document.getElementById("trainingLocation").value.trim();
-  training.notes = document.getElementById("trainingNotes").value.trim();
-  training.voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore").value || 0);
-  training.voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore").value || 0);
+  const title = document.getElementById("trainingTitle").value.trim();
+  const date = document.getElementById("trainingDate").value;
+  const time = document.getElementById("trainingTime").value;
+  const location = document.getElementById("trainingLocation").value.trim();
+  const notes = document.getElementById("trainingNotes").value.trim();
+  const voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore").value || 0);
+  const voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore").value || 0);
+
+  if (!title || !date || !time) {
+    alert("Bitte mindestens Titel, Datum und Uhrzeit ausfüllen.");
+    return;
+  }
+
+  const { error } = await supabase
+    .from("trainings")
+    .update({
+      title,
+      training_date: date,
+      training_time: time,
+      location,
+      notes,
+      vote_opens_hours_before: voteOpensHoursBefore,
+      vote_closes_hours_before: voteClosesHoursBefore
+    })
+    .eq("id", trainingId);
+
+  if (error) {
+    console.error("Fehler beim Aktualisieren des Trainings:", error);
+    alert("Training konnte nicht aktualisiert werden.");
+    return;
+  }
 
   state.editingTrainingId = null;
+
+  await loadTrainingsFromSupabase();
   renderTrainingsView();
 }
 
-function deleteTraining(trainingId) {
+async function deleteTraining(trainingId) {
   if (state.currentUser.role !== "headAdmin") return;
+
   const training = trainings.find(t => t.id === trainingId);
   if (!training) return;
   if (!confirm("Training wirklich löschen: " + training.title + "?")) return;
 
-  const index = trainings.findIndex(t => t.id === trainingId);
-  trainings.splice(index, 1);
+  const { error } = await supabase
+    .from("trainings")
+    .delete()
+    .eq("id", trainingId);
+
+  if (error) {
+    console.error("Fehler beim Löschen des Trainings:", error);
+    alert("Training konnte nicht gelöscht werden.");
+    return;
+  }
+
   delete responses[trainingId];
+
   if (state.editingTrainingId === trainingId) state.editingTrainingId = null;
-  if (state.reportsTrainingId === trainingId) state.reportsTrainingId = trainings[0]?.id || null;
-  if (state.selectedTrainingId === trainingId) state.selectedTrainingId = trainings[0]?.id || null;
+  if (state.reportsTrainingId === trainingId) state.reportsTrainingId = null;
+  if (state.selectedTrainingId === trainingId) state.selectedTrainingId = null;
+
+  await loadTrainingsFromSupabase();
+
+  if (!state.selectedTrainingId && trainings[0]) {
+    state.selectedTrainingId = trainings[0].id;
+  }
+  if (!state.reportsTrainingId && trainings[0]) {
+    state.reportsTrainingId = trainings[0].id;
+  }
+
   renderTrainingsView();
 }
 
