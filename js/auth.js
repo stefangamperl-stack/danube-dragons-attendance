@@ -71,21 +71,12 @@ function setView(view) {
   renderApp();
 }
 
-function changeOwnPassword() {
-  const auth = getCurrentUserAuth();
-  if (!auth) return;
-
-  const currentPassword = document.getElementById("currentPassword").value.trim();
+async function changeOwnPassword() {
   const newPassword = document.getElementById("newPassword").value.trim();
   const confirmPassword = document.getElementById("confirmPassword").value.trim();
 
-  if (currentPassword !== auth.password) {
-    alert("Das aktuelle Passwort stimmt nicht.");
-    return;
-  }
-
-  if (newPassword.length < 4) {
-    alert("Das neue Passwort muss mindestens 4 Zeichen lang sein.");
+  if (newPassword.length < 6) {
+    alert("Das neue Passwort muss mindestens 6 Zeichen lang sein.");
     return;
   }
 
@@ -94,13 +85,24 @@ function changeOwnPassword() {
     return;
   }
 
-  auth.password = newPassword;
-  auth.mustChangePassword = false;
+  const { error } = await supabaseClient.auth.updateUser({
+    password: newPassword
+  });
 
-  state.currentUser.username = auth.username;
-  state.currentUser.role = auth.role;
-  state.currentUser.displayName = auth.displayName;
-  saveSession();
+  if (error) {
+    alert("Passwort konnte nicht geändert werden: " + error.message);
+    return;
+  }
+
+  const { error: profileError } = await supabaseClient
+    .from("profiles")
+    .update({ must_change_password: false })
+    .eq("id", state.currentUser.id);
+
+  if (profileError) {
+    alert("Passwort wurde geändert, aber das Profil konnte nicht aktualisiert werden: " + profileError.message);
+    return;
+  }
 
   alert("Passwort erfolgreich geändert.");
   renderApp();
