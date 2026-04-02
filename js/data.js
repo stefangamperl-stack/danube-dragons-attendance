@@ -132,6 +132,18 @@ trainings.forEach(t => {
   responses[t.id] = {};
 });
 
+function rebuildPlayerUsersFromPlayers() {
+  for (let i = users.length - 1; i >= 0; i--) {
+    if (users[i].role === "player") {
+      users.splice(i, 1);
+    }
+  }
+
+  players.forEach(player => {
+    users.push(createPlayerUserRecord(player));
+  });
+}
+
 function isPlayerLimitedForTraining(player, training) {
   const trainingDay = training.date;
   return (player.injuries || []).some(l => {
