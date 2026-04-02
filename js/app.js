@@ -1,8 +1,8 @@
 let state = {
   currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
   currentView: "dashboard",
-  reportsTrainingId: trainings[0].id,
-  selectedTrainingId: trainings[0].id,
+  reportsTrainingId: trainings[0]?.id || null,
+  selectedTrainingId: trainings[0]?.id || null,
   filterGroup: "all",
   filterResponse: "all",
   dashboardResponseFilter: "all",
@@ -286,12 +286,6 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-if (state.currentUser) {
-  showApp();
-} else {
-  showLanding();
-}
-
 function normalizeText(value) {
   return String(value || "")
     .trim()
@@ -346,6 +340,13 @@ function generateUniqueUsername(firstName, lastName) {
   }
 
   return `${base}${counter}`;
+}
+
+if (state.currentUser) {
+  showApp();
+  loadTrainingsFromSupabase();
+} else {
+  showLanding();
 }
 
 updateCurrentDateTime();
