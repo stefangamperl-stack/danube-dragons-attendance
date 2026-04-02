@@ -18,27 +18,44 @@ function showApp() {
   renderApp();
 }
 
-function login() {
-  const username = document.getElementById("loginUsername").value.trim();
+async function login() {
+  const email = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value.trim();
-  const user = users.find(u => u.username === username && u.password === password && u.active !== false);
 
-  if (!user) {
-    document.getElementById("loginError").textContent = "Loginname oder Passwort ist falsch.";
+  document.getElementById("loginError").textContent = "";
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error || !data?.user) {
+    document.getElementById("loginError").textContent = "E-Mail oder Passwort ist falsch.";
+    return;
+  }
+
+  const { data: profileData, error: profileError } = await supabaseClient
+    .from("profiles")
+    .select("*")
+    .eq("id", data.user.id)
+    .single();
+
+  if (profileError || !profileData) {
+    await supabaseClient.auth.signOut();
+    document.getElementById("loginError").textContent = "Profil konnte nicht geladen werden.";
     return;
   }
 
   state.currentUser = {
-    id: user.id,
-    username: user.username,
-    role: user.role,
-    displayName: user.displayName,
-    playerId: user.playerId || null,
-    coachId: user.coachId || null
+    id: profileData.id,
+    username: profileData.username,
+    role: profileData.role,
+    displayName: profileData.display_name,
+    email: profileData.email || ""
   };
 
   saveSession();
-  state.currentView = user.mustChangePassword ? "profile" : "dashboard";
+  state.currentView = profileData.must_change_password ? "profile" : "dashboard";
   showApp();
 }
 
