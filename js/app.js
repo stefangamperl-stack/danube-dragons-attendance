@@ -291,6 +291,62 @@ if (state.currentUser) {
   showLanding();
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function normalizeForLogin(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("ä", "ae")
+    .replaceAll("ö", "oe")
+    .replaceAll("ü", "ue")
+    .replaceAll("ß", "ss")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function playerExistsByName(firstName, lastName) {
+  const normalizedFirst = normalizeText(firstName);
+  const normalizedLast = normalizeText(lastName);
+
+  return players.some(player =>
+    normalizeText(player.firstName) === normalizedFirst &&
+    normalizeText(player.lastName) === normalizedLast
+  );
+}
+
+function usernameExists(username) {
+  const normalizedUsername = normalizeForLogin(username);
+  return users.some(user => normalizeForLogin(user.username) === normalizedUsername);
+}
+
+function generateUniqueUsername(firstName, lastName) {
+  const first = normalizeForLogin(firstName);
+  const last = normalizeForLogin(lastName);
+
+  let base = `${first.charAt(0)}${last}`;
+  if (!base) {
+    base = `user${Date.now()}`;
+  }
+
+  if (!usernameExists(base)) {
+    return base;
+  }
+
+  let counter = 2;
+  while (usernameExists(`${base}${counter}`)) {
+    counter++;
+  }
+
+  return `${base}${counter}`;
+}
+
 updateCurrentDateTime();
 setInterval(updateCurrentDateTime, 30000);
 setInterval(() => {
