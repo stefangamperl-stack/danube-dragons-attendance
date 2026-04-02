@@ -270,6 +270,7 @@ function processRosterCsv(csvText) {
       []
     );
 
+    newPlayer.email = email;
     players.push(newPlayer);
 
     const userRecord = createPlayerUserRecord(newPlayer);
@@ -668,10 +669,11 @@ async function createPlayer() {
     const firstName = document.getElementById("playerFirstName").value.trim();
     const lastName = document.getElementById("playerLastName").value.trim();
     const usernameInput = document.getElementById("playerUsername").value.trim();
+    const email = document.getElementById("playerEmail").value.trim();
     const birthday = document.getElementById("playerBirthday").value;
     const unit = document.getElementById("playerUnit").value;
 
-    if (!firstName || !lastName || !birthday || !unit) {
+    if (!firstName || !lastName || !email || !birthday || !unit) {
       alert("Bitte alle Pflichtfelder ausfüllen.");
       return;
     }
@@ -709,8 +711,13 @@ async function createPlayer() {
       );
 
       newPlayer.active = data.active !== false;
+      newPlayer.email = email;
+
       players.push(newPlayer);
-      users.push(createPlayerUserRecord(newPlayer));
+
+      const userRecord = createPlayerUserRecord(newPlayer);
+      userRecord.email = email;
+      users.push(userRecord);
     }
 
     state.editPlayerId = null;
