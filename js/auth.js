@@ -59,7 +59,8 @@ async function login() {
   showApp();
 }
 
-function logout() {
+async function logout() {
+  await supabaseClient.auth.signOut();
   state.currentUser = null;
   localStorage.removeItem("dd_user");
   showLanding();
