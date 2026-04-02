@@ -344,7 +344,9 @@ function generateUniqueUsername(firstName, lastName) {
 
 if (state.currentUser) {
   showApp();
-  loadTrainingsFromSupabase();
+  Promise.resolve(loadTrainingsFromSupabase()).catch(error => {
+    console.error("Fehler beim initialen Laden der Trainings:", error);
+  });
 } else {
   showLanding();
 }
