@@ -125,58 +125,7 @@ function createCoachUserRecord(coach) {
 players.forEach(player => users.push(createPlayerUserRecord(player)));
 coaches.forEach(coach => users.push(createCoachUserRecord(coach)));
 
-const trainings = [
-  {
-    id: "t1",
-    title: "Teamtraining Dienstag",
-    date: "2026-03-19",
-    time: "19:00",
-    location: "Sportzentrum Nord",
-    notes: "Pads mitbringen",
-    voteOpensHoursBefore: 72,
-    voteClosesHoursBefore: 6
-  },
-  {
-    id: "t2",
-    title: "Teamtraining Donnerstag",
-    date: "2026-03-21",
-    time: "19:00",
-    location: "Sportzentrum Nord",
-    notes: "Special Teams Fokus",
-    voteOpensHoursBefore: 72,
-    voteClosesHoursBefore: 4
-  },
-  {
-    id: "t3",
-    title: "Gameday Walkthrough",
-    date: "2026-03-25",
-    time: "18:30",
-    location: "Clubhouse",
-    notes: "Ohne Pads",
-    voteOpensHoursBefore: 48,
-    voteClosesHoursBefore: 3
-  },
-  {
-    id: "t4",
-    title: "Teamtraining Sonntag",
-    date: "2026-04-05",
-    time: "11:00",
-    location: "Sportzentrum Süd",
-    notes: "Special Teams und Walkthrough",
-    voteOpensHoursBefore: 72,
-    voteClosesHoursBefore: 2
-  },
-  {
-    id: "t5",
-    title: "Teamtraining Dienstag",
-    date: "2026-04-07",
-    time: "19:30",
-    location: "Sportzentrum Nord",
-    notes: "Defense Fokus",
-    voteOpensHoursBefore: 72,
-    voteClosesHoursBefore: 5
-  }
-];
+const trainings = [];
 
 const responses = {};
 trainings.forEach(t => {
