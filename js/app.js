@@ -15,7 +15,8 @@ let state = {
   playerListSearch: "",
   playerListGroup: "all",
   editingLimitationPlayerId: null,
-  editingLimitationId: null
+  editingLimitationId: null,
+  importSummary: null
 };
 
 function saveSession() {
