@@ -1,5 +1,17 @@
 async function loadTrainingsFromSupabase() {
   try {
+    if (typeof supabase === "undefined" || !supabase) {
+      throw new Error("Supabase-Client ist nicht geladen.");
+    }
+
+    if (typeof trainings === "undefined") {
+      throw new Error("Die Variable 'trainings' ist nicht definiert.");
+    }
+
+    if (typeof responses === "undefined") {
+      throw new Error("Die Variable 'responses' ist nicht definiert.");
+    }
+
     const { data, error } = await supabase
       .from("trainings")
       .select("*")
@@ -14,13 +26,13 @@ async function loadTrainingsFromSupabase() {
 
     trainings.length = 0;
 
-    const existingResponseKeys = new Set(Object.keys(responses));
+    const existingResponseKeys = new Set(Object.keys(responses || {}));
 
     (data || []).forEach(row => {
       trainings.push({
         id: row.id,
-        title: row.title,
-        date: row.training_date,
+        title: row.title || "",
+        date: row.training_date || "",
         time: String(row.training_time || "").slice(0, 5),
         location: row.location || "",
         notes: row.notes || "",
@@ -39,8 +51,13 @@ async function loadTrainingsFromSupabase() {
       delete responses[trainingId];
     });
 
-    const selectedStillExists = state.selectedTrainingId && trainings.some(t => t.id === state.selectedTrainingId);
-    const reportsStillExists = state.reportsTrainingId && trainings.some(t => t.id === state.reportsTrainingId);
+    const selectedStillExists =
+      state.selectedTrainingId &&
+      trainings.some(t => t.id === state.selectedTrainingId);
+
+    const reportsStillExists =
+      state.reportsTrainingId &&
+      trainings.some(t => t.id === state.reportsTrainingId);
 
     if (!selectedStillExists) {
       state.selectedTrainingId = trainings[0]?.id || null;
@@ -50,10 +67,15 @@ async function loadTrainingsFromSupabase() {
       state.reportsTrainingId = trainings[0]?.id || null;
     }
 
-    renderApp();
+    try {
+      renderApp();
+    } catch (renderError) {
+      console.error("Fehler in renderApp nach dem Laden der Trainings:", renderError);
+      alert("Trainings wurden geladen, aber beim Darstellen ist ein Fehler aufgetreten:\n" + (renderError.message || renderError));
+    }
   } catch (err) {
     console.error("Unerwarteter Fehler beim Laden der Trainings:", err);
-    alert("Unerwarteter Fehler beim Laden der Trainings.");
+    alert("Unerwarteter Fehler beim Laden der Trainings:\n" + (err.message || err));
   }
 }
 
