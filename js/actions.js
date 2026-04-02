@@ -1,54 +1,60 @@
 async function loadTrainingsFromSupabase() {
-  const { data, error } = await supabase
-    .from("trainings")
-    .select("*")
-    .order("training_date", { ascending: true })
-    .order("training_time", { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from("trainings")
+      .select("*")
+      .order("training_date", { ascending: true })
+      .order("training_time", { ascending: true });
 
-  if (error) {
-    console.error("Fehler beim Laden der Trainings:", error);
-    return;
-  }
-
-  trainings.length = 0;
-
-  const existingResponseKeys = new Set(Object.keys(responses));
-
-  (data || []).forEach(row => {
-    trainings.push({
-      id: row.id,
-      title: row.title,
-      date: row.training_date,
-      time: String(row.training_time || "").slice(0, 5),
-      location: row.location || "",
-      notes: row.notes || "",
-      voteOpensHoursBefore: row.vote_opens_hours_before ?? 72,
-      voteClosesHoursBefore: row.vote_closes_hours_before ?? 6
-    });
-
-    if (!responses[row.id]) {
-      responses[row.id] = {};
+    if (error) {
+      console.error("Fehler beim Laden der Trainings:", error);
+      alert("Trainings konnten nicht geladen werden:\n" + (error.message || JSON.stringify(error)));
+      return;
     }
 
-    existingResponseKeys.delete(row.id);
-  });
+    trainings.length = 0;
 
-  existingResponseKeys.forEach(trainingId => {
-    delete responses[trainingId];
-  });
+    const existingResponseKeys = new Set(Object.keys(responses));
 
-  const selectedStillExists = state.selectedTrainingId && trainings.some(t => t.id === state.selectedTrainingId);
-  const reportsStillExists = state.reportsTrainingId && trainings.some(t => t.id === state.reportsTrainingId);
+    (data || []).forEach(row => {
+      trainings.push({
+        id: row.id,
+        title: row.title,
+        date: row.training_date,
+        time: String(row.training_time || "").slice(0, 5),
+        location: row.location || "",
+        notes: row.notes || "",
+        voteOpensHoursBefore: row.vote_opens_hours_before ?? 72,
+        voteClosesHoursBefore: row.vote_closes_hours_before ?? 6
+      });
 
-  if (!selectedStillExists) {
-    state.selectedTrainingId = trainings[0]?.id || null;
+      if (!responses[row.id]) {
+        responses[row.id] = {};
+      }
+
+      existingResponseKeys.delete(row.id);
+    });
+
+    existingResponseKeys.forEach(trainingId => {
+      delete responses[trainingId];
+    });
+
+    const selectedStillExists = state.selectedTrainingId && trainings.some(t => t.id === state.selectedTrainingId);
+    const reportsStillExists = state.reportsTrainingId && trainings.some(t => t.id === state.reportsTrainingId);
+
+    if (!selectedStillExists) {
+      state.selectedTrainingId = trainings[0]?.id || null;
+    }
+
+    if (!reportsStillExists) {
+      state.reportsTrainingId = trainings[0]?.id || null;
+    }
+
+    renderApp();
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Laden der Trainings:", err);
+    alert("Unerwarteter Fehler beim Laden der Trainings.");
   }
-
-  if (!reportsStillExists) {
-    state.reportsTrainingId = trainings[0]?.id || null;
-  }
-
-  renderApp();
 }
 
 function setReportsSort(key) {
@@ -420,48 +426,63 @@ function deleteLimitation(playerId, limitationId) {
   renderLimitationsView();
 }
 
+function normalizeTrainingTimeForDb(timeValue) {
+  const value = String(timeValue || "").trim();
+  if (!value) return "";
+  if (/^\d{2}:\d{2}$/.test(value)) return `${value}:00`;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(value)) return value;
+  return value;
+}
+
 async function createTraining() {
-  const title = document.getElementById("trainingTitle").value.trim();
-  const date = document.getElementById("trainingDate").value;
-  const time = document.getElementById("trainingTime").value;
-  const location = document.getElementById("trainingLocation").value.trim();
-  const notes = document.getElementById("trainingNotes").value.trim();
-  const voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore").value || 0);
-  const voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore").value || 0);
+  try {
+    const title = document.getElementById("trainingTitle")?.value.trim();
+    const date = document.getElementById("trainingDate")?.value;
+    const time = document.getElementById("trainingTime")?.value;
+    const location = document.getElementById("trainingLocation")?.value.trim() || "";
+    const notes = document.getElementById("trainingNotes")?.value.trim() || "";
+    const voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore")?.value || 0);
+    const voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore")?.value || 0);
 
-  if (!title || !date || !time) {
-    alert("Bitte mindestens Titel, Datum und Uhrzeit ausfüllen.");
-    return;
+    if (!title || !date || !time) {
+      alert("Bitte mindestens Titel, Datum und Uhrzeit ausfüllen.");
+      return;
+    }
+
+    const payload = {
+      title,
+      training_date: date,
+      training_time: normalizeTrainingTimeForDb(time),
+      location,
+      notes,
+      vote_opens_hours_before: voteOpensHoursBefore,
+      vote_closes_hours_before: voteClosesHoursBefore
+    };
+
+    console.log("createTraining payload:", payload);
+
+    const { data, error } = await supabase
+      .from("trainings")
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Fehler beim Erstellen des Trainings:", error);
+      alert("Training konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    state.editingTrainingId = null;
+    state.selectedTrainingId = data?.id || null;
+    state.reportsTrainingId = data?.id || null;
+
+    await loadTrainingsFromSupabase();
+    renderTrainingsView();
+  } catch (err) {
+    console.error("Unerwarteter Fehler in createTraining:", err);
+    alert("Unerwarteter Fehler beim Erstellen des Trainings.");
   }
-
-  const { data, error } = await supabase
-    .from("trainings")
-    .insert([
-      {
-        title,
-        training_date: date,
-        training_time: time,
-        location,
-        notes,
-        vote_opens_hours_before: voteOpensHoursBefore,
-        vote_closes_hours_before: voteClosesHoursBefore
-      }
-    ])
-    .select()
-    .single();
-
-  if (error) {
-    console.error("Fehler beim Erstellen des Trainings:", error);
-    alert("Training konnte nicht gespeichert werden.");
-    return;
-  }
-
-  state.editingTrainingId = null;
-  state.selectedTrainingId = data.id;
-  state.reportsTrainingId = data.id;
-
-  await loadTrainingsFromSupabase();
-  renderTrainingsView();
 }
 
 function startTrainingEdit(trainingId) {
@@ -476,81 +497,94 @@ function cancelTrainingEdit() {
 }
 
 async function updateTraining() {
-  const trainingId = state.editingTrainingId;
-  if (!trainingId) return;
+  try {
+    const trainingId = state.editingTrainingId;
+    if (!trainingId) {
+      alert("Kein Training zum Bearbeiten ausgewählt.");
+      return;
+    }
 
-  const title = document.getElementById("trainingTitle").value.trim();
-  const date = document.getElementById("trainingDate").value;
-  const time = document.getElementById("trainingTime").value;
-  const location = document.getElementById("trainingLocation").value.trim();
-  const notes = document.getElementById("trainingNotes").value.trim();
-  const voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore").value || 0);
-  const voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore").value || 0);
+    const title = document.getElementById("trainingTitle")?.value.trim();
+    const date = document.getElementById("trainingDate")?.value;
+    const time = document.getElementById("trainingTime")?.value;
+    const location = document.getElementById("trainingLocation")?.value.trim() || "";
+    const notes = document.getElementById("trainingNotes")?.value.trim() || "";
+    const voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore")?.value || 0);
+    const voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore")?.value || 0);
 
-  if (!title || !date || !time) {
-    alert("Bitte mindestens Titel, Datum und Uhrzeit ausfüllen.");
-    return;
+    if (!title || !date || !time) {
+      alert("Bitte mindestens Titel, Datum und Uhrzeit ausfüllen.");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("trainings")
+      .update({
+        title,
+        training_date: date,
+        training_time: normalizeTrainingTimeForDb(time),
+        location,
+        notes,
+        vote_opens_hours_before: voteOpensHoursBefore,
+        vote_closes_hours_before: voteClosesHoursBefore
+      })
+      .eq("id", trainingId);
+
+    if (error) {
+      console.error("Fehler beim Aktualisieren des Trainings:", error);
+      alert("Training konnte nicht aktualisiert werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    state.editingTrainingId = null;
+
+    await loadTrainingsFromSupabase();
+    renderTrainingsView();
+  } catch (err) {
+    console.error("Unerwarteter Fehler in updateTraining:", err);
+    alert("Unerwarteter Fehler beim Aktualisieren des Trainings.");
   }
-
-  const { error } = await supabase
-    .from("trainings")
-    .update({
-      title,
-      training_date: date,
-      training_time: time,
-      location,
-      notes,
-      vote_opens_hours_before: voteOpensHoursBefore,
-      vote_closes_hours_before: voteClosesHoursBefore
-    })
-    .eq("id", trainingId);
-
-  if (error) {
-    console.error("Fehler beim Aktualisieren des Trainings:", error);
-    alert("Training konnte nicht aktualisiert werden.");
-    return;
-  }
-
-  state.editingTrainingId = null;
-
-  await loadTrainingsFromSupabase();
-  renderTrainingsView();
 }
 
 async function deleteTraining(trainingId) {
-  if (state.currentUser.role !== "headAdmin") return;
+  try {
+    if (state.currentUser.role !== "headAdmin") return;
 
-  const training = trainings.find(t => t.id === trainingId);
-  if (!training) return;
-  if (!confirm("Training wirklich löschen: " + training.title + "?")) return;
+    const training = trainings.find(t => t.id === trainingId);
+    if (!training) return;
+    if (!confirm("Training wirklich löschen: " + training.title + "?")) return;
 
-  const { error } = await supabase
-    .from("trainings")
-    .delete()
-    .eq("id", trainingId);
+    const { error } = await supabase
+      .from("trainings")
+      .delete()
+      .eq("id", trainingId);
 
-  if (error) {
-    console.error("Fehler beim Löschen des Trainings:", error);
-    alert("Training konnte nicht gelöscht werden.");
-    return;
+    if (error) {
+      console.error("Fehler beim Löschen des Trainings:", error);
+      alert("Training konnte nicht gelöscht werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    delete responses[trainingId];
+
+    if (state.editingTrainingId === trainingId) state.editingTrainingId = null;
+    if (state.reportsTrainingId === trainingId) state.reportsTrainingId = null;
+    if (state.selectedTrainingId === trainingId) state.selectedTrainingId = null;
+
+    await loadTrainingsFromSupabase();
+
+    if (!state.selectedTrainingId && trainings[0]) {
+      state.selectedTrainingId = trainings[0].id;
+    }
+    if (!state.reportsTrainingId && trainings[0]) {
+      state.reportsTrainingId = trainings[0].id;
+    }
+
+    renderTrainingsView();
+  } catch (err) {
+    console.error("Unerwarteter Fehler in deleteTraining:", err);
+    alert("Unerwarteter Fehler beim Löschen des Trainings.");
   }
-
-  delete responses[trainingId];
-
-  if (state.editingTrainingId === trainingId) state.editingTrainingId = null;
-  if (state.reportsTrainingId === trainingId) state.reportsTrainingId = null;
-  if (state.selectedTrainingId === trainingId) state.selectedTrainingId = null;
-
-  await loadTrainingsFromSupabase();
-
-  if (!state.selectedTrainingId && trainings[0]) {
-    state.selectedTrainingId = trainings[0].id;
-  }
-  if (!state.reportsTrainingId && trainings[0]) {
-    state.reportsTrainingId = trainings[0].id;
-  }
-
-  renderTrainingsView();
 }
 
 function createPlayer() {
