@@ -441,25 +441,50 @@ function renderPlayersView() {
   content.innerHTML = `
     ${renderMustChangePasswordNotice()}
     <div class="twoCol">
-      <div class="card">
-        <h2>${editPlayer ? "Spieler bearbeiten" : "Spieler anlegen"}</h2>
-        <div class="field"><label>Vorname</label><input id="playerFirstName" class="input" value="${editPlayer ? escapeHtml(editPlayer.firstName) : ""}" placeholder="Vorname" /></div>
-        <div class="field"><label>Nachname</label><input id="playerLastName" class="input" value="${editPlayer ? escapeHtml(editPlayer.lastName) : ""}" placeholder="Nachname" /></div>
-        <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${editPlayer ? escapeHtml(editPlayer.username) : ""}" placeholder="z. B. sgamperl" /></div>
-        <div class="field"><label>Geburtstag</label><input id="playerBirthday" class="input" type="date" value="${editPlayer ? editPlayer.birthday : ""}" /></div>
-        <div class="field">
-          <label>Unit</label>
-          <select id="playerUnit" class="select">
-            ${unitOrder.map(u => `<option value="${u}" ${editPlayer && editPlayer.unit === u ? "selected" : ""}>${u}</option>`).join("")}
-          </select>
+      <div>
+        <div class="card">
+          <h2>${editPlayer ? "Spieler bearbeiten" : "Spieler anlegen"}</h2>
+          <div class="field"><label>Vorname</label><input id="playerFirstName" class="input" value="${editPlayer ? escapeHtml(editPlayer.firstName) : ""}" placeholder="Vorname" /></div>
+          <div class="field"><label>Nachname</label><input id="playerLastName" class="input" value="${editPlayer ? escapeHtml(editPlayer.lastName) : ""}" placeholder="Nachname" /></div>
+          <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${editPlayer ? escapeHtml(editPlayer.username) : ""}" placeholder="z. B. sgamperl" /></div>
+          <div class="field"><label>Geburtstag</label><input id="playerBirthday" class="input" type="date" value="${editPlayer ? editPlayer.birthday : ""}" /></div>
+          <div class="field">
+            <label>Unit</label>
+            <select id="playerUnit" class="select">
+              ${unitOrder.map(u => `<option value="${u}" ${editPlayer && editPlayer.unit === u ? "selected" : ""}>${u}</option>`).join("")}
+            </select>
+          </div>
+          <div class="rowActions">
+            <button class="button" onclick="${editPlayer ? "updatePlayer()" : "createPlayer()"}">${editPlayer ? "Spieler speichern" : "Spieler anlegen"}</button>
+            ${editPlayer ? `<button class="secondaryButton" onclick="cancelPlayerEdit()">Abbrechen</button>` : ""}
+          </div>
+          <p class="smallMuted" style="margin-top:12px;">
+            Initialpasswort für neue Spieler ist automatisch das Geburtsjahr.
+          </p>
         </div>
-        <div class="rowActions">
-          <button class="button" onclick="${editPlayer ? "updatePlayer()" : "createPlayer()"}">${editPlayer ? "Spieler speichern" : "Spieler anlegen"}</button>
-          ${editPlayer ? `<button class="secondaryButton" onclick="cancelPlayerEdit()">Abbrechen</button>` : ""}
+
+        <div class="card" style="margin-top:16px;">
+          <h2>Kader importieren</h2>
+          <p class="smallMuted">
+            Erwartete Spalten: Vorname | Nachname | Geburtstag | Unit | E-Mail
+          </p>
+
+          <div class="field">
+            <label>CSV-Datei auswählen</label>
+            <input id="rosterImportFile" class="input" type="file" accept=".csv" />
+          </div>
+
+          <div class="rowActions">
+            <button class="button" onclick="importRosterCsv()">Import starten</button>
+          </div>
+
+          ${state.importSummary ? `
+            <div class="deadlineBox" style="margin-top:12px;">
+              <div><strong>Import-Ergebnis</strong></div>
+              <div class="smallMuted" style="margin-top:8px;">${escapeHtml(state.importSummary)}</div>
+            </div>
+          ` : ""}
         </div>
-        <p class="smallMuted" style="margin-top:12px;">
-          Initialpasswort für neue Spieler ist automatisch das Geburtsjahr.
-        </p>
       </div>
 
       <div class="card">
