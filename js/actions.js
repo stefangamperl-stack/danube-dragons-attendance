@@ -667,20 +667,23 @@ async function createPlayer() {
   try {
     const firstName = document.getElementById("playerFirstName").value.trim();
     const lastName = document.getElementById("playerLastName").value.trim();
-    const username = document.getElementById("playerUsername").value.trim();
+    const usernameInput = document.getElementById("playerUsername").value.trim();
     const birthday = document.getElementById("playerBirthday").value;
     const unit = document.getElementById("playerUnit").value;
 
-    if (!firstName || !lastName || !username || !birthday || !unit) {
-      alert("Bitte alle Felder ausfüllen.");
+    if (!firstName || !lastName || !birthday || !unit) {
+      alert("Bitte alle Pflichtfelder ausfüllen.");
       return;
     }
+
+    const finalUsername = usernameInput || generateUniqueUsername(firstName, lastName);
 
     const { data, error } = await supabaseClient
       .from("players")
       .insert([{
         first_name: firstName,
         last_name: lastName,
+        username: finalUsername,
         birthday,
         unit,
         active: true
@@ -697,7 +700,7 @@ async function createPlayer() {
     if (data) {
       const newPlayer = makePlayer(
         data.id,
-        username,
+        data.username || finalUsername,
         data.first_name,
         data.last_name,
         data.birthday,
