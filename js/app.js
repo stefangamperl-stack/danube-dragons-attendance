@@ -342,10 +342,20 @@ function generateUniqueUsername(firstName, lastName) {
   return `${base}${counter}`;
 }
 
+async function loadInitialAppData() {
+  try {
+    await loadTrainingsFromSupabase();
+    await loadPlayersFromSupabase();
+    renderApp();
+  } catch (error) {
+    console.error("Fehler beim initialen Laden der App-Daten:", error);
+  }
+}
+
 if (state.currentUser) {
   showApp();
-  Promise.resolve(loadTrainingsFromSupabase()).catch(error => {
-    console.error("Fehler beim initialen Laden der Trainings:", error);
+  Promise.resolve(loadInitialAppData()).catch(error => {
+    console.error("Fehler beim initialen Laden:", error);
   });
 } else {
   showLanding();
