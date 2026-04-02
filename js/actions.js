@@ -1,6 +1,6 @@
 async function loadTrainingsFromSupabase() {
   try {
-    if (typeof supabase === "undefined" || !supabase) {
+    if (typeof supabaseClient === "undefined" || !supabaseClient) {
       throw new Error("Supabase-Client ist nicht geladen.");
     }
 
@@ -12,7 +12,7 @@ async function loadTrainingsFromSupabase() {
       throw new Error("Die Variable 'responses' ist nicht definiert.");
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("trainings")
       .select("*")
       .order("training_date", { ascending: true })
@@ -483,7 +483,7 @@ async function createTraining() {
 
     console.log("createTraining payload:", payload);
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("trainings")
       .insert([payload])
       .select()
@@ -503,7 +503,7 @@ async function createTraining() {
     renderTrainingsView();
   } catch (err) {
     console.error("Unerwarteter Fehler in createTraining:", err);
-    alert("Unerwarteter Fehler beim Erstellen des Trainings.");
+    alert("Unerwarteter Fehler beim Erstellen des Trainings:\n" + (err.message || err));
   }
 }
 
@@ -539,7 +539,7 @@ async function updateTraining() {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("trainings")
       .update({
         title,
@@ -564,7 +564,7 @@ async function updateTraining() {
     renderTrainingsView();
   } catch (err) {
     console.error("Unerwarteter Fehler in updateTraining:", err);
-    alert("Unerwarteter Fehler beim Aktualisieren des Trainings.");
+    alert("Unerwarteter Fehler beim Aktualisieren des Trainings:\n" + (err.message || err));
   }
 }
 
@@ -576,7 +576,7 @@ async function deleteTraining(trainingId) {
     if (!training) return;
     if (!confirm("Training wirklich löschen: " + training.title + "?")) return;
 
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("trainings")
       .delete()
       .eq("id", trainingId);
@@ -605,7 +605,7 @@ async function deleteTraining(trainingId) {
     renderTrainingsView();
   } catch (err) {
     console.error("Unerwarteter Fehler in deleteTraining:", err);
-    alert("Unerwarteter Fehler beim Löschen des Trainings.");
+    alert("Unerwarteter Fehler beim Löschen des Trainings:\n" + (err.message || err));
   }
 }
 
