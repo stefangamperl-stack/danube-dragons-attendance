@@ -1,3 +1,45 @@
+async function loadTrainingsFromSupabase() {
+  const { data, error } = await supabase
+    .from("trainings")
+    .select("*")
+    .order("training_date", { ascending: true })
+    .order("training_time", { ascending: true });
+
+  if (error) {
+    console.error("Fehler beim Laden der Trainings:", error);
+    return;
+  }
+
+  trainings.length = 0;
+
+  (data || []).forEach(row => {
+    trainings.push({
+      id: row.id,
+      title: row.title,
+      date: row.training_date,
+      time: String(row.training_time || "").slice(0, 5),
+      location: row.location || "",
+      notes: row.notes || "",
+      voteOpensHoursBefore: row.vote_opens_hours_before ?? 72,
+      voteClosesHoursBefore: row.vote_closes_hours_before ?? 6
+    });
+
+    if (!responses[row.id]) {
+      responses[row.id] = {};
+    }
+  });
+
+  if (!state.selectedTrainingId && trainings[0]) {
+    state.selectedTrainingId = trainings[0].id;
+  }
+
+  if (!state.reportsTrainingId && trainings[0]) {
+    state.reportsTrainingId = trainings[0].id;
+  }
+
+  renderApp();
+}
+
 function setReportsSort(key) {
   if (state.reportsSort.key === key) {
     state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
@@ -626,17 +668,3 @@ function setPlayerListGroup(group) {
   state.playerListSearch = "";
   renderPlayersView();
 }
-
-if (state.currentUser) {
-  showApp();
-} else {
-  showLanding();
-}
-
-updateCurrentDateTime();
-setInterval(updateCurrentDateTime, 30000);
-setInterval(() => {
-  if (!document.getElementById("appScreen").classList.contains("hidden")) {
-    renderApp();
-  }
-}, 60000);
