@@ -342,24 +342,69 @@ function generateUniqueUsername(firstName, lastName) {
   return `${base}${counter}`;
 }
 
+async function hydrateCurrentUserFromSupabase() {
+  const { data, error } = await supabaseClient.auth.getSession();
+
+  if (error) {
+    console.error("Fehler beim Lesen der Session:", error);
+    state.currentUser = null;
+    localStorage.removeItem("dd_user");
+    return;
+  }
+
+  const session = data?.session;
+  if (!session?.user) {
+    state.currentUser = null;
+    localStorage.removeItem("dd_user");
+    return;
+  }
+
+  const { data: profile, error: profileError } = await supabaseClient
+    .from("profiles")
+    .select("*")
+    .eq("id", session.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    console.error("Fehler beim Laden des Profils:", profileError);
+    state.currentUser = null;
+    localStorage.removeItem("dd_user");
+    return;
+  }
+
+  state.currentUser = {
+    id: profile.id,
+    username: profile.username,
+    role: profile.role,
+    displayName: profile.display_name,
+    email: profile.email || ""
+  };
+
+  saveSession();
+}
+
 async function loadInitialAppData() {
   try {
+    await hydrateCurrentUserFromSupabase();
+
+    if (!state.currentUser) {
+      showLanding();
+      return;
+    }
+
+    showApp();
     await loadTrainingsFromSupabase();
     await loadPlayersFromSupabase();
     renderApp();
   } catch (error) {
     console.error("Fehler beim initialen Laden der App-Daten:", error);
+    showLanding();
   }
 }
 
-if (state.currentUser) {
-  showApp();
-  Promise.resolve(loadInitialAppData()).catch(error => {
-    console.error("Fehler beim initialen Laden:", error);
-  });
-} else {
-  showLanding();
-}
+Promise.resolve(loadInitialAppData()).catch(error => {
+  console.error("Fehler beim initialen Laden:", error);
+});
 
 updateCurrentDateTime();
 setInterval(updateCurrentDateTime, 30000);
