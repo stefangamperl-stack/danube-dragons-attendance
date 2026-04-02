@@ -680,48 +680,35 @@ async function createPlayer() {
 
     const finalUsername = usernameInput || generateUniqueUsername(firstName, lastName);
 
-    const { data, error } = await supabaseClient
-      .from("players")
-      .insert([{
-        first_name: firstName,
-        last_name: lastName,
+    const response = await fetch("/api/create-player", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        firstName,
+        lastName,
         username: finalUsername,
+        email,
         birthday,
-        unit,
-        active: true
-      }])
-      .select()
-      .single();
+        unit
+      })
+    });
 
-    if (error) {
-      console.error("Fehler beim Erstellen des Spielers:", error);
-      alert("Spieler konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error("Fehler beim Erstellen des Spielers:", result);
+      alert("Spieler konnte nicht gespeichert werden:\n" + (result.error || "Unbekannter Fehler"));
       return;
     }
 
-    if (data) {
-      const newPlayer = makePlayer(
-        data.id,
-        data.username || finalUsername,
-        data.first_name,
-        data.last_name,
-        data.birthday,
-        data.unit,
-        []
-      );
-
-      newPlayer.active = data.active !== false;
-      newPlayer.email = email;
-
-      players.push(newPlayer);
-
-      const userRecord = createPlayerUserRecord(newPlayer);
-      userRecord.email = email;
-      users.push(userRecord);
-    }
+    await loadPlayersFromSupabase();
 
     state.editPlayerId = null;
     renderPlayersView();
+
+    alert("Spieler wurde angelegt. Initialpasswort ist das Geburtsjahr.");
   } catch (err) {
     console.error("Unerwarteter Fehler in createPlayer:", err);
     alert("Unerwarteter Fehler beim Erstellen des Spielers:\n" + (err.message || err));
