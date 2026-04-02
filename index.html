@@ -427,6 +427,15 @@
       gap: 4px;
     }
 
+    .noticeBox {
+      margin-bottom: 18px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid #854d0e;
+      color: #fde68a;
+    }
+
     @media (max-width: 900px) {
       .app {
         grid-template-columns: 1fr;
@@ -498,10 +507,13 @@
       <div class="card" style="margin-top: 20px;">
         <h3>Demo-Nutzer</h3>
         <ul class="loginList">
-          <li>Spieler: <strong>sgamperl</strong> / <strong>test123</strong></li>
-          <li>Admin Coach: <strong>coachweber</strong> / <strong>test123</strong></li>
-          <li>Hauptadmin: <strong>hauptadmin</strong> / <strong>test123</strong></li>
+          <li>Spieler: <strong>sgamperl</strong> / <strong>1998</strong></li>
+          <li>Admin Coach: <strong>coachweber</strong> / <strong>1982</strong></li>
+          <li>Hauptadmin: <strong>hauptadmin</strong> / <strong>1978</strong></li>
         </ul>
+        <p class="smallMuted" style="margin-top:12px;">
+          Initialpasswort ist das Geburtsjahr. Danach kann es im Profil geändert werden.
+        </p>
       </div>
     </section>
   </div>
@@ -535,11 +547,35 @@
     const offenseUnits = ["QB", "OL", "RB", "WR", "TE"];
     const defenseUnits = ["DL", "LB", "DB"];
 
-    const users = [
-      { id: "u1", username: "sgamperl", password: "test123", role: "player", displayName: "Stefan Gamperl", playerId: "p_lb_1", email: "sgamperl@example.com" },
-      { id: "u2", username: "coachweber", password: "test123", role: "adminCoach", displayName: "Coach Weber", email: "coachweber@example.com" },
-      { id: "u3", username: "hauptadmin", password: "test123", role: "headAdmin", displayName: "Hauptadmin", email: "hauptadmin@example.com" }
-    ];
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function parseDateOnly(dateStr) {
+      if (!dateStr) return null;
+      const [y, m, d] = dateStr.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function toYmdLocal(dateObj) {
+      return `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(dateObj.getDate())}`;
+    }
+
+    function getTodayYmd() {
+      return toYmdLocal(new Date());
+    }
+
+    function daysBetweenInclusive(fromDateStr, toDateStr) {
+      const start = parseDateOnly(fromDateStr);
+      const end = parseDateOnly(toDateStr);
+      if (!start || !end) return 0;
+      const ms = end.getTime() - start.getTime();
+      return Math.floor(ms / (1000 * 60 * 60 * 24)) + 1;
+    }
+
+    function initialPasswordFromBirthday(birthday) {
+      return String(birthday || "").slice(0, 4);
+    }
 
     function makePlayer(id, username, firstName, lastName, birthday, unit, limitations = []) {
       const current = getCurrentLimitationFromArray(limitations);
@@ -559,7 +595,7 @@
     }
 
     function getCurrentLimitationFromArray(limitations) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayYmd();
       return (limitations || []).find(l => {
         const until = calculateLimitationEnd(l.from, l.durationDays);
         return l.from <= today && until >= today;
@@ -627,9 +663,42 @@
     ];
 
     const coaches = [
-      { id: "c1", name: "Coach Weber", username: "coachweber", role: "adminCoach", active: true, email: "coachweber@example.com" },
-      { id: "c2", name: "Hauptadmin", username: "hauptadmin", role: "headAdmin", active: true, email: "hauptadmin@example.com" }
+      { id: "c1", name: "Coach Weber", username: "coachweber", birthday: "1982-04-22", role: "adminCoach", active: true, email: "coachweber@example.com" },
+      { id: "c2", name: "Hauptadmin", username: "hauptadmin", birthday: "1978-09-30", role: "headAdmin", active: true, email: "hauptadmin@example.com" }
     ];
+
+    const users = [];
+
+    function createPlayerUserRecord(player) {
+      return {
+        id: "auth_" + player.id,
+        username: player.username,
+        password: initialPasswordFromBirthday(player.birthday),
+        role: "player",
+        displayName: fullName(player),
+        playerId: player.id,
+        email: "",
+        mustChangePassword: true,
+        active: player.active !== false
+      };
+    }
+
+    function createCoachUserRecord(coach) {
+      return {
+        id: "auth_" + coach.id,
+        username: coach.username,
+        password: initialPasswordFromBirthday(coach.birthday),
+        role: coach.role,
+        displayName: coach.name,
+        coachId: coach.id,
+        email: coach.email || "",
+        mustChangePassword: true,
+        active: coach.active !== false
+      };
+    }
+
+    players.forEach(player => users.push(createPlayerUserRecord(player)));
+    coaches.forEach(coach => users.push(createCoachUserRecord(coach)));
 
     const trainings = [
       {
@@ -761,9 +830,10 @@
     }
 
     function calculateLimitationEnd(fromDate, durationDays) {
-      const start = new Date(`${fromDate}T00:00:00`);
+      const start = parseDateOnly(fromDate);
+      if (!start) return "";
       start.setDate(start.getDate() + Number(durationDays || 0) - 1);
-      return start.toISOString().slice(0, 10);
+      return toYmdLocal(start);
     }
 
     function refreshPlayerHealthStatus(player) {
@@ -826,6 +896,53 @@
       return players.filter(p => p.unit === group);
     }
 
+    function getCurrentUserAuth() {
+      if (!state.currentUser) return null;
+      return users.find(u => u.id === state.currentUser.id) || null;
+    }
+
+    function getPlayerUserAuth(playerId) {
+      return users.find(u => u.playerId === playerId) || null;
+    }
+
+    function getCoachUserAuth(coachId) {
+      return users.find(u => u.coachId === coachId) || null;
+    }
+
+    function syncPlayerUser(player) {
+      const user = getPlayerUserAuth(player.id);
+      if (!user) {
+        users.push(createPlayerUserRecord(player));
+        return;
+      }
+      user.username = player.username;
+      user.displayName = fullName(player);
+      user.active = player.active !== false;
+    }
+
+    function syncCoachUser(coach) {
+      const user = getCoachUserAuth(coach.id);
+      if (!user) {
+        users.push(createCoachUserRecord(coach));
+        return;
+      }
+      user.username = coach.username;
+      user.role = coach.role;
+      user.displayName = coach.name;
+      user.email = coach.email || "";
+      user.active = coach.active !== false;
+    }
+
+    function removePlayerUser(playerId) {
+      const index = users.findIndex(u => u.playerId === playerId);
+      if (index >= 0) users.splice(index, 1);
+    }
+
+    function removeCoachUser(coachId) {
+      const index = users.findIndex(u => u.coachId === coachId);
+      if (index >= 0) users.splice(index, 1);
+    }
+
     function showLanding() {
       document.getElementById("landing").classList.remove("hidden");
       document.getElementById("loginScreen").classList.add("hidden");
@@ -849,16 +966,24 @@
     function login() {
       const username = document.getElementById("loginUsername").value.trim();
       const password = document.getElementById("loginPassword").value.trim();
-      const user = users.find(u => u.username === username && u.password === password);
+      const user = users.find(u => u.username === username && u.password === password && u.active !== false);
 
       if (!user) {
         document.getElementById("loginError").textContent = "Loginname oder Passwort ist falsch.";
         return;
       }
 
-      state.currentUser = user;
+      state.currentUser = {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        displayName: user.displayName,
+        playerId: user.playerId || null,
+        coachId: user.coachId || null
+      };
+
       saveSession();
-      state.currentView = "dashboard";
+      state.currentView = user.mustChangePassword ? "profile" : "dashboard";
       showApp();
     }
 
@@ -874,7 +999,7 @@
     }
 
     function limitationIsCurrent(limitation) {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = getTodayYmd();
       const until = calculateLimitationEnd(limitation.from, limitation.durationDays);
       return limitation.from <= today && until >= today;
     }
@@ -916,19 +1041,29 @@
       `;
     }
 
+    function renderMustChangePasswordNotice() {
+      const auth = getCurrentUserAuth();
+      if (!auth || !auth.mustChangePassword) return "";
+      return `
+        <div class="noticeBox">
+          Du verwendest noch dein Initialpasswort. Bitte ändere es im Profil auf ein eigenes Passwort.
+        </div>
+      `;
+    }
+
     function renderNav() {
       const nav = document.getElementById("nav");
       const role = state.currentUser.role;
 
       let items = [
-        { key: "dashboard", label: "Dashboard" }
+        { key: "dashboard", label: "Dashboard" },
+        { key: "profile", label: "Mein Profil" }
       ];
 
       if (role === "player") {
         items.push(
           { key: "trainings", label: "Meine Trainings" },
-          { key: "health", label: "Mein Status" },
-          { key: "profile", label: "Mein Profil" }
+          { key: "health", label: "Mein Status" }
         );
       }
 
@@ -966,6 +1101,87 @@
       }
     }
 
+    function renderOwnProfileView() {
+      const auth = getCurrentUserAuth();
+      const content = document.getElementById("content");
+      document.getElementById("screenTitle").textContent = "Mein Profil";
+      document.getElementById("screenSubtitle").textContent = "Eigene Daten und Passwort";
+
+      if (state.currentUser.role === "player") {
+        const player = players.find(p => p.id === state.currentUser.playerId);
+
+        content.innerHTML = `
+          ${renderMustChangePasswordNotice()}
+          <div class="twoCol">
+            <div class="card">
+              <h2>${fullName(player)}</h2>
+              <p><strong>Loginname:</strong> ${player.username}</p>
+              <p><strong>Geburtstag:</strong> ${formatDateDisplay(player.birthday)}</p>
+              <p><strong>Unit:</strong> ${player.unit}</p>
+              <p><strong>Gruppe:</strong> ${getGroupLabelForUnit(player.unit)}</p>
+              <p><strong>Gesundheit:</strong> ${getCurrentPlayerStatusLabel(player)}</p>
+            </div>
+
+            <div class="card">
+              <h2>Passwort ändern</h2>
+              <div class="field">
+                <label>Aktuelles Passwort</label>
+                <input id="currentPassword" class="input" type="password" placeholder="Aktuelles Passwort" />
+              </div>
+              <div class="field">
+                <label>Neues Passwort</label>
+                <input id="newPassword" class="input" type="password" placeholder="Neues Passwort" />
+              </div>
+              <div class="field">
+                <label>Neues Passwort wiederholen</label>
+                <input id="confirmPassword" class="input" type="password" placeholder="Neues Passwort wiederholen" />
+              </div>
+              <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
+              <p class="smallMuted" style="margin-top:12px;">
+                Initialpasswort war dein Geburtsjahr.
+              </p>
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      const coach = coaches.find(c => c.id === state.currentUser.coachId);
+
+      content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
+        <div class="twoCol">
+          <div class="card">
+            <h2>${coach.name}</h2>
+            <p><strong>Loginname:</strong> ${coach.username}</p>
+            <p><strong>Geburtstag:</strong> ${formatDateDisplay(coach.birthday)}</p>
+            <p><strong>E-Mail:</strong> ${coach.email || "-"}</p>
+            <p><strong>Rolle:</strong> ${coach.role}</p>
+          </div>
+
+          <div class="card">
+            <h2>Passwort ändern</h2>
+            <div class="field">
+              <label>Aktuelles Passwort</label>
+              <input id="currentPassword" class="input" type="password" placeholder="Aktuelles Passwort" />
+            </div>
+            <div class="field">
+              <label>Neues Passwort</label>
+              <input id="newPassword" class="input" type="password" placeholder="Neues Passwort" />
+            </div>
+            <div class="field">
+              <label>Neues Passwort wiederholen</label>
+              <input id="confirmPassword" class="input" type="password" placeholder="Neues Passwort wiederholen" />
+            </div>
+            <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
+            <p class="smallMuted" style="margin-top:12px;">
+              Initialpasswort war dein Geburtsjahr.
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
     function renderPlayerView() {
       const player = players.find(p => p.id === state.currentUser.playerId);
       const content = document.getElementById("content");
@@ -979,15 +1195,19 @@
           .sort((a, b) => b.from.localeCompare(a.from));
 
         content.innerHTML = `
+          ${renderMustChangePasswordNotice()}
           <div class="card">
             <div class="smallMuted">Aktueller Status</div>
             <div class="statusBig">${getCurrentPlayerStatusLabel(player)}</div>
             <p style="margin-top: 12px;"><strong>Art:</strong> ${player.injuryType || "Keine aktive Limitation"}</p>
             <p><strong>Dauer:</strong> ${player.unavailableDuration || "-"}</p>
 
-            <div class="statusButtons">
-              <button class="button" onclick="setHealthStatus('fit')">Fit</button>
-              <button class="secondaryButton" onclick="setHealthStatus('injured')">Verletzt/Krank</button>
+            <div class="field">
+              <label>Status</label>
+              <select id="healthStatusSelect" class="select">
+                <option value="fit" ${player.healthStatus === "fit" ? "selected" : ""}>Fit</option>
+                <option value="injured" ${player.healthStatus === "injured" ? "selected" : ""}>Verletzt/Krank</option>
+              </select>
             </div>
 
             <div class="field">
@@ -997,7 +1217,7 @@
 
             <div class="field">
               <label>Gültig seit</label>
-              <input id="injuryFrom" class="input" type="date" value="${new Date().toISOString().slice(0,10)}" />
+              <input id="injuryFrom" class="input" type="date" value="${getTodayYmd()}" />
             </div>
 
             <div class="field">
@@ -1024,19 +1244,7 @@
       }
 
       if (state.currentView === "profile") {
-        document.getElementById("screenTitle").textContent = "Mein Profil";
-        document.getElementById("screenSubtitle").textContent = "Nur eigene Daten";
-
-        content.innerHTML = `
-          <div class="card">
-            <h2>${fullName(player)}</h2>
-            <p><strong>Loginname:</strong> ${player.username}</p>
-            <p><strong>Geburtstag:</strong> ${formatDateDisplay(player.birthday)}</p>
-            <p><strong>Unit:</strong> ${player.unit}</p>
-            <p><strong>Gruppe:</strong> ${getGroupLabelForUnit(player.unit)}</p>
-            <p><strong>Gesundheit:</strong> ${getCurrentPlayerStatusLabel(player)}</p>
-          </div>
-        `;
+        renderOwnProfileView();
         return;
       }
 
@@ -1047,6 +1255,7 @@
         const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(b) - getTrainingStartDate(a));
 
         content.innerHTML = `
+          ${renderMustChangePasswordNotice()}
           <div class="card">
             <div class="compactList">
               ${orderedTrainings.map(training => `
@@ -1073,7 +1282,7 @@
         .slice(0, 3);
 
       if (!upcomingTrainings.length) {
-        content.innerHTML = `<div class="card"><p>Keine kommenden Trainings gefunden.</p></div>`;
+        content.innerHTML = `${renderMustChangePasswordNotice()}<div class="card"><p>Keine kommenden Trainings gefunden.</p></div>`;
         return;
       }
 
@@ -1101,7 +1310,7 @@
 
             ${!limited && !locked ? `
               <div class="statusButtons">
-                <button class="button" onclick="setPlayerResponse('${training.id}','yes')">Zusage</button>
+                <button class="secondaryButton" onclick="setPlayerResponse('${training.id}','yes')">Zusage</button>
                 <button class="secondaryButton" onclick="setPlayerResponse('${training.id}','maybe')">Unsicher</button>
                 <button class="secondaryButton" onclick="setPlayerResponse('${training.id}','no')">Absage</button>
               </div>
@@ -1110,10 +1319,15 @@
         `;
       }).join("");
 
-      content.innerHTML = cards;
+      content.innerHTML = `${renderMustChangePasswordNotice()}${cards}`;
     }
 
     function renderCoachView() {
+      if (state.currentView === "profile") {
+        renderOwnProfileView();
+        return;
+      }
+
       if (state.currentView === "players") {
         renderPlayersView();
         return;
@@ -1159,7 +1373,7 @@
 
       const selectedTraining = getUpcomingTraining();
       if (!selectedTraining) {
-        content.innerHTML = `<div class="card"><p>Kein kommendes Training gefunden.</p></div>`;
+        content.innerHTML = `${renderMustChangePasswordNotice()}<div class="card"><p>Kein kommendes Training gefunden.</p></div>`;
         return;
       }
 
@@ -1172,6 +1386,7 @@
       const summaryCards = renderDashboardUnitSummary(selectedTraining.id);
 
       content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
         <div class="grid unitSummary">
           ${summaryCards}
         </div>
@@ -1256,6 +1471,7 @@
       filtered = sortPlayersByLastName(filtered);
 
       content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
         <div class="twoCol">
           <div class="card">
             <h2>${editPlayer ? "Spieler bearbeiten" : "Spieler anlegen"}</h2>
@@ -1273,6 +1489,9 @@
               <button class="button" onclick="${editPlayer ? "updatePlayer()" : "createPlayer()"}">${editPlayer ? "Spieler speichern" : "Spieler anlegen"}</button>
               ${editPlayer ? `<button class="secondaryButton" onclick="cancelPlayerEdit()">Abbrechen</button>` : ""}
             </div>
+            <p class="smallMuted" style="margin-top:12px;">
+              Initialpasswort für neue Spieler ist automatisch das Geburtsjahr.
+            </p>
           </div>
 
           <div class="card">
@@ -1318,7 +1537,7 @@
                         <div class="rowActions">
                           <button class="secondaryButton" onclick="startPlayerEdit('${p.id}')">Bearbeiten</button>
                           <button class="warnButton" onclick="openLimitationEdit('${p.id}')">Limitation</button>
-                          ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${p.id}')">Reset-Link</button>` : ""}
+                          ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${p.id}')">Reset</button>` : ""}
                           ${state.currentUser.role === "headAdmin" ? `<button class="dangerButton" onclick="deletePlayer('${p.id}')">Löschen</button>` : ""}
                         </div>
                       </td>
@@ -1345,6 +1564,7 @@
       }
 
       content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
         <div class="twoCol">
           <div class="card">
             <h2>Training auswählen</h2>
@@ -1427,6 +1647,7 @@
       const counts = getStatusCounts(selectedTraining.id, filteredPlayers);
 
       content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
         <div class="card" style="margin-bottom: 24px;">
           <h2>Trainingsdatum auswählen</h2>
           <div class="field">
@@ -1505,9 +1726,7 @@
                       <td>${getStatusTag(status)}</td>
                       <td>${response ? `${formatDateDisplay(response.updatedAt.slice(0,10))} ${response.updatedAt.slice(11,16)}` : (status === "limited" ? "automatisch" : "offen")}</td>
                       <td>${changed ? "Ja" : ""}</td>
-                      <td>
-                        ${getCurrentPlayerStatusLabel(player)}
-                      </td>
+                      <td>${getCurrentPlayerStatusLabel(player)}</td>
                       <td>
                         <div class="rowActions">
                           ${status === "limited" ? `
@@ -1554,6 +1773,7 @@
       const dropdownPlayers = sortPlayersByLastName(players);
 
       content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
         <div class="twoCol">
           <div class="card">
             <h2>${player ? `Limitation für ${fullName(player)}` : "Limitation erfassen"}</h2>
@@ -1574,7 +1794,7 @@
 
             <div class="field">
               <label>Gültig seit</label>
-              <input id="limitationFrom" class="input" type="date" value="${state.editingLimitationId && player ? (findLimitation(player, state.editingLimitationId)?.from || "") : ""}" />
+              <input id="limitationFrom" class="input" type="date" value="${state.editingLimitationId && player ? (findLimitation(player, state.editingLimitationId)?.from || "") : getTodayYmd()}" />
             </div>
 
             <div class="field">
@@ -1638,6 +1858,7 @@
         : [];
 
       content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
         <div class="card">
           <h2>Spieler suchen</h2>
           <div class="field">
@@ -1711,7 +1932,7 @@
                           <div class="rowActions">
                             <button class="secondaryButton" onclick="startPlayerEdit('${player.id}'); setView('players');">Bearbeiten</button>
                             <button class="warnButton" onclick="openLimitationEdit('${player.id}')">Limitation</button>
-                            ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${player.id}')">Reset-Link</button>` : ""}
+                            ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${player.id}')">Reset</button>` : ""}
                           </div>
                         </div>
                       </div>
@@ -1782,6 +2003,7 @@
       const overallOpen = rows.reduce((sum, r) => sum + r.open, 0);
 
       content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
         <div class="grid kpis">
           <div class="card"><div class="smallMuted">Gesamt Zusagen</div><div class="kpi">${overallYes}</div></div>
           <div class="card"><div class="smallMuted">Gesamt Absagen</div><div class="kpi">${overallNo}</div></div>
@@ -1896,16 +2118,18 @@
     function renderCoachesView() {
       const content = document.getElementById("content");
       document.getElementById("screenTitle").textContent = "Coaches";
-      document.getElementById("screenSubtitle").textContent = "Nur Hauptadmin darf Coaches anlegen, bearbeiten, löschen und Reset-Links senden";
+      document.getElementById("screenSubtitle").textContent = "Nur Hauptadmin darf Coaches anlegen, bearbeiten, löschen und zurücksetzen";
 
       const editCoach = state.editCoachId ? coaches.find(c => c.id === state.editCoachId) : null;
 
       content.innerHTML = `
+        ${renderMustChangePasswordNotice()}
         <div class="twoCol">
           <div class="card">
             <h2>${editCoach ? "Coach bearbeiten" : "Coach anlegen"}</h2>
             <div class="field"><label>Name</label><input id="coachName" class="input" value="${editCoach ? escapeHtml(editCoach.name) : ""}" placeholder="Coach Name" /></div>
             <div class="field"><label>Loginname</label><input id="coachUsername" class="input" value="${editCoach ? escapeHtml(editCoach.username) : ""}" placeholder="coachlogin" /></div>
+            <div class="field"><label>Geburtstag</label><input id="coachBirthday" class="input" type="date" value="${editCoach ? (editCoach.birthday || "") : ""}" /></div>
             <div class="field"><label>E-Mail</label><input id="coachEmail" class="input" value="${editCoach ? escapeHtml(editCoach.email || "") : ""}" placeholder="coach@example.com" /></div>
             <div class="field">
               <label>Rolle</label>
@@ -1918,6 +2142,9 @@
               <button class="button" onclick="${editCoach ? "updateCoach()" : "createCoach()"}">${editCoach ? "Coach speichern" : "Coach anlegen"}</button>
               ${editCoach ? `<button class="secondaryButton" onclick="cancelCoachEdit()">Abbrechen</button>` : ""}
             </div>
+            <p class="smallMuted" style="margin-top:12px;">
+              Initialpasswort für neue Coaches ist automatisch das Geburtsjahr.
+            </p>
           </div>
 
           <div class="card">
@@ -1928,6 +2155,7 @@
                   <tr>
                     <th>Name</th>
                     <th>Loginname</th>
+                    <th>Geburtstag</th>
                     <th>Rolle</th>
                     <th>Aktionen</th>
                   </tr>
@@ -1937,11 +2165,12 @@
                     <tr>
                       <td>${c.name}</td>
                       <td>${c.username}</td>
+                      <td>${formatDateDisplay(c.birthday)}</td>
                       <td>${c.role}</td>
                       <td>
                         <div class="rowActions">
                           <button class="secondaryButton" onclick="startCoachEdit('${c.id}')">Bearbeiten</button>
-                          <button class="secondaryButton" onclick="sendResetLink('coach','${c.id}')">Reset-Link</button>
+                          <button class="secondaryButton" onclick="sendResetLink('coach','${c.id}')">Reset</button>
                           <button class="dangerButton" onclick="deleteCoach('${c.id}')">Löschen</button>
                         </div>
                       </td>
@@ -2096,31 +2325,44 @@
       renderReportsView();
     }
 
-    function setHealthStatus(status) {
-      const player = players.find(p => p.id === state.currentUser.playerId);
-      if (status === "fit") {
-        player.healthStatus = "fit";
-        player.injuryType = "";
-        player.unavailableDuration = "";
-      } else {
-        player.healthStatus = "injured";
-      }
-      renderApp();
+    function closeCurrentLimitations(player) {
+      const today = getTodayYmd();
+      const yesterdayDate = parseDateOnly(today);
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterday = toYmdLocal(yesterdayDate);
+
+      player.injuries = (player.injuries || []).filter(lim => {
+        if (!limitationIsCurrent(lim)) return true;
+
+        if (lim.from >= today) {
+          return false;
+        }
+
+        lim.durationDays = daysBetweenInclusive(lim.from, yesterday);
+        return lim.durationDays >= 1;
+      });
+
+      refreshPlayerHealthStatus(player);
     }
 
     function setPlayerFit(playerId) {
       const player = players.find(p => p.id === playerId);
-      player.healthStatus = "fit";
-      player.injuryType = "";
-      player.unavailableDuration = "";
+      closeCurrentLimitations(player);
       renderApp();
     }
 
     function saveHealthStatus() {
       const player = players.find(p => p.id === state.currentUser.playerId);
+      const selectedStatus = document.getElementById("healthStatusSelect").value;
       const injuryType = document.getElementById("injuryType").value.trim();
       const injuryFrom = document.getElementById("injuryFrom").value;
       const injuryDurationDays = Number(document.getElementById("injuryDurationDays").value || 0);
+
+      if (selectedStatus === "fit") {
+        closeCurrentLimitations(player);
+        renderApp();
+        return;
+      }
 
       if (!injuryType || !injuryFrom || injuryDurationDays < 1) {
         alert("Bitte Art, Startdatum und Dauer in Tagen ausfüllen.");
@@ -2136,6 +2378,41 @@
       });
 
       refreshPlayerHealthStatus(player);
+      renderApp();
+    }
+
+    function changeOwnPassword() {
+      const auth = getCurrentUserAuth();
+      if (!auth) return;
+
+      const currentPassword = document.getElementById("currentPassword").value.trim();
+      const newPassword = document.getElementById("newPassword").value.trim();
+      const confirmPassword = document.getElementById("confirmPassword").value.trim();
+
+      if (currentPassword !== auth.password) {
+        alert("Das aktuelle Passwort stimmt nicht.");
+        return;
+      }
+
+      if (newPassword.length < 4) {
+        alert("Das neue Passwort muss mindestens 4 Zeichen lang sein.");
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        alert("Die neuen Passwörter stimmen nicht überein.");
+        return;
+      }
+
+      auth.password = newPassword;
+      auth.mustChangePassword = false;
+
+      state.currentUser.username = auth.username;
+      state.currentUser.role = auth.role;
+      state.currentUser.displayName = auth.displayName;
+      saveSession();
+
+      alert("Passwort erfolgreich geändert.");
       renderApp();
     }
 
@@ -2305,7 +2582,7 @@
         return;
       }
 
-      players.push(makePlayer(
+      const newPlayer = makePlayer(
         "p" + Date.now(),
         username,
         firstName,
@@ -2313,8 +2590,10 @@
         birthday,
         unit,
         []
-      ));
+      );
 
+      players.push(newPlayer);
+      users.push(createPlayerUserRecord(newPlayer));
       renderPlayersView();
     }
 
@@ -2338,6 +2617,8 @@
       player.birthday = document.getElementById("playerBirthday").value;
       player.unit = document.getElementById("playerUnit").value;
 
+      syncPlayerUser(player);
+
       state.editPlayerId = null;
       renderPlayersView();
     }
@@ -2350,32 +2631,39 @@
 
       const index = players.findIndex(p => p.id === playerId);
       players.splice(index, 1);
+      removePlayerUser(playerId);
+
       Object.keys(responses).forEach(trainingId => {
         if (responses[trainingId][playerId]) delete responses[trainingId][playerId];
       });
+
       renderPlayersView();
     }
 
     function createCoach() {
       const name = document.getElementById("coachName").value.trim();
       const username = document.getElementById("coachUsername").value.trim();
+      const birthday = document.getElementById("coachBirthday").value;
       const email = document.getElementById("coachEmail").value.trim();
       const role = document.getElementById("coachRole").value;
 
-      if (!name || !username || !role) {
+      if (!name || !username || !birthday || !role) {
         alert("Bitte alle Pflichtfelder ausfüllen.");
         return;
       }
 
-      coaches.push({
+      const newCoach = {
         id: "c" + Date.now(),
         name,
         username,
+        birthday,
         role,
         active: true,
         email
-      });
+      };
 
+      coaches.push(newCoach);
+      users.push(createCoachUserRecord(newCoach));
       renderCoachesView();
     }
 
@@ -2395,8 +2683,11 @@
 
       coach.name = document.getElementById("coachName").value.trim();
       coach.username = document.getElementById("coachUsername").value.trim();
+      coach.birthday = document.getElementById("coachBirthday").value;
       coach.email = document.getElementById("coachEmail").value.trim();
       coach.role = document.getElementById("coachRole").value;
+
+      syncCoachUser(coach);
 
       state.editCoachId = null;
       renderCoachesView();
@@ -2410,6 +2701,7 @@
 
       const index = coaches.findIndex(c => c.id === coachId);
       coaches.splice(index, 1);
+      removeCoachUser(coachId);
       renderCoachesView();
     }
 
@@ -2418,12 +2710,18 @@
 
       if (type === "player") {
         const player = players.find(p => p.id === id);
-        if (!player) return;
-        alert("Passwort-Reset-Link wurde an den Spieler geschickt: " + fullName(player));
+        const user = getPlayerUserAuth(id);
+        if (!player || !user) return;
+        user.password = initialPasswordFromBirthday(player.birthday);
+        user.mustChangePassword = true;
+        alert("Passwort wurde auf das Geburtsjahr zurückgesetzt für: " + fullName(player));
       } else {
         const coach = coaches.find(c => c.id === id);
-        if (!coach) return;
-        alert("Passwort-Reset-Link wurde an den Coach geschickt: " + coach.name);
+        const user = getCoachUserAuth(id);
+        if (!coach || !user) return;
+        user.password = initialPasswordFromBirthday(coach.birthday);
+        user.mustChangePassword = true;
+        alert("Passwort wurde auf das Geburtsjahr zurückgesetzt für: " + coach.name);
       }
     }
 
