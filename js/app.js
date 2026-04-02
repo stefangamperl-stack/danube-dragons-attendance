@@ -149,6 +149,183 @@ function removeCoachUser(coachId) {
   if (index >= 0) users.splice(index, 1);
 }
 
+function limitationIsCurrent(limitation) {
+  const today = getTodayYmd();
+  const until = calculateLimitationEnd(limitation.from, limitation.durationDays);
+  return limitation.from <= today && until >= today;
+}
+
+function getPlayerTrainingStatus(player, trainingId) {
+  const training = trainings.find(t => t.id === trainingId);
+  const response = (responses[trainingId] || {})[player.id];
+  if (training && isPlayerLimitedForTraining(player, training)) return "limited";
+  return response ? response.status : "open";
+}
+
+function getStatusTag(status) {
+  if (status === "yes") return '<span class="tag tagYes">Zusage</span>';
+  if (status === "no") return '<span class="tag tagNo">Absage</span>';
+  if (status === "maybe") return '<span class="tag tagMaybe">Unsicher</span>';
+  if (status === "limited") return '<span class="tag tagLimited">Limited</span>';
+  return '<span class="tag tagOpen">Keine Antwort</span>';
+}
+
+function getStatusCounts(trainingId, filteredPlayers) {
+  return {
+    yes: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length,
+    no: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "no").length,
+    maybe: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "maybe").length,
+    limited: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "limited").length,
+    open: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "open").length
+  };
+}
+
+function renderStatusSummary(counts) {
+  return `
+    <div class="statusSummary">
+      <div class="statusSummaryRow"><span>Zusage</span><strong>${counts.yes}</strong></div>
+      <div class="statusSummaryRow"><span>Absage</span><strong>${counts.no}</strong></div>
+      <div class="statusSummaryRow"><span>Unsicher</span><strong>${counts.maybe}</strong></div>
+      <div class="statusSummaryRow"><span>Limited</span><strong>${counts.limited}</strong></div>
+      <div class="statusSummaryRow"><span>Keine Antwort</span><strong>${counts.open}</strong></div>
+    </div>
+  `;
+}
+
+function renderMustChangePasswordNotice() {
+  const auth = getCurrentUserAuth();
+  if (!auth || !auth.mustChangePassword) return "";
+  return `
+    <div class="noticeBox">
+      Du verwendest noch dein Initialpasswort. Bitte ändere es im Profil auf ein eigenes Passwort.
+    </div>
+  `;
+}
+
+function getUpcomingTraining() {
+  const now = new Date();
+  const futureTrainings = [...trainings]
+    .filter(t => getTrainingStartDate(t) > now)
+    .sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
+  return futureTrainings[0] || null;
+}
+
+function filterPlayerByGroup(player, group) {
+  if (group === "all") return true;
+  if (group === "Offense") return offenseUnits.includes(player.unit);
+  if (group === "Defense") return defenseUnits.includes(player.unit);
+  return player.unit === group;
+}
+
+function getSortedPlayers(list, sortState) {
+  const copy = [...list];
+  copy.sort((a, b) => {
+    let av = "";
+    let bv = "";
+
+    if (sortState.key === "name") {
+      av = fullName(a).toLowerCase();
+      bv = fullName(b).toLowerCase();
+    } else if (sortState.key === "group") {
+      av = getGroupLabelForUnit(a.unit);
+      bv = getGroupLabelForUnit(b.unit);
+    } else if (sortState.key === "unit") {
+      av = a.unit;
+      bv = b.unit;
+    } else if (sortState.key === "status") {
+      av = getPlayerTrainingStatus(a, state.reportsTrainingId);
+      bv = getPlayerTrainingStatus(b, state.reportsTrainingId);
+    } else if (sortState.key === "updatedAt") {
+      av = ((responses[state.reportsTrainingId] || {})[a.id]?.updatedAt) || "";
+      bv = ((responses[state.reportsTrainingId] || {})[b.id]?.updatedAt) || "";
+    }
+
+    const result = String(av).localeCompare(String(bv));
+    return sortState.dir === "asc" ? result : -result;
+  });
+  return copy;
+}
+
+function createPlayerIdDateTime(training) {
+  return `${training.date} 12:00`;
+}
+
+function getCountdownString(targetDate) {
+  const now = new Date();
+  const diff = targetDate.getTime() - now.getTime();
+  if (diff <= 0) return "geschlossen";
+  const totalMinutes = Math.floor(diff / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+  if (days > 0) parts.push(`${days}T`);
+  if (hours > 0 || days > 0) parts.push(`${hours}Std`);
+  parts.push(`${minutes}Min`);
+  return parts.join(" ");
+}
+
+function findLimitation(player, limitationId) {
+  return (player.injuries || []).find(l => l.id === limitationId);
+}
+
+function getPlayerStats(playerId) {
+  let yes = 0;
+  let no = 0;
+  let maybe = 0;
+  let limited = 0;
+  let open = 0;
+
+  const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
+  const timeline = orderedTrainings.map(training => {
+    const response = (responses[training.id] || {})[playerId];
+    const player = players.find(p => p.id === playerId);
+    const status = getPlayerTrainingStatus(player, training.id);
+
+    if (status === "yes") yes++;
+    else if (status === "no") no++;
+    else if (status === "maybe") maybe++;
+    else if (status === "limited") limited++;
+    else open++;
+
+    return {
+      training,
+      response,
+      status
+    };
+  });
+
+  return { yes, no, maybe, limited, open, timeline };
+}
+
+function renderDashboardUnitSummary(trainingId) {
+  const cards = [];
+
+  orderedGroups.forEach(group => {
+    const groupPlayers = getPlayersForGroup(group);
+    if (!groupPlayers.length) return;
+
+    const groupYes = groupPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+    cards.push(`
+      <div class="card">
+        <div class="smallMuted">${group}</div>
+        <div class="kpi">${groupYes}/${groupPlayers.length}</div>
+      </div>
+    `);
+  });
+
+  return cards.join("");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function showLanding() {
   document.getElementById("landing").classList.remove("hidden");
   document.getElementById("loginScreen").classList.add("hidden");
@@ -204,57 +381,39 @@ function setView(view) {
   renderApp();
 }
 
-function limitationIsCurrent(limitation) {
-  const today = getTodayYmd();
-  const until = calculateLimitationEnd(limitation.from, limitation.durationDays);
-  return limitation.from <= today && until >= today;
-}
-
-function getPlayerTrainingStatus(player, trainingId) {
-  const training = trainings.find(t => t.id === trainingId);
-  const response = (responses[trainingId] || {})[player.id];
-  if (training && isPlayerLimitedForTraining(player, training)) return "limited";
-  return response ? response.status : "open";
-}
-
-function getStatusTag(status) {
-  if (status === "yes") return '<span class="tag tagYes">Zusage</span>';
-  if (status === "no") return '<span class="tag tagNo">Absage</span>';
-  if (status === "maybe") return '<span class="tag tagMaybe">Unsicher</span>';
-  if (status === "limited") return '<span class="tag tagLimited">Limited</span>';
-  return '<span class="tag tagOpen">Keine Antwort</span>';
-}
-
-function getStatusCounts(trainingId, filteredPlayers) {
-  return {
-    yes: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length,
-    no: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "no").length,
-    maybe: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "maybe").length,
-    limited: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "limited").length,
-    open: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "open").length
-  };
-}
-
-function renderStatusSummary(counts) {
-  return `
-    <div class="statusSummary">
-      <div class="statusSummaryRow"><span>Zusage</span><strong>${counts.yes}</strong></div>
-      <div class="statusSummaryRow"><span>Absage</span><strong>${counts.no}</strong></div>
-      <div class="statusSummaryRow"><span>Unsicher</span><strong>${counts.maybe}</strong></div>
-      <div class="statusSummaryRow"><span>Limited</span><strong>${counts.limited}</strong></div>
-      <div class="statusSummaryRow"><span>Keine Antwort</span><strong>${counts.open}</strong></div>
-    </div>
-  `;
-}
-
-function renderMustChangePasswordNotice() {
+function changeOwnPassword() {
   const auth = getCurrentUserAuth();
-  if (!auth || !auth.mustChangePassword) return "";
-  return `
-    <div class="noticeBox">
-      Du verwendest noch dein Initialpasswort. Bitte ändere es im Profil auf ein eigenes Passwort.
-    </div>
-  `;
+  if (!auth) return;
+
+  const currentPassword = document.getElementById("currentPassword").value.trim();
+  const newPassword = document.getElementById("newPassword").value.trim();
+  const confirmPassword = document.getElementById("confirmPassword").value.trim();
+
+  if (currentPassword !== auth.password) {
+    alert("Das aktuelle Passwort stimmt nicht.");
+    return;
+  }
+
+  if (newPassword.length < 4) {
+    alert("Das neue Passwort muss mindestens 4 Zeichen lang sein.");
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    alert("Die neuen Passwörter stimmen nicht überein.");
+    return;
+  }
+
+  auth.password = newPassword;
+  auth.mustChangePassword = false;
+
+  state.currentUser.username = auth.username;
+  state.currentUser.role = auth.role;
+  state.currentUser.displayName = auth.displayName;
+  saveSession();
+
+  alert("Passwort erfolgreich geändert.");
+  renderApp();
 }
 
 function renderNav() {
@@ -1389,50 +1548,6 @@ function renderCoachesView() {
   `;
 }
 
-function getUpcomingTraining() {
-  const now = new Date();
-  const futureTrainings = [...trainings]
-    .filter(t => getTrainingStartDate(t) > now)
-    .sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
-  return futureTrainings[0] || null;
-}
-
-function filterPlayerByGroup(player, group) {
-  if (group === "all") return true;
-  if (group === "Offense") return offenseUnits.includes(player.unit);
-  if (group === "Defense") return defenseUnits.includes(player.unit);
-  return player.unit === group;
-}
-
-function getSortedPlayers(list, sortState) {
-  const copy = [...list];
-  copy.sort((a, b) => {
-    let av = "";
-    let bv = "";
-
-    if (sortState.key === "name") {
-      av = fullName(a).toLowerCase();
-      bv = fullName(b).toLowerCase();
-    } else if (sortState.key === "group") {
-      av = getGroupLabelForUnit(a.unit);
-      bv = getGroupLabelForUnit(b.unit);
-    } else if (sortState.key === "unit") {
-      av = a.unit;
-      bv = b.unit;
-    } else if (sortState.key === "status") {
-      av = getPlayerTrainingStatus(a, state.reportsTrainingId);
-      bv = getPlayerTrainingStatus(b, state.reportsTrainingId);
-    } else if (sortState.key === "updatedAt") {
-      av = ((responses[state.reportsTrainingId] || {})[a.id]?.updatedAt) || "";
-      bv = ((responses[state.reportsTrainingId] || {})[b.id]?.updatedAt) || "";
-    }
-
-    const result = String(av).localeCompare(String(bv));
-    return sortState.dir === "asc" ? result : -result;
-  });
-  return copy;
-}
-
 function setReportsSort(key) {
   if (state.reportsSort.key === key) {
     state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
@@ -1466,25 +1581,6 @@ function changeTrainingSelection(trainingId) {
   state.selectedTrainingId = trainingId;
   state.editingTrainingId = null;
   renderTrainingsView();
-}
-
-function createPlayerIdDateTime(training) {
-  return `${training.date} 12:00`;
-}
-
-function getCountdownString(targetDate) {
-  const now = new Date();
-  const diff = targetDate.getTime() - now.getTime();
-  if (diff <= 0) return "geschlossen";
-  const totalMinutes = Math.floor(diff / 60000);
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-  const minutes = totalMinutes % 60;
-  const parts = [];
-  if (days > 0) parts.push(`${days}T`);
-  if (hours > 0 || days > 0) parts.push(`${hours}Std`);
-  parts.push(`${minutes}Min`);
-  return parts.join(" ");
 }
 
 function setPlayerResponse(trainingId, status) {
@@ -1586,50 +1682,11 @@ function saveHealthStatus() {
   renderApp();
 }
 
-function changeOwnPassword() {
-  const auth = getCurrentUserAuth();
-  if (!auth) return;
-
-  const currentPassword = document.getElementById("currentPassword").value.trim();
-  const newPassword = document.getElementById("newPassword").value.trim();
-  const confirmPassword = document.getElementById("confirmPassword").value.trim();
-
-  if (currentPassword !== auth.password) {
-    alert("Das aktuelle Passwort stimmt nicht.");
-    return;
-  }
-
-  if (newPassword.length < 4) {
-    alert("Das neue Passwort muss mindestens 4 Zeichen lang sein.");
-    return;
-  }
-
-  if (newPassword !== confirmPassword) {
-    alert("Die neuen Passwörter stimmen nicht überein.");
-    return;
-  }
-
-  auth.password = newPassword;
-  auth.mustChangePassword = false;
-
-  state.currentUser.username = auth.username;
-  state.currentUser.role = auth.role;
-  state.currentUser.displayName = auth.displayName;
-  saveSession();
-
-  alert("Passwort erfolgreich geändert.");
-  renderApp();
-}
-
 function openLimitationEdit(playerId) {
   state.editingLimitationPlayerId = playerId;
   state.editingLimitationId = null;
   state.currentView = "limitations";
   renderLimitationsView();
-}
-
-function findLimitation(player, limitationId) {
-  return (player.injuries || []).find(l => l.id === limitationId);
 }
 
 function createLimitation() {
@@ -1957,63 +2014,6 @@ function setPlayerListGroup(group) {
   state.playerListGroup = group;
   state.playerListSearch = "";
   renderPlayersView();
-}
-
-function getPlayerStats(playerId) {
-  let yes = 0;
-  let no = 0;
-  let maybe = 0;
-  let limited = 0;
-  let open = 0;
-
-  const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
-  const timeline = orderedTrainings.map(training => {
-    const response = (responses[training.id] || {})[playerId];
-    const player = players.find(p => p.id === playerId);
-    const status = getPlayerTrainingStatus(player, training.id);
-
-    if (status === "yes") yes++;
-    else if (status === "no") no++;
-    else if (status === "maybe") maybe++;
-    else if (status === "limited") limited++;
-    else open++;
-
-    return {
-      training,
-      response,
-      status
-    };
-  });
-
-  return { yes, no, maybe, limited, open, timeline };
-}
-
-function renderDashboardUnitSummary(trainingId) {
-  const cards = [];
-
-  orderedGroups.forEach(group => {
-    const groupPlayers = getPlayersForGroup(group);
-    if (!groupPlayers.length) return;
-
-    const groupYes = groupPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
-    cards.push(`
-      <div class="card">
-        <div class="smallMuted">${group}</div>
-        <div class="kpi">${groupYes}/${groupPlayers.length}</div>
-      </div>
-    `);
-  });
-
-  return cards.join("");
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 if (state.currentUser) {
