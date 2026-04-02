@@ -1,290 +1,3 @@
-let state = {
-  currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
-  currentView: "dashboard",
-  reportsTrainingId: trainings[0].id,
-  selectedTrainingId: trainings[0].id,
-  filterGroup: "all",
-  filterResponse: "all",
-  dashboardResponseFilter: "all",
-  editingTrainingId: null,
-  playerSearchValue: "",
-  expandedPlayerSearchId: null,
-  reportsSort: { key: "name", dir: "asc" },
-  editPlayerId: null,
-  editCoachId: null,
-  playerListSearch: "",
-  playerListGroup: "all",
-  editingLimitationPlayerId: null,
-  editingLimitationId: null
-};
-
-function saveSession() {
-  localStorage.setItem("dd_user", JSON.stringify(state.currentUser));
-}
-
-function formatDateDisplay(dateStr) {
-  if (!dateStr) return "";
-  const [y, m, d] = dateStr.split("-");
-  return `${d}.${m}.${y}`;
-}
-
-function formatDateTimeDisplay(dateObj) {
-  const dd = String(dateObj.getDate()).padStart(2, "0");
-  const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
-  const yyyy = dateObj.getFullYear();
-  const hh = String(dateObj.getHours()).padStart(2, "0");
-  const mi = String(dateObj.getMinutes()).padStart(2, "0");
-  return `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
-}
-
-function getTrainingStartDate(training) {
-  return new Date(`${training.date}T${training.time}:00`);
-}
-
-function getTrainingVoteDeadline(training) {
-  const start = getTrainingStartDate(training);
-  return new Date(start.getTime() - training.voteClosesHoursBefore * 60 * 60 * 1000);
-}
-
-function isTrainingPast(training) {
-  return new Date() > getTrainingStartDate(training);
-}
-
-function isPlayerVoteLocked(training) {
-  return new Date() > getTrainingVoteDeadline(training);
-}
-
-function refreshPlayerHealthStatus(player) {
-  const current = getCurrentLimitationFromArray(player.injuries || []);
-  if (current) {
-    player.healthStatus = "injured";
-    player.injuryType = current.type;
-    player.unavailableDuration = `${current.durationDays} Tage`;
-  } else {
-    player.healthStatus = "fit";
-    player.injuryType = "";
-    player.unavailableDuration = "";
-  }
-}
-
-function getCurrentPlayerStatusLabel(player) {
-  return player.healthStatus === "injured" ? "Limited / Verletzt" : "Fit";
-}
-
-function updateCurrentDateTime() {
-  const el = document.getElementById("currentDateTime");
-  if (el) {
-    el.textContent = formatDateTimeDisplay(new Date());
-  }
-}
-
-function sortPlayersByLastName(list) {
-  return [...list].sort((a, b) => {
-    const last = a.lastName.localeCompare(b.lastName);
-    if (last !== 0) return last;
-    return a.firstName.localeCompare(b.firstName);
-  });
-}
-
-function getGroupLabelForUnit(unit) {
-  if (offenseUnits.includes(unit)) return "Offense";
-  if (defenseUnits.includes(unit)) return "Defense";
-  return unit;
-}
-
-function getOrderedFilterOptions() {
-  return orderedGroups;
-}
-
-function getPlayersForGroup(group) {
-  if (group === "Offense") return players.filter(p => offenseUnits.includes(p.unit));
-  if (group === "Defense") return players.filter(p => defenseUnits.includes(p.unit));
-  return players.filter(p => p.unit === group);
-}
-
-function getCurrentUserAuth() {
-  if (!state.currentUser) return null;
-  return users.find(u => u.id === state.currentUser.id) || null;
-}
-
-function getPlayerUserAuth(playerId) {
-  return users.find(u => u.playerId === playerId) || null;
-}
-
-function getCoachUserAuth(coachId) {
-  return users.find(u => u.coachId === coachId) || null;
-}
-
-function syncPlayerUser(player) {
-  const user = getPlayerUserAuth(player.id);
-  if (!user) {
-    users.push(createPlayerUserRecord(player));
-    return;
-  }
-  user.username = player.username;
-  user.displayName = fullName(player);
-  user.active = player.active !== false;
-}
-
-function syncCoachUser(coach) {
-  const user = getCoachUserAuth(coach.id);
-  if (!user) {
-    users.push(createCoachUserRecord(coach));
-    return;
-  }
-  user.username = coach.username;
-  user.role = coach.role;
-  user.displayName = coach.name;
-  user.email = coach.email || "";
-  user.active = coach.active !== false;
-}
-
-function removePlayerUser(playerId) {
-  const index = users.findIndex(u => u.playerId === playerId);
-  if (index >= 0) users.splice(index, 1);
-}
-
-function removeCoachUser(coachId) {
-  const index = users.findIndex(u => u.coachId === coachId);
-  if (index >= 0) users.splice(index, 1);
-}
-
-function limitationIsCurrent(limitation) {
-  const today = getTodayYmd();
-  const until = calculateLimitationEnd(limitation.from, limitation.durationDays);
-  return limitation.from <= today && until >= today;
-}
-
-function getPlayerTrainingStatus(player, trainingId) {
-  const training = trainings.find(t => t.id === trainingId);
-  const response = (responses[trainingId] || {})[player.id];
-  if (training && isPlayerLimitedForTraining(player, training)) return "limited";
-  return response ? response.status : "open";
-}
-
-function getStatusTag(status) {
-  if (status === "yes") return '<span class="tag tagYes">Zusage</span>';
-  if (status === "no") return '<span class="tag tagNo">Absage</span>';
-  if (status === "maybe") return '<span class="tag tagMaybe">Unsicher</span>';
-  if (status === "limited") return '<span class="tag tagLimited">Limited</span>';
-  return '<span class="tag tagOpen">Keine Antwort</span>';
-}
-
-function getStatusCounts(trainingId, filteredPlayers) {
-  return {
-    yes: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length,
-    no: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "no").length,
-    maybe: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "maybe").length,
-    limited: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "limited").length,
-    open: filteredPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "open").length
-  };
-}
-
-function getUpcomingTraining() {
-  const now = new Date();
-  const futureTrainings = [...trainings]
-    .filter(t => getTrainingStartDate(t) > now)
-    .sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
-  return futureTrainings[0] || null;
-}
-
-function filterPlayerByGroup(player, group) {
-  if (group === "all") return true;
-  if (group === "Offense") return offenseUnits.includes(player.unit);
-  if (group === "Defense") return defenseUnits.includes(player.unit);
-  return player.unit === group;
-}
-
-function getSortedPlayers(list, sortState) {
-  const copy = [...list];
-  copy.sort((a, b) => {
-    let av = "";
-    let bv = "";
-
-    if (sortState.key === "name") {
-      av = fullName(a).toLowerCase();
-      bv = fullName(b).toLowerCase();
-    } else if (sortState.key === "group") {
-      av = getGroupLabelForUnit(a.unit);
-      bv = getGroupLabelForUnit(b.unit);
-    } else if (sortState.key === "unit") {
-      av = a.unit;
-      bv = b.unit;
-    } else if (sortState.key === "status") {
-      av = getPlayerTrainingStatus(a, state.reportsTrainingId);
-      bv = getPlayerTrainingStatus(b, state.reportsTrainingId);
-    } else if (sortState.key === "updatedAt") {
-      av = ((responses[state.reportsTrainingId] || {})[a.id]?.updatedAt) || "";
-      bv = ((responses[state.reportsTrainingId] || {})[b.id]?.updatedAt) || "";
-    }
-
-    const result = String(av).localeCompare(String(bv));
-    return sortState.dir === "asc" ? result : -result;
-  });
-  return copy;
-}
-
-function createPlayerIdDateTime(training) {
-  return `${training.date} 12:00`;
-}
-
-function getCountdownString(targetDate) {
-  const now = new Date();
-  const diff = targetDate.getTime() - now.getTime();
-  if (diff <= 0) return "geschlossen";
-  const totalMinutes = Math.floor(diff / 60000);
-  const days = Math.floor(totalMinutes / (60 * 24));
-  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-  const minutes = totalMinutes % 60;
-  const parts = [];
-  if (days > 0) parts.push(`${days}T`);
-  if (hours > 0 || days > 0) parts.push(`${hours}Std`);
-  parts.push(`${minutes}Min`);
-  return parts.join(" ");
-}
-
-function findLimitation(player, limitationId) {
-  return (player.injuries || []).find(l => l.id === limitationId);
-}
-
-function getPlayerStats(playerId) {
-  let yes = 0;
-  let no = 0;
-  let maybe = 0;
-  let limited = 0;
-  let open = 0;
-
-  const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
-  const timeline = orderedTrainings.map(training => {
-    const response = (responses[training.id] || {})[playerId];
-    const player = players.find(p => p.id === playerId);
-    const status = getPlayerTrainingStatus(player, training.id);
-
-    if (status === "yes") yes++;
-    else if (status === "no") no++;
-    else if (status === "maybe") maybe++;
-    else if (status === "limited") limited++;
-    else open++;
-
-    return {
-      training,
-      response,
-      status
-    };
-  });
-
-  return { yes, no, maybe, limited, open, timeline };
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function setReportsSort(key) {
   if (state.reportsSort.key === key) {
     state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
@@ -318,6 +31,167 @@ function changeTrainingSelection(trainingId) {
   state.selectedTrainingId = trainingId;
   state.editingTrainingId = null;
   renderTrainingsView();
+}
+
+function importRosterCsv() {
+  const fileInput = document.getElementById("rosterImportFile");
+
+  if (!fileInput || !fileInput.files || !fileInput.files.length) {
+    alert("Bitte zuerst eine CSV-Datei auswählen.");
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(event) {
+    try {
+      const csvText = String(event.target.result || "");
+      const result = processRosterCsv(csvText);
+
+      state.importSummary =
+        `Importiert: ${result.imported} | Übersprungen: ${result.skipped} | Fehler: ${result.errors.length}`;
+
+      if (result.errors.length > 0) {
+        state.importSummary += ` | Details: ${result.errors.join(" / ")}`;
+      }
+
+      fileInput.value = "";
+      renderPlayersView();
+    } catch (error) {
+      state.importSummary = "Import fehlgeschlagen. Bitte CSV-Datei prüfen.";
+      renderPlayersView();
+    }
+  };
+
+  reader.onerror = function() {
+    state.importSummary = "Datei konnte nicht gelesen werden.";
+    renderPlayersView();
+  };
+
+  reader.readAsText(file, "utf-8");
+}
+
+function processRosterCsv(csvText) {
+  const rows = parseCsvRows(csvText);
+
+  if (!rows.length) {
+    throw new Error("Leere Datei");
+  }
+
+  const headers = rows[0].map(value => normalizeHeader(value));
+  const expectedHeaders = ["vorname", "nachname", "geburtstag", "unit", "e-mail"];
+
+  const headerOk = expectedHeaders.every((header, index) => headers[index] === header);
+  if (!headerOk) {
+    throw new Error("Ungültige Kopfzeile");
+  }
+
+  let imported = 0;
+  let skipped = 0;
+  const errors = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+
+    if (row.length === 1 && !String(row[0] || "").trim()) {
+      continue;
+    }
+
+    const firstName = String(row[0] || "").trim();
+    const lastName = String(row[1] || "").trim();
+    const birthday = String(row[2] || "").trim();
+    const unit = String(row[3] || "").trim().toUpperCase();
+    const email = String(row[4] || "").trim();
+
+    if (!firstName || !lastName || !birthday || !unit) {
+      errors.push(`Zeile ${i + 1}: Pflichtfeld fehlt`);
+      continue;
+    }
+
+    if (!unitOrder.includes(unit)) {
+      errors.push(`Zeile ${i + 1}: Ungültige Unit ${unit}`);
+      continue;
+    }
+
+    if (!isValidDateString(birthday)) {
+      errors.push(`Zeile ${i + 1}: Ungültiges Geburtstag-Format`);
+      continue;
+    }
+
+    if (playerExistsByName(firstName, lastName)) {
+      skipped++;
+      continue;
+    }
+
+    const username = generateUniqueUsername(firstName, lastName);
+    const newPlayer = makePlayer(
+      "p" + Date.now() + "_" + i,
+      username,
+      firstName,
+      lastName,
+      birthday,
+      unit,
+      []
+    );
+
+    players.push(newPlayer);
+
+    const userRecord = createPlayerUserRecord(newPlayer);
+    userRecord.email = email;
+    users.push(userRecord);
+
+    imported++;
+  }
+
+  return { imported, skipped, errors };
+}
+
+function normalizeHeader(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
+}
+
+function isValidDateString(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function parseCsvRows(csvText) {
+  const text = csvText.replace(/^\uFEFF/, "");
+  const lines = text
+    .split(/\r?\n/)
+    .filter(line => line !== "");
+
+  return lines.map(parseCsvLine);
+}
+
+function parseCsvLine(line) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current);
+  return result.map(value => String(value || "").trim());
 }
 
 function setPlayerResponse(trainingId, status) {
