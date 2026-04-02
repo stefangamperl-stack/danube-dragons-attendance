@@ -79,6 +79,60 @@ async function loadTrainingsFromSupabase() {
   }
 }
 
+async function loadPlayersFromSupabase() {
+  try {
+    if (typeof supabaseClient === "undefined" || !supabaseClient) {
+      throw new Error("Supabase-Client ist nicht geladen.");
+    }
+
+    if (typeof players === "undefined") {
+      throw new Error("Die Variable 'players' ist nicht definiert.");
+    }
+
+    if (typeof rebuildPlayerUsersFromPlayers !== "function") {
+      throw new Error("Die Funktion 'rebuildPlayerUsersFromPlayers' fehlt.");
+    }
+
+    const { data, error } = await supabaseClient
+      .from("players_with_profile")
+      .select("*")
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true });
+
+    if (error) {
+      console.error("Fehler beim Laden der Spieler:", error);
+      alert("Spieler konnten nicht geladen werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    players.length = 0;
+
+    (data || []).forEach(row => {
+      const player = makePlayer(
+        row.id,
+        row.username || "",
+        row.first_name || "",
+        row.last_name || "",
+        row.birthday || "",
+        row.unit || "",
+        []
+      );
+
+      player.active = row.active !== false;
+      player.profileId = row.profile_id || null;
+      player.email = row.email || "";
+      player.mustChangePassword = row.must_change_password ?? true;
+
+      players.push(player);
+    });
+
+    rebuildPlayerUsersFromPlayers();
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Laden der Spieler:", err);
+    alert("Unerwarteter Fehler beim Laden der Spieler:\n" + (err.message || err));
+  }
+}
+
 function setReportsSort(key) {
   if (state.reportsSort.key === key) {
     state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
@@ -609,31 +663,59 @@ async function deleteTraining(trainingId) {
   }
 }
 
-function createPlayer() {
-  const firstName = document.getElementById("playerFirstName").value.trim();
-  const lastName = document.getElementById("playerLastName").value.trim();
-  const username = document.getElementById("playerUsername").value.trim();
-  const birthday = document.getElementById("playerBirthday").value;
-  const unit = document.getElementById("playerUnit").value;
+async function createPlayer() {
+  try {
+    const firstName = document.getElementById("playerFirstName").value.trim();
+    const lastName = document.getElementById("playerLastName").value.trim();
+    const username = document.getElementById("playerUsername").value.trim();
+    const birthday = document.getElementById("playerBirthday").value;
+    const unit = document.getElementById("playerUnit").value;
 
-  if (!firstName || !lastName || !username || !birthday || !unit) {
-    alert("Bitte alle Felder ausfüllen.");
-    return;
+    if (!firstName || !lastName || !username || !birthday || !unit) {
+      alert("Bitte alle Felder ausfüllen.");
+      return;
+    }
+
+    const { data, error } = await supabaseClient
+      .from("players")
+      .insert([{
+        first_name: firstName,
+        last_name: lastName,
+        birthday,
+        unit,
+        active: true
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Fehler beim Erstellen des Spielers:", error);
+      alert("Spieler konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    if (data) {
+      const newPlayer = makePlayer(
+        data.id,
+        username,
+        data.first_name,
+        data.last_name,
+        data.birthday,
+        data.unit,
+        []
+      );
+
+      newPlayer.active = data.active !== false;
+      players.push(newPlayer);
+      users.push(createPlayerUserRecord(newPlayer));
+    }
+
+    state.editPlayerId = null;
+    renderPlayersView();
+  } catch (err) {
+    console.error("Unerwarteter Fehler in createPlayer:", err);
+    alert("Unerwarteter Fehler beim Erstellen des Spielers:\n" + (err.message || err));
   }
-
-  const newPlayer = makePlayer(
-    "p" + Date.now(),
-    username,
-    firstName,
-    lastName,
-    birthday,
-    unit,
-    []
-  );
-
-  players.push(newPlayer);
-  users.push(createPlayerUserRecord(newPlayer));
-  renderPlayersView();
 }
 
 function startPlayerEdit(playerId) {
@@ -646,37 +728,91 @@ function cancelPlayerEdit() {
   renderPlayersView();
 }
 
-function updatePlayer() {
-  const player = players.find(p => p.id === state.editPlayerId);
-  if (!player) return;
+async function updatePlayer() {
+  try {
+    const player = players.find(p => p.id === state.editPlayerId);
+    if (!player) return;
 
-  player.firstName = document.getElementById("playerFirstName").value.trim();
-  player.lastName = document.getElementById("playerLastName").value.trim();
-  player.username = document.getElementById("playerUsername").value.trim();
-  player.birthday = document.getElementById("playerBirthday").value;
-  player.unit = document.getElementById("playerUnit").value;
+    const firstName = document.getElementById("playerFirstName").value.trim();
+    const lastName = document.getElementById("playerLastName").value.trim();
+    const username = document.getElementById("playerUsername").value.trim();
+    const birthday = document.getElementById("playerBirthday").value;
+    const unit = document.getElementById("playerUnit").value;
 
-  syncPlayerUser(player);
+    if (!firstName || !lastName || !username || !birthday || !unit) {
+      alert("Bitte alle Felder ausfüllen.");
+      return;
+    }
 
-  state.editPlayerId = null;
-  renderPlayersView();
+    const { error } = await supabaseClient
+      .from("players")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        birthday,
+        unit
+      })
+      .eq("id", player.id);
+
+    if (error) {
+      console.error("Fehler beim Aktualisieren des Spielers:", error);
+      alert("Spieler konnte nicht aktualisiert werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    player.firstName = firstName;
+    player.lastName = lastName;
+    player.username = username;
+    player.birthday = birthday;
+    player.unit = unit;
+
+    syncPlayerUser(player);
+
+    state.editPlayerId = null;
+    renderPlayersView();
+  } catch (err) {
+    console.error("Unerwarteter Fehler in updatePlayer:", err);
+    alert("Unerwarteter Fehler beim Aktualisieren des Spielers:\n" + (err.message || err));
+  }
 }
 
-function deletePlayer(playerId) {
-  if (state.currentUser.role !== "headAdmin") return;
-  const player = players.find(p => p.id === playerId);
-  if (!player) return;
-  if (!confirm("Spieler wirklich löschen: " + fullName(player) + "?")) return;
+async function deletePlayer(playerId) {
+  try {
+    if (state.currentUser.role !== "headAdmin") return;
 
-  const index = players.findIndex(p => p.id === playerId);
-  players.splice(index, 1);
-  removePlayerUser(playerId);
+    const player = players.find(p => p.id === playerId);
+    if (!player) return;
+    if (!confirm("Spieler wirklich löschen: " + fullName(player) + "?")) return;
 
-  Object.keys(responses).forEach(trainingId => {
-    if (responses[trainingId][playerId]) delete responses[trainingId][playerId];
-  });
+    const { error } = await supabaseClient
+      .from("players")
+      .delete()
+      .eq("id", playerId);
 
-  renderPlayersView();
+    if (error) {
+      console.error("Fehler beim Löschen des Spielers:", error);
+      alert("Spieler konnte nicht gelöscht werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    const index = players.findIndex(p => p.id === playerId);
+    if (index >= 0) {
+      players.splice(index, 1);
+    }
+
+    removePlayerUser(playerId);
+
+    Object.keys(responses).forEach(trainingId => {
+      if (responses[trainingId] && responses[trainingId][playerId]) {
+        delete responses[trainingId][playerId];
+      }
+    });
+
+    renderPlayersView();
+  } catch (err) {
+    console.error("Unerwarteter Fehler in deletePlayer:", err);
+    alert("Unerwarteter Fehler beim Löschen des Spielers:\n" + (err.message || err));
+  }
 }
 
 function createCoach() {
