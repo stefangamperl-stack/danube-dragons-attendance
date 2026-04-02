@@ -326,20 +326,6 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-  state.currentUser = {
-    id: user.id,
-    username: user.username,
-    role: user.role,
-    displayName: user.displayName,
-    playerId: user.playerId || null,
-    coachId: user.coachId || null
-  };
-
-  saveSession();
-  state.currentView = user.mustChangePassword ? "profile" : "dashboard";
-  showApp();
-}
-
 function renderNav() {
   const nav = document.getElementById("nav");
   const role = state.currentUser.role;
@@ -437,37 +423,37 @@ function renderOwnProfileView() {
   const coach = coaches.find(c => c.id === state.currentUser.coachId);
 
   content.innerHTML = `
-    ${renderMustChangePasswordNotice()}
-    <div class="twoCol">
-      <div class="card">
-        <h2>${coach.name}</h2>
-        <p><strong>Loginname:</strong> ${coach.username}</p>
-        <p><strong>Geburtstag:</strong> ${formatDateDisplay(coach.birthday)}</p>
-        <p><strong>E-Mail:</strong> ${coach.email || "-"}</p>
-        <p><strong>Rolle:</strong> ${coach.role}</p>
-      </div>
+      ${renderMustChangePasswordNotice()}
+      <div class="twoCol">
+        <div class="card">
+          <h2>${coach.name}</h2>
+          <p><strong>Loginname:</strong> ${coach.username}</p>
+          <p><strong>Geburtstag:</strong> ${formatDateDisplay(coach.birthday)}</p>
+          <p><strong>E-Mail:</strong> ${coach.email || "-"}</p>
+          <p><strong>Rolle:</strong> ${coach.role}</p>
+        </div>
 
-      <div class="card">
-        <h2>Passwort ändern</h2>
-        <div class="field">
-          <label>Aktuelles Passwort</label>
-          <input id="currentPassword" class="input" type="password" placeholder="Aktuelles Passwort" />
+        <div class="card">
+          <h2>Passwort ändern</h2>
+          <div class="field">
+            <label>Aktuelles Passwort</label>
+            <input id="currentPassword" class="input" type="password" placeholder="Aktuelles Passwort" />
+          </div>
+          <div class="field">
+            <label>Neues Passwort</label>
+            <input id="newPassword" class="input" type="password" placeholder="Neues Passwort" />
+          </div>
+          <div class="field">
+            <label>Neues Passwort wiederholen</label>
+            <input id="confirmPassword" class="input" type="password" placeholder="Neues Passwort wiederholen" />
+          </div>
+          <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
+          <p class="smallMuted" style="margin-top:12px;">
+            Initialpasswort war dein Geburtsjahr.
+          </p>
         </div>
-        <div class="field">
-          <label>Neues Passwort</label>
-          <input id="newPassword" class="input" type="password" placeholder="Neues Passwort" />
-        </div>
-        <div class="field">
-          <label>Neues Passwort wiederholen</label>
-          <input id="confirmPassword" class="input" type="password" placeholder="Neues Passwort wiederholen" />
-        </div>
-        <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
-        <p class="smallMuted" style="margin-top:12px;">
-          Initialpasswort war dein Geburtsjahr.
-        </p>
       </div>
-    </div>
-  `;
+    `;
 }
 
 function renderPlayerView() {
@@ -523,7 +509,7 @@ function renderPlayerView() {
             <p><strong>Art:</strong> ${l.type}</p>
             <p><strong>Von:</strong> ${formatDateDisplay(l.from)}</p>
             <p><strong>Dauer:</strong> ${l.durationDays} Tage</p>
-            <p><strong>Bis:</strong> ${formatDateDisplay(calculateLimitationEnd(l.from, l.durationDays))}</p>
+            <p><strong>Bis:</strong> ${formatDateDisplay(calculateLimitationEnd(injury.from, injury.durationDays))}</p>
           </div>
         `).join("")}
       </div>
