@@ -46,16 +46,50 @@ async function login() {
     return;
   }
 
+  let playerId = null;
+  let coachId = null;
+
+  if (profileData.role === "player") {
+    const { data: playerData, error: playerError } = await supabaseClient
+      .from("players")
+      .select("id")
+      .eq("profile_id", profileData.id)
+      .single();
+
+    if (playerError || !playerData) {
+      await supabaseClient.auth.signOut();
+      document.getElementById("loginError").textContent = "Spielerprofil konnte nicht geladen werden.";
+      return;
+    }
+
+    playerId = playerData.id;
+  }
+
+  if (profileData.role === "adminCoach" || profileData.role === "headAdmin") {
+    const { data: coachData, error: coachError } = await supabaseClient
+      .from("coaches")
+      .select("id")
+      .eq("profile_id", profileData.id)
+      .single();
+
+    if (!coachError && coachData) {
+      coachId = coachData.id;
+    }
+  }
+
   state.currentUser = {
     id: profileData.id,
     username: profileData.username,
     role: profileData.role,
     displayName: profileData.display_name,
-    email: profileData.email || ""
+    email: profileData.email || "",
+    mustChangePassword: profileData.must_change_password ?? true,
+    playerId,
+    coachId
   };
 
   saveSession();
-  state.currentView = profileData.must_change_password ? "profile" : "dashboard";
+  state.currentView = state.currentUser.mustChangePassword ? "profile" : "dashboard";
   showApp();
 }
 
@@ -103,6 +137,9 @@ async function changeOwnPassword() {
     alert("Passwort wurde geändert, aber das Profil konnte nicht aktualisiert werden: " + profileError.message);
     return;
   }
+
+  state.currentUser.mustChangePassword = false;
+  saveSession();
 
   alert("Passwort erfolgreich geändert.");
   renderApp();
