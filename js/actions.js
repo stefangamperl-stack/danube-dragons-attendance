@@ -134,7 +134,7 @@ async function loadPlayersFromSupabase() {
   }
 }
 
-function setPlayerResponse(trainingId, status) {
+async function setPlayerResponse(trainingId, status) {
   const playerId = state.currentUser.playerId;
   const player = players.find(p => p.id === playerId);
   const training = trainings.find(t => t.id === trainingId);
@@ -159,11 +159,31 @@ function setPlayerResponse(trainingId, status) {
     return;
   }
 
+  const payload = {
+    training_id: trainingId,
+    player_id: playerId,
+    status,
+    updated_at: new Date().toISOString(),
+    changed_on_event_day: getTodayYmd() === training.date
+  };
+
+  const { error } = await supabaseClient
+    .from("responses")
+    .upsert([payload], {
+      onConflict: "training_id,player_id"
+    });
+
+  if (error) {
+    console.error("Fehler beim Speichern der Antwort:", error);
+    alert("Deine Antwort konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+    return;
+  }
+
   responses[trainingId] = responses[trainingId] || {};
   responses[trainingId][playerId] = {
     status,
-    updatedAt: new Date().toISOString(),
-    changedOnEventDay: getTodayYmd() === training.date
+    updatedAt: payload.updated_at,
+    changedOnEventDay: payload.changed_on_event_day
   };
 
   renderApp();
