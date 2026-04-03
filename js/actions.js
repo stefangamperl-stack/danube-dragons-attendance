@@ -134,6 +134,47 @@ async function loadPlayersFromSupabase() {
   }
 }
 
+async function loadResponsesFromSupabase() {
+  try {
+    if (typeof supabaseClient === "undefined" || !supabaseClient) {
+      throw new Error("Supabase-Client ist nicht geladen.");
+    }
+
+    if (typeof responses === "undefined") {
+      throw new Error("Die Variable 'responses' ist nicht definiert.");
+    }
+
+    const { data, error } = await supabaseClient
+      .from("responses")
+      .select("*");
+
+    if (error) {
+      console.error("Fehler beim Laden der Antworten:", error);
+      alert("Antworten konnten nicht geladen werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    Object.keys(responses).forEach(trainingId => {
+      responses[trainingId] = {};
+    });
+
+    (data || []).forEach(row => {
+      if (!responses[row.training_id]) {
+        responses[row.training_id] = {};
+      }
+
+      responses[row.training_id][row.player_id] = {
+        status: row.status,
+        updatedAt: row.updated_at,
+        changedOnEventDay: row.changed_on_event_day
+      };
+    });
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Laden der Antworten:", err);
+    alert("Unerwarteter Fehler beim Laden der Antworten:\n" + (err.message || err));
+  }
+}
+
 async function setPlayerResponse(trainingId, status) {
   const playerId = state.currentUser.playerId;
   const player = players.find(p => p.id === playerId);
