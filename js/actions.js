@@ -133,3 +133,38 @@ async function loadPlayersFromSupabase() {
     alert("Unerwarteter Fehler beim Laden der Spieler:\n" + (err.message || err));
   }
 }
+
+function setPlayerResponse(trainingId, status) {
+  const playerId = state.currentUser.playerId;
+  const player = players.find(p => p.id === playerId);
+  const training = trainings.find(t => t.id === trainingId);
+
+  if (!player) {
+    alert("Dein Spielerprofil konnte nicht gefunden werden.");
+    return;
+  }
+
+  if (!training) {
+    alert("Das Training konnte nicht gefunden werden.");
+    return;
+  }
+
+  if (isPlayerLimitedForTraining(player, training)) {
+    alert("Du bist für dieses Training automatisch Limited.");
+    return;
+  }
+
+  if (isPlayerVoteLocked(training)) {
+    alert("Die Frist zur Änderung deiner Antwort ist abgelaufen. Nur Coaches/Admins können jetzt noch ändern.");
+    return;
+  }
+
+  responses[trainingId] = responses[trainingId] || {};
+  responses[trainingId][playerId] = {
+    status,
+    updatedAt: new Date().toISOString(),
+    changedOnEventDay: getTodayYmd() === training.date
+  };
+
+  renderApp();
+}
