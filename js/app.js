@@ -157,6 +157,7 @@ function limitationIsCurrent(limitation) {
 }
 
 function getPlayerTrainingStatus(player, trainingId) {
+  if (!player) return "open";
   const training = trainings.find(t => t.id === trainingId);
   const response = (responses[trainingId] || {})[player.id];
   if (training && isPlayerLimitedForTraining(player, training)) return "limited";
@@ -372,12 +373,42 @@ async function hydrateCurrentUserFromSupabase() {
     return;
   }
 
+  let playerId = null;
+  let coachId = null;
+
+  if (profile.role === "player") {
+    const { data: playerData, error: playerError } = await supabaseClient
+      .from("players")
+      .select("id")
+      .eq("profile_id", profile.id)
+      .single();
+
+    if (!playerError && playerData) {
+      playerId = playerData.id;
+    }
+  }
+
+  if (profile.role === "adminCoach" || profile.role === "headAdmin") {
+    const { data: coachData, error: coachError } = await supabaseClient
+      .from("coaches")
+      .select("id")
+      .eq("profile_id", profile.id)
+      .single();
+
+    if (!coachError && coachData) {
+      coachId = coachData.id;
+    }
+  }
+
   state.currentUser = {
     id: profile.id,
     username: profile.username,
     role: profile.role,
     displayName: profile.display_name,
-    email: profile.email || ""
+    email: profile.email || "",
+    mustChangePassword: profile.must_change_password ?? true,
+    playerId,
+    coachId
   };
 
   saveSession();
@@ -392,9 +423,11 @@ async function loadInitialAppData() {
       return;
     }
 
-    showApp();
     await loadTrainingsFromSupabase();
     await loadPlayersFromSupabase();
+    await loadResponsesFromSupabase();
+
+    showApp();
     renderApp();
   } catch (error) {
     console.error("Fehler beim initialen Laden der App-Daten:", error);
