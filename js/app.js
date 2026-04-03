@@ -427,8 +427,8 @@ async function loadInitialAppData() {
     await loadPlayersFromSupabase();
     await loadResponsesFromSupabase();
 
-    showApp();
     renderApp();
+    showApp();
   } catch (error) {
     console.error("Fehler beim initialen Laden der App-Daten:", error);
     showLanding();
