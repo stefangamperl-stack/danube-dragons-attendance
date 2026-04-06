@@ -1,4 +1,4 @@
-function showLanding() {
+function showLanding() { 
   document.getElementById("landing").classList.remove("hidden");
   document.getElementById("loginScreen").classList.add("hidden");
   document.getElementById("appScreen").classList.add("hidden");
@@ -19,18 +19,39 @@ function showApp() {
 }
 
 async function login() {
-  const email = document.getElementById("loginUsername").value.trim();
+  const loginName = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value.trim();
 
   document.getElementById("loginError").textContent = "";
 
+  if (!loginName || !password) {
+    document.getElementById("loginError").textContent = "Bitte Loginname und Passwort eingeben.";
+    return;
+  }
+
+  const { data: profileLookup, error: profileLookupError } = await supabaseClient
+    .from("profiles")
+    .select("id, username, email, role, display_name, must_change_password")
+    .eq("username", loginName)
+    .single();
+
+  if (profileLookupError || !profileLookup) {
+    document.getElementById("loginError").textContent = "Loginname oder Passwort ist falsch.";
+    return;
+  }
+
+  if (!profileLookup.email) {
+    document.getElementById("loginError").textContent = "Für diesen Benutzer ist keine E-Mail hinterlegt.";
+    return;
+  }
+
   const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email,
+    email: profileLookup.email,
     password
   });
 
   if (error || !data?.user) {
-    document.getElementById("loginError").textContent = "E-Mail oder Passwort ist falsch.";
+    document.getElementById("loginError").textContent = "Loginname oder Passwort ist falsch.";
     return;
   }
 
