@@ -252,6 +252,73 @@ function buildPlayerUsername(firstName, lastName, fallbackUsername = "") {
   return "";
 }
 
+function normalizePlayerNamePart(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function buildPlayerNameKey(firstName, lastName) {
+  return `${normalizePlayerNamePart(firstName)}|${normalizePlayerNamePart(lastName)}`;
+}
+
+function parseCsvLine(line, delimiter) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current.trim());
+  return result.map(value => value.replace(/^"(.*)"$/, "$1").trim());
+}
+
+function detectCsvDelimiter(headerLine) {
+  const semicolons = (headerLine.match(/;/g) || []).length;
+  const commas = (headerLine.match(/,/g) || []).length;
+  return semicolons >= commas ? ";" : ",";
+}
+
+function mapCsvHeaders(headers) {
+  const normalized = headers.map(h =>
+    String(h || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+  );
+
+  const findIndex = names => normalized.findIndex(h => names.includes(h));
+
+  return {
+    firstName: findIndex(["vorname", "firstname", "first_name"]),
+    lastName: findIndex(["nachname", "lastname", "last_name"]),
+    birthday: findIndex(["geburtstag", "birthday"]),
+    unit: findIndex(["unit", "position"]),
+    email: findIndex(["e-mail", "email", "mail"])
+  };
+}
+
 function clearPlayerListSearch() {
   state.playerListSearch = "";
   state.playerListGroup = "all";
@@ -420,5 +487,149 @@ async function deletePlayer(playerId) {
   } catch (err) {
     console.error("Unerwarteter Fehler beim Löschen des Spielers:", err);
     alert("Unerwarteter Fehler beim Löschen des Spielers:\n" + (err.message || err));
+  }
+}
+
+async function importRosterCsv() {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf einen Kader importieren.");
+      return;
+    }
+
+    const fileInput = document.getElementById("rosterImportFile");
+    const file = fileInput?.files?.[0];
+
+    if (!file) {
+      alert("Bitte wähle zuerst eine CSV-Datei aus.");
+      return;
+    }
+
+    const rawText = await file.text();
+    const text = rawText.replace(/^\uFEFF/, "").trim();
+
+    if (!text) {
+      alert("Die CSV-Datei ist leer.");
+      return;
+    }
+
+    const lines = text
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+
+    if (lines.length < 2) {
+      alert("Die CSV-Datei enthält keine Datensätze.");
+      return;
+    }
+
+    const delimiter = detectCsvDelimiter(lines[0]);
+    const headers = parseCsvLine(lines[0], delimiter);
+    const headerMap = mapCsvHeaders(headers);
+
+    const missingHeaders = [];
+    if (headerMap.firstName === -1) missingHeaders.push("Vorname");
+    if (headerMap.lastName === -1) missingHeaders.push("Nachname");
+    if (headerMap.birthday === -1) missingHeaders.push("Geburtstag");
+    if (headerMap.unit === -1) missingHeaders.push("Unit");
+    if (headerMap.email === -1) missingHeaders.push("E-Mail");
+
+    if (missingHeaders.length) {
+      alert(`Diese Spalten fehlen in der CSV:\n${missingHeaders.join(", ")}`);
+      return;
+    }
+
+    const existingNameKeys = new Set(
+      players.map(player => buildPlayerNameKey(player.firstName, player.lastName))
+    );
+
+    const seenImportNameKeys = new Set();
+
+    let created = 0;
+    let skippedDuplicates = 0;
+    let skippedInvalid = 0;
+    let failed = 0;
+    const details = [];
+
+    for (let i = 1; i < lines.length; i += 1) {
+      const values = parseCsvLine(lines[i], delimiter);
+
+      if (!values.some(v => String(v || "").trim())) {
+        continue;
+      }
+
+      const firstName = values[headerMap.firstName]?.trim() || "";
+      const lastName = values[headerMap.lastName]?.trim() || "";
+      const birthday = values[headerMap.birthday]?.trim() || "";
+      const unit = values[headerMap.unit]?.trim() || "";
+      const email = values[headerMap.email]?.trim() || "";
+
+      if (!firstName || !lastName || !birthday || !unit || !email) {
+        skippedInvalid += 1;
+        details.push(`Zeile ${i + 1}: unvollständig übersprungen`);
+        continue;
+      }
+
+      const nameKey = buildPlayerNameKey(firstName, lastName);
+
+      if (existingNameKeys.has(nameKey) || seenImportNameKeys.has(nameKey)) {
+        skippedDuplicates += 1;
+        details.push(`Zeile ${i + 1}: ${firstName} ${lastName} bereits vorhanden`);
+        continue;
+      }
+
+      const username = buildPlayerUsername(firstName, lastName);
+
+      const response = await fetch("/api/create-player", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          username,
+          email,
+          birthday,
+          unit
+        })
+      });
+
+      let result = null;
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok) {
+        failed += 1;
+        details.push(`Zeile ${i + 1}: ${firstName} ${lastName} konnte nicht angelegt werden`);
+        console.error("Fehler beim Import eines Spielers:", result || response.statusText);
+        continue;
+      }
+
+      created += 1;
+      existingNameKeys.add(nameKey);
+      seenImportNameKeys.add(nameKey);
+    }
+
+    await loadPlayersFromSupabase();
+
+    state.importSummary = [
+      `Angelegt: ${created}`,
+      `Übersprungen (bereits vorhanden): ${skippedDuplicates}`,
+      `Übersprungen (unvollständig): ${skippedInvalid}`,
+      `Fehlgeschlagen: ${failed}`,
+      details.length ? `Details: ${details.join(" | ")}` : ""
+    ].filter(Boolean).join(" · ");
+
+    renderPlayersView();
+
+    alert(`Import abgeschlossen.\nAngelegt: ${created}\nÜbersprungen: ${skippedDuplicates + skippedInvalid}\nFehlgeschlagen: ${failed}`);
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim CSV-Import:", err);
+    state.importSummary = "";
+    alert("Unerwarteter Fehler beim CSV-Import:\n" + (err.message || err));
   }
 }
