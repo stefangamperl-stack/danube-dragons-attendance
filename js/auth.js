@@ -19,39 +19,45 @@ function showApp() {
 }
 
 async function login() {
-  const loginName = document.getElementById("loginUsername").value.trim();
+  const loginInput = document.getElementById("loginUsername").value.trim();
   const password = document.getElementById("loginPassword").value.trim();
 
   document.getElementById("loginError").textContent = "";
 
-  if (!loginName || !password) {
-    document.getElementById("loginError").textContent = "Bitte Loginname und Passwort eingeben.";
+  if (!loginInput || !password) {
+    document.getElementById("loginError").textContent = "Bitte Loginname oder E-Mail und Passwort eingeben.";
     return;
   }
 
-  const { data: profileLookup, error: profileLookupError } = await supabaseClient
-    .from("profiles")
-    .select("id, username, email, role, display_name, must_change_password")
-    .eq("username", loginName)
-    .single();
+  let email = loginInput;
 
-  if (profileLookupError || !profileLookup) {
-    document.getElementById("loginError").textContent = "Loginname oder Passwort ist falsch.";
-    return;
-  }
+  if (!loginInput.includes("@")) {
+    const { data: profileLookup, error: profileLookupError } = await supabaseClient
+      .from("profiles")
+      .select("id, username, email")
+      .eq("username", loginInput)
+      .single();
 
-  if (!profileLookup.email) {
-    document.getElementById("loginError").textContent = "Für diesen Benutzer ist keine E-Mail hinterlegt.";
-    return;
+    if (profileLookupError || !profileLookup) {
+      document.getElementById("loginError").textContent = "Loginname/E-Mail oder Passwort ist falsch.";
+      return;
+    }
+
+    if (!profileLookup.email) {
+      document.getElementById("loginError").textContent = "Für diesen Benutzer ist keine E-Mail hinterlegt.";
+      return;
+    }
+
+    email = profileLookup.email;
   }
 
   const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email: profileLookup.email,
+    email,
     password
   });
 
   if (error || !data?.user) {
-    document.getElementById("loginError").textContent = "Loginname oder Passwort ist falsch.";
+    document.getElementById("loginError").textContent = "Loginname/E-Mail oder Passwort ist falsch.";
     return;
   }
 
