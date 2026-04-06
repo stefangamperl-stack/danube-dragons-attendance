@@ -13,7 +13,7 @@ function normalizeUsernamePart(value) {
     .replace(/[^a-z0-9äöüß]/gi, "");
 }
 
-function buildUsername(firstName, lastName, providedUsername = "") {
+function buildBaseUsername(firstName, lastName, providedUsername = "") {
   const cleanedProvided = normalizeUsernamePart(providedUsername);
   if (cleanedProvided) {
     return cleanedProvided;
@@ -27,6 +27,69 @@ function buildUsername(firstName, lastName, providedUsername = "") {
   }
 
   return `${first.charAt(0)}${last}`;
+}
+
+async function usernameExists(username) {
+  const { data: profileMatch } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+
+  if (profileMatch) return true;
+
+  const { data: playerMatch } = await supabaseAdmin
+    .from("players")
+    .select("id")
+    .eq("username", username)
+    .maybeSingle();
+
+  return !!playerMatch;
+}
+
+async function buildUniqueUsername(firstName, lastName, providedUsername = "") {
+  const base = buildBaseUsername(firstName, lastName, providedUsername);
+  if (!base) return "";
+
+  let candidate = base;
+  let counter = 2;
+
+  while (await usernameExists(candidate)) {
+    candidate = `${base}${counter}`;
+    counter += 1;
+  }
+
+  return candidate;
+}
+
+async function emailExists(email) {
+  const { data } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  return !!data;
+}
+
+async function buildSystemEmail(finalUsername, providedEmail = "") {
+  const cleanedEmail = String(providedEmail || "").trim().toLowerCase();
+  if (cleanedEmail) {
+    if (await emailExists(cleanedEmail)) {
+      throw new Error("Email already exists");
+    }
+    return cleanedEmail;
+  }
+
+  let candidate = `${finalUsername}@danubedragons.local`;
+  let counter = 2;
+
+  while (await emailExists(candidate)) {
+    candidate = `${finalUsername}${counter}@danubedragons.local`;
+    counter += 1;
+  }
+
+  return candidate;
 }
 
 export default async function handler(req, res) {
@@ -44,56 +107,25 @@ export default async function handler(req, res) {
       unit
     } = req.body || {};
 
-    if (!firstName || !lastName || !email || !birthday || !unit) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (!firstName || !lastName || !birthday) {
+      return res.status(400).json({
+        error: "Vorname, Nachname und Geburtstag sind erforderlich."
+      });
     }
 
-    const finalUsername = buildUsername(firstName, lastName, username);
+    const finalUsername = await buildUniqueUsername(firstName, lastName, username);
     if (!finalUsername) {
-      return res.status(400).json({ error: "Username could not be generated" });
+      return res.status(400).json({
+        error: "Loginname konnte nicht erzeugt werden."
+      });
     }
 
+    const finalEmail = await buildSystemEmail(finalUsername, email);
     const initialPassword = String(birthday).slice(0, 4);
     const displayName = `${firstName} ${lastName}`;
 
-    const { data: existingProfileByUsername, error: existingProfileError } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("username", finalUsername)
-      .maybeSingle();
-
-    if (existingProfileError) {
-      return res.status(400).json({
-        error: existingProfileError.message || "Username check failed"
-      });
-    }
-
-    if (existingProfileByUsername) {
-      return res.status(400).json({
-        error: "Username already exists"
-      });
-    }
-
-    const { data: existingProfileByEmail, error: existingEmailError } = await supabaseAdmin
-      .from("profiles")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (existingEmailError) {
-      return res.status(400).json({
-        error: existingEmailError.message || "Email check failed"
-      });
-    }
-
-    if (existingProfileByEmail) {
-      return res.status(400).json({
-        error: "Email already exists"
-      });
-    }
-
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: finalEmail,
       password: initialPassword,
       email_confirm: true,
       user_metadata: {
@@ -118,7 +150,7 @@ export default async function handler(req, res) {
         username: finalUsername,
         display_name: displayName,
         role: "player",
-        email,
+        email: finalEmail,
         must_change_password: true,
         active: true
       }]);
@@ -138,7 +170,7 @@ export default async function handler(req, res) {
         last_name: lastName,
         username: finalUsername,
         birthday,
-        unit,
+        unit: unit || "",
         active: true
       }])
       .select()
@@ -156,7 +188,8 @@ export default async function handler(req, res) {
       success: true,
       player: playerData,
       username: finalUsername,
-      initialPassword
+      initialPassword,
+      email: finalEmail
     });
   } catch (error) {
     return res.status(500).json({
