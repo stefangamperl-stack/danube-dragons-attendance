@@ -129,7 +129,7 @@ async function login() {
   };
 
   saveSession();
-  state.currentView = state.currentUser.mustChangePassword ? "profile" : "dashboard";
+  state.currentView = "dashboard";
 
   try {
     await loadTrainingsFromSupabase();
