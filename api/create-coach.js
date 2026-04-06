@@ -38,6 +38,7 @@ export default async function handler(req, res) {
       (email && email.trim()) ||
       `${finalUsername}@danubedragons-attendance.local`;
     const finalPassword = "test123";
+    const displayName = `${firstName} ${lastName}`.trim();
 
     const { data: existingUsername, error: usernameCheckError } =
       await supabaseAdmin
@@ -82,7 +83,8 @@ export default async function handler(req, res) {
           first_name: firstName,
           last_name: lastName,
           username: finalUsername,
-          role: finalRole
+          role: finalRole,
+          display_name: displayName
         }
       });
 
@@ -104,6 +106,7 @@ export default async function handler(req, res) {
           email: finalEmail,
           username: finalUsername,
           role: finalRole,
+          display_name: displayName,
           must_change_password: true,
           active: true
         }
@@ -119,6 +122,7 @@ export default async function handler(req, res) {
       .insert([
         {
           profile_id: authUser.id,
+          name: displayName,
           first_name: firstName,
           last_name: lastName,
           email: finalEmail,
