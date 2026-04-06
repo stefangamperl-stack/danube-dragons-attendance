@@ -20,6 +20,16 @@ function renderMustChangePasswordNotice() {
   `;
 }
 
+function getEditPlayerUsernameValue(editPlayer) {
+  if (!editPlayer) return "";
+  return editPlayer.username || buildPlayerUsername(editPlayer.firstName, editPlayer.lastName, "");
+}
+
+function getEditPlayerEmailValue(editPlayer) {
+  if (!editPlayer) return "";
+  return editPlayer.email || "";
+}
+
 function renderNav() {
   const nav = document.getElementById("nav");
   const role = state.currentUser.role;
@@ -427,6 +437,8 @@ function renderPlayersView() {
   document.getElementById("screenSubtitle").textContent = "Suche nach Spieler oder klicke auf eine Gruppe / Unit";
 
   const editPlayer = state.editPlayerId ? players.find(p => p.id === state.editPlayerId) : null;
+  const editPlayerUsername = getEditPlayerUsernameValue(editPlayer);
+  const editPlayerEmail = getEditPlayerEmailValue(editPlayer);
 
   let filtered = [...players];
   if (state.playerListSearch.trim()) {
@@ -444,10 +456,20 @@ function renderPlayersView() {
       <div>
         <div class="card">
           <h2>${editPlayer ? "Spieler bearbeiten" : "Spieler anlegen"}</h2>
+
+          ${editPlayer && !editPlayer.profileId ? `
+            <div class="deadlineBox" style="margin-bottom:12px;">
+              <div><strong>Hinweis</strong></div>
+              <div class="smallMuted" style="margin-top:8px;">
+                Dieser Spieler hat noch kein verknüpftes Profil. Loginname und E-Mail können hier bereits gesetzt und gespeichert werden.
+              </div>
+            </div>
+          ` : ""}
+
           <div class="field"><label>Vorname</label><input id="playerFirstName" class="input" value="${editPlayer ? escapeHtml(editPlayer.firstName) : ""}" placeholder="Vorname" /></div>
           <div class="field"><label>Nachname</label><input id="playerLastName" class="input" value="${editPlayer ? escapeHtml(editPlayer.lastName) : ""}" placeholder="Nachname" /></div>
-          <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${editPlayer ? escapeHtml(editPlayer.username || "") : ""}" placeholder="z. B. sgamperl" /></div>
-          <div class="field"><label>E-Mail</label><input id="playerEmail" class="input" type="email" value="${editPlayer ? escapeHtml(editPlayer.email || "") : ""}" placeholder="spieler@example.com" /></div>
+          <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${escapeHtml(editPlayerUsername)}" placeholder="z. B. sgamperl" /></div>
+          <div class="field"><label>E-Mail</label><input id="playerEmail" class="input" type="email" value="${escapeHtml(editPlayerEmail)}" placeholder="spieler@example.com" /></div>
           <div class="field"><label>Geburtstag</label><input id="playerBirthday" class="input" type="date" value="${editPlayer ? editPlayer.birthday : ""}" /></div>
           <div class="field">
             <label>Unit</label>
