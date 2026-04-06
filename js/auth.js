@@ -32,23 +32,36 @@ async function login() {
   let email = loginInput;
 
   if (!loginInput.includes("@")) {
-    const { data: profileLookup, error: profileLookupError } = await supabaseClient
-      .from("profiles")
-      .select("id, username, email")
-      .eq("username", loginInput)
-      .single();
+    let lookupResult = null;
 
-    if (profileLookupError || !profileLookup) {
-      document.getElementById("loginError").textContent = "Loginname/E-Mail oder Passwort ist falsch.";
+    try {
+      const lookupResponse = await fetch("/api/login-lookup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          username: loginInput
+        })
+      });
+
+      try {
+        lookupResult = await lookupResponse.json();
+      } catch {
+        lookupResult = null;
+      }
+
+      if (!lookupResponse.ok || !lookupResult?.email) {
+        document.getElementById("loginError").textContent = "Loginname/E-Mail oder Passwort ist falsch.";
+        return;
+      }
+
+      email = lookupResult.email;
+    } catch (err) {
+      console.error("Fehler beim Username-Lookup:", err);
+      document.getElementById("loginError").textContent = "Login aktuell nicht möglich.";
       return;
     }
-
-    if (!profileLookup.email) {
-      document.getElementById("loginError").textContent = "Für diesen Benutzer ist keine E-Mail hinterlegt.";
-      return;
-    }
-
-    email = profileLookup.email;
   }
 
   const { data, error } = await supabaseClient.auth.signInWithPassword({
