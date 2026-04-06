@@ -22,7 +22,6 @@ export default async function handler(req, res) {
       lastName,
       email,
       username,
-      password,
       role
     } = req.body || {};
 
@@ -35,13 +34,10 @@ export default async function handler(req, res) {
     const finalRole = role === "headAdmin" ? "headAdmin" : "adminCoach";
     const finalUsername =
       (username && username.trim()) || generateUsername(firstName, lastName);
-
     const finalEmail =
       (email && email.trim()) ||
       `${finalUsername}@danubedragons-attendance.local`;
-
-    const finalPassword =
-      (password && password.trim()) || "Start1234!";
+    const finalPassword = "test123";
 
     const { data: existingUsername, error: usernameCheckError } =
       await supabaseAdmin
@@ -128,6 +124,7 @@ export default async function handler(req, res) {
           email: finalEmail,
           username: finalUsername,
           role: finalRole,
+          is_active: true,
           active: true
         }
       ])
