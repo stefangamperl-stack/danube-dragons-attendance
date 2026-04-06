@@ -233,9 +233,8 @@ async function setPlayerResponse(trainingId, status) {
 function buildPlayerUsername(firstName, lastName, fallbackUsername = "") {
   const clean = value =>
     String(value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9]/g, "")
+      .trim()
+      .replace(/\s+/g, "")
       .toLowerCase();
 
   const first = clean(firstName);
@@ -319,6 +318,83 @@ function mapCsvHeaders(headers) {
   };
 }
 
+function clearPlayerForm() {
+  const firstNameInput = document.getElementById("playerFirstName");
+  const lastNameInput = document.getElementById("playerLastName");
+  const usernameInput = document.getElementById("playerUsername");
+  const emailInput = document.getElementById("playerEmail");
+  const birthdayInput = document.getElementById("playerBirthday");
+  const unitSelect = document.getElementById("playerUnit");
+
+  if (firstNameInput) firstNameInput.value = "";
+  if (lastNameInput) lastNameInput.value = "";
+  if (usernameInput) usernameInput.value = "";
+  if (emailInput) emailInput.value = "";
+  if (birthdayInput) birthdayInput.value = "";
+  if (unitSelect) unitSelect.selectedIndex = 0;
+}
+
+async function createPlayer() {
+  try {
+    const firstName = document.getElementById("playerFirstName")?.value?.trim() || "";
+    const lastName = document.getElementById("playerLastName")?.value?.trim() || "";
+    const usernameInput = document.getElementById("playerUsername")?.value?.trim() || "";
+    const email = document.getElementById("playerEmail")?.value?.trim() || "";
+    const birthday = document.getElementById("playerBirthday")?.value || "";
+    const unit = document.getElementById("playerUnit")?.value?.trim() || "";
+
+    if (!firstName || !lastName || !birthday) {
+      alert("Bitte zumindest Vorname, Nachname und Geburtstag ausfüllen.");
+      return;
+    }
+
+    const username = usernameInput || buildPlayerUsername(firstName, lastName);
+
+    const response = await fetch("/api/create-player", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        username,
+        email,
+        birthday,
+        unit
+      })
+    });
+
+    let result = null;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+
+    if (!response.ok) {
+      console.error("Fehler beim Anlegen des Spielers:", result);
+      alert(result?.error || "Spieler konnte nicht angelegt werden.");
+      return;
+    }
+
+    await loadPlayersFromSupabase();
+
+    state.editPlayerId = null;
+    clearPlayerForm();
+    renderPlayersView();
+
+    alert(
+      `Spieler wurde angelegt.\n` +
+      `Loginname: ${result?.username || username || "-"}\n` +
+      `Initialpasswort: ${result?.initialPassword || String(birthday).slice(0, 4)}`
+    );
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Anlegen des Spielers:", err);
+    alert("Unerwarteter Fehler beim Anlegen des Spielers:\n" + (err.message || err));
+  }
+}
+
 function clearPlayerListSearch() {
   state.playerListSearch = "";
   state.playerListGroup = "all";
@@ -362,8 +438,8 @@ async function updatePlayer() {
     const birthday = document.getElementById("playerBirthday")?.value || "";
     const unit = document.getElementById("playerUnit")?.value || "";
 
-    if (!firstName || !lastName || !birthday || !unit) {
-      alert("Bitte Vorname, Nachname, Geburtstag und Unit ausfüllen.");
+    if (!firstName || !lastName || !birthday) {
+      alert("Bitte Vorname, Nachname und Geburtstag ausfüllen.");
       return;
     }
 
@@ -376,7 +452,7 @@ async function updatePlayer() {
         last_name: lastName,
         username,
         birthday,
-        unit
+        unit: unit || ""
       })
       .eq("id", editPlayer.id);
 
@@ -390,7 +466,7 @@ async function updatePlayer() {
       const profilePayload = {
         username,
         display_name: `${firstName} ${lastName}`,
-        email
+        email: email || null
       };
 
       const { error: profileError } = await supabaseClient
