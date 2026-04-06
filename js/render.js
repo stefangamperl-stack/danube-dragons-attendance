@@ -30,6 +30,14 @@ function getEditPlayerEmailValue(editPlayer) {
   return editPlayer.email || "";
 }
 
+function getCoachDisplayName(coach) {
+  if (!coach) return "";
+  if (coach.first_name || coach.last_name) {
+    return `${coach.first_name || ""} ${coach.last_name || ""}`.trim();
+  }
+  return coach.name || "";
+}
+
 function renderNav() {
   const nav = document.getElementById("nav");
   const role = state.currentUser.role;
@@ -130,11 +138,10 @@ function renderOwnProfileView() {
       ${renderMustChangePasswordNotice()}
       <div class="twoCol">
         <div class="card">
-          <h2>${coach.name}</h2>
-          <p><strong>Loginname:</strong> ${coach.username}</p>
-          <p><strong>Geburtstag:</strong> ${formatDateDisplay(coach.birthday)}</p>
-          <p><strong>E-Mail:</strong> ${coach.email || "-"}</p>
-          <p><strong>Rolle:</strong> ${coach.role}</p>
+          <h2>${getCoachDisplayName(coach)}</h2>
+          <p><strong>Loginname:</strong> ${coach?.username || "-"}</p>
+          <p><strong>E-Mail:</strong> ${coach?.email || "-"}</p>
+          <p><strong>Rolle:</strong> ${coach?.role || "-"}</p>
         </div>
 
         <div class="card">
@@ -153,7 +160,7 @@ function renderOwnProfileView() {
           </div>
           <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
           <p class="smallMuted" style="margin-top:12px;">
-            Initialpasswort war dein Geburtsjahr.
+            Initialpasswort für Coaches war test123.
           </p>
         </div>
       </div>
@@ -1143,10 +1150,10 @@ function renderCoachesView() {
     <div class="twoCol">
       <div class="card">
         <h2>${editCoach ? "Coach bearbeiten" : "Coach anlegen"}</h2>
-        <div class="field"><label>Name</label><input id="coachName" class="input" value="${editCoach ? escapeHtml(editCoach.name) : ""}" placeholder="Coach Name" /></div>
-        <div class="field"><label>Loginname</label><input id="coachUsername" class="input" value="${editCoach ? escapeHtml(editCoach.username) : ""}" placeholder="coachlogin" /></div>
-        <div class="field"><label>Geburtstag</label><input id="coachBirthday" class="input" type="date" value="${editCoach ? (editCoach.birthday || "") : ""}" /></div>
-        <div class="field"><label>E-Mail</label><input id="coachEmail" class="input" value="${editCoach ? escapeHtml(editCoach.email || "") : ""}" placeholder="coach@example.com" /></div>
+        <div class="field"><label>Vorname</label><input id="coachFirstName" class="input" value="${editCoach ? escapeHtml(editCoach.first_name || "") : ""}" placeholder="Vorname" /></div>
+        <div class="field"><label>Nachname</label><input id="coachLastName" class="input" value="${editCoach ? escapeHtml(editCoach.last_name || "") : ""}" placeholder="Nachname" /></div>
+        <div class="field"><label>Loginname</label><input id="coachUsername" class="input" value="${editCoach ? escapeHtml(editCoach.username || "") : ""}" placeholder="coachlogin" /></div>
+        <div class="field"><label>E-Mail</label><input id="coachEmail" class="input" type="email" value="${editCoach ? escapeHtml(editCoach.email || "") : ""}" placeholder="coach@example.com" /></div>
         <div class="field">
           <label>Rolle</label>
           <select id="coachRole" class="select">
@@ -1159,7 +1166,7 @@ function renderCoachesView() {
           ${editCoach ? `<button class="secondaryButton" onclick="cancelCoachEdit()">Abbrechen</button>` : ""}
         </div>
         <p class="smallMuted" style="margin-top:12px;">
-          Initialpasswort für neue Coaches ist automatisch das Geburtsjahr.
+          Initialpasswort für neue Coaches ist test123.
         </p>
       </div>
 
@@ -1171,7 +1178,7 @@ function renderCoachesView() {
               <tr>
                 <th>Name</th>
                 <th>Loginname</th>
-                <th>Geburtstag</th>
+                <th>E-Mail</th>
                 <th>Rolle</th>
                 <th>Aktionen</th>
               </tr>
@@ -1179,9 +1186,9 @@ function renderCoachesView() {
             <tbody>
               ${coaches.map(c => `
                 <tr>
-                  <td>${c.name}</td>
-                  <td>${c.username}</td>
-                  <td>${formatDateDisplay(c.birthday)}</td>
+                  <td>${getCoachDisplayName(c)}</td>
+                  <td>${c.username || "-"}</td>
+                  <td>${c.email || "-"}</td>
                   <td>${c.role}</td>
                   <td>
                     <div class="rowActions">
@@ -1192,6 +1199,7 @@ function renderCoachesView() {
                   </td>
                 </tr>
               `).join("")}
+              ${coaches.length === 0 ? `<tr><td colspan="5">Keine Coaches vorhanden.</td></tr>` : ""}
             </tbody>
           </table>
         </div>
