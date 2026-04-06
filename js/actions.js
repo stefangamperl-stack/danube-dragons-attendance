@@ -712,6 +712,66 @@ async function updateCoach() {
 
     const username = usernameInput || buildPlayerUsername(firstName, lastName, editCoach.username || "");
 
+    const isUuid = value =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+
+    let dbCoachId = editCoach.id;
+    let dbProfileId = editCoach.profile_id || null;
+
+    if (!isUuid(dbCoachId)) {
+      let matchedCoach = null;
+
+      if (dbProfileId && isUuid(dbProfileId)) {
+        const { data, error } = await supabaseClient
+          .from("coaches")
+          .select("id, profile_id, username, email")
+          .eq("profile_id", dbProfileId)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Fehler beim Suchen des Coaches per profile_id:", error);
+        } else if (data) {
+          matchedCoach = data;
+        }
+      }
+
+      if (!matchedCoach && editCoach.username) {
+        const { data, error } = await supabaseClient
+          .from("coaches")
+          .select("id, profile_id, username, email")
+          .eq("username", editCoach.username)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Fehler beim Suchen des Coaches per username:", error);
+        } else if (data) {
+          matchedCoach = data;
+        }
+      }
+
+      if (!matchedCoach && editCoach.email) {
+        const { data, error } = await supabaseClient
+          .from("coaches")
+          .select("id, profile_id, username, email")
+          .eq("email", editCoach.email)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Fehler beim Suchen des Coaches per email:", error);
+        } else if (data) {
+          matchedCoach = data;
+        }
+      }
+
+      if (!matchedCoach || !matchedCoach.id) {
+        alert("Dieser Coach stammt offenbar noch aus alten lokalen Demodaten und konnte keinem echten Datenbankeintrag zugeordnet werden.");
+        return;
+      }
+
+      dbCoachId = matchedCoach.id;
+      dbProfileId = matchedCoach.profile_id || dbProfileId || null;
+    }
+
     const { error: coachError } = await supabaseClient
       .from("coaches")
       .update({
@@ -724,7 +784,7 @@ async function updateCoach() {
         is_active: true,
         active: true
       })
-      .eq("id", editCoach.id);
+      .eq("id", dbCoachId);
 
     if (coachError) {
       console.error("Fehler beim Aktualisieren des Coaches:", coachError);
@@ -732,7 +792,7 @@ async function updateCoach() {
       return;
     }
 
-    if (editCoach.profile_id) {
+    if (dbProfileId && isUuid(dbProfileId)) {
       const profilePayload = {
         username,
         email: email || null,
@@ -743,7 +803,7 @@ async function updateCoach() {
       const { error: profileError } = await supabaseClient
         .from("profiles")
         .update(profilePayload)
-        .eq("id", editCoach.profile_id);
+        .eq("id", dbProfileId);
 
       if (profileError) {
         console.error("Fehler beim Aktualisieren des Coach-Profils:", profileError);
