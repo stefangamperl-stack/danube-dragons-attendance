@@ -1088,7 +1088,7 @@ function buildStatisticsChart(rows) {
     return `<text x="${x}" y="${height - 6}" fill="#d1fae5" font-size="12" text-anchor="middle">${formatDateDisplay(row.training.date).slice(0,5)}</text>`;
   }).join("");
 
-  const horizontalLines = [0,25,50,75,100].map(v => {
+  const horizontalLines = [0, 25, 50, 75, 100].map(v => {
     const y = pointY(v);
     return `
       <line x1="${paddingX}" y1="${y}" x2="${width - paddingX}" y2="${y}" stroke="#214235" />
@@ -1195,4 +1195,16 @@ function renderDashboardUnitSummary(trainingId) {
   });
 
   return cards.join("");
+}
+
+function searchPlayerList() {
+  const input = document.getElementById("playerListSearchInput");
+  state.playerListSearch = (input?.value || "").trim();
+  state.playerListGroup = "all";
+  renderPlayersView();
+}
+
+function startPlayerEdit(playerId) {
+  state.editPlayerId = playerId;
+  renderPlayersView();
 }
