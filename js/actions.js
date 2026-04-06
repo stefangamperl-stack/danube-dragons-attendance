@@ -229,3 +229,125 @@ async function setPlayerResponse(trainingId, status) {
 
   renderApp();
 }
+
+function buildPlayerUsername(firstName, lastName, fallbackUsername = "") {
+  const clean = value =>
+    String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toLowerCase();
+
+  const first = clean(firstName);
+  const last = clean(lastName);
+
+  if (first && last) {
+    return `${first.charAt(0)}${last}`;
+  }
+
+  if (fallbackUsername) {
+    return fallbackUsername;
+  }
+
+  return "";
+}
+
+function clearPlayerListSearch() {
+  state.playerListSearch = "";
+  state.playerListGroup = "all";
+
+  const input = document.getElementById("playerListSearchInput");
+  if (input) {
+    input.value = "";
+  }
+
+  renderPlayersView();
+}
+
+function setPlayerListGroup(group) {
+  state.playerListGroup = group || "all";
+  state.playerListSearch = "";
+  renderPlayersView();
+}
+
+function cancelPlayerEdit() {
+  state.editPlayerId = null;
+  renderPlayersView();
+}
+
+async function updatePlayer() {
+  try {
+    if (!state.editPlayerId) {
+      alert("Kein Spieler zum Bearbeiten ausgewählt.");
+      return;
+    }
+
+    const editPlayer = players.find(p => p.id === state.editPlayerId);
+    if (!editPlayer) {
+      alert("Der zu bearbeitende Spieler wurde nicht gefunden.");
+      return;
+    }
+
+    const firstName = document.getElementById("playerFirstName")?.value?.trim() || "";
+    const lastName = document.getElementById("playerLastName")?.value?.trim() || "";
+    const usernameInput = document.getElementById("playerUsername")?.value?.trim() || "";
+    const email = document.getElementById("playerEmail")?.value?.trim() || "";
+    const birthday = document.getElementById("playerBirthday")?.value || "";
+    const unit = document.getElementById("playerUnit")?.value || "";
+
+    if (!firstName || !lastName || !birthday || !unit) {
+      alert("Bitte Vorname, Nachname, Geburtstag und Unit ausfüllen.");
+      return;
+    }
+
+    const username = usernameInput || buildPlayerUsername(firstName, lastName, editPlayer.username || "");
+
+    const { error: playerError } = await supabaseClient
+      .from("players")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        username,
+        birthday,
+        unit
+      })
+      .eq("id", editPlayer.id);
+
+    if (playerError) {
+      console.error("Fehler beim Aktualisieren des Spielers:", playerError);
+      alert("Spielerdaten konnten nicht gespeichert werden:\n" + (playerError.message || JSON.stringify(playerError)));
+      return;
+    }
+
+    if (editPlayer.profileId) {
+      const profilePayload = {
+        username,
+        display_name: `${firstName} ${lastName}`
+      };
+
+      if (email) {
+        profilePayload.email = email;
+      }
+
+      const { error: profileError } = await supabaseClient
+        .from("profiles")
+        .update(profilePayload)
+        .eq("id", editPlayer.profileId);
+
+      if (profileError) {
+        console.error("Fehler beim Aktualisieren des Profils:", profileError);
+        alert("Profil konnte nicht vollständig gespeichert werden:\n" + (profileError.message || JSON.stringify(profileError)));
+        return;
+      }
+    }
+
+    await loadPlayersFromSupabase();
+
+    state.editPlayerId = null;
+    renderPlayersView();
+    alert("Spieler wurde gespeichert.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Speichern des Spielers:", err);
+    alert("Unerwarteter Fehler beim Speichern des Spielers:\n" + (err.message || err));
+  }
+}
