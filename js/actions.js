@@ -445,6 +445,49 @@ async function updatePlayer() {
 
     const username = usernameInput || buildPlayerUsername(firstName, lastName, editPlayer.username || "");
 
+    if (!editPlayer.profileId) {
+      const response = await fetch("/api/activate-player-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          playerId: editPlayer.id,
+          firstName,
+          lastName,
+          birthday,
+          username,
+          email,
+          unit
+        })
+      });
+
+      let result = null;
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok) {
+        console.error("Fehler beim Aktivieren des Spieler-Logins:", result);
+        alert(result?.error || "Spieler konnte nicht für Login aktiviert werden.");
+        return;
+      }
+
+      await loadPlayersFromSupabase();
+
+      state.editPlayerId = null;
+      renderPlayersView();
+
+      alert(
+        `Spieler wurde gespeichert und für Login aktiviert.\n` +
+        `Loginname: ${result?.username || username}\n` +
+        `Initialpasswort: ${result?.initialPassword || String(birthday).slice(0, 4)}`
+      );
+      return;
+    }
+
     const { error: playerError } = await supabaseClient
       .from("players")
       .update({
@@ -462,23 +505,21 @@ async function updatePlayer() {
       return;
     }
 
-    if (editPlayer.profileId) {
-      const profilePayload = {
-        username,
-        display_name: `${firstName} ${lastName}`,
-        email: email || null
-      };
+    const profilePayload = {
+      username,
+      display_name: `${firstName} ${lastName}`,
+      email: email || null
+    };
 
-      const { error: profileError } = await supabaseClient
-        .from("profiles")
-        .update(profilePayload)
-        .eq("id", editPlayer.profileId);
+    const { error: profileError } = await supabaseClient
+      .from("profiles")
+      .update(profilePayload)
+      .eq("id", editPlayer.profileId);
 
-      if (profileError) {
-        console.error("Fehler beim Aktualisieren des Profils:", profileError);
-        alert("Profil konnte nicht vollständig gespeichert werden:\n" + (profileError.message || JSON.stringify(profileError)));
-        return;
-      }
+    if (profileError) {
+      console.error("Fehler beim Aktualisieren des Profils:", profileError);
+      alert("Profil konnte nicht vollständig gespeichert werden:\n" + (profileError.message || JSON.stringify(profileError)));
+      return;
     }
 
     await loadPlayersFromSupabase();
