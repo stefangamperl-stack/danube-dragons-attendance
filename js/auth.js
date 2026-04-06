@@ -130,6 +130,15 @@ async function login() {
 
   saveSession();
   state.currentView = state.currentUser.mustChangePassword ? "profile" : "dashboard";
+
+  try {
+    await loadTrainingsFromSupabase();
+    await loadPlayersFromSupabase();
+    await loadResponsesFromSupabase();
+  } catch (loadErr) {
+    console.error("Fehler beim Laden der App-Daten nach Login:", loadErr);
+  }
+
   showApp();
 }
 
