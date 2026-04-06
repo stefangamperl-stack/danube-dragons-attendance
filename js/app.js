@@ -129,13 +129,20 @@ function syncPlayerUser(player) {
 
 function syncCoachUser(coach) {
   const user = getCoachUserAuth(coach.id);
+  const coachDisplayName =
+    coach.name ||
+    `${coach.first_name || ""} ${coach.last_name || ""}`.trim();
+
   if (!user) {
-    users.push(createCoachUserRecord(coach));
+    users.push(createCoachUserRecord({
+      ...coach,
+      name: coachDisplayName
+    }));
     return;
   }
   user.username = coach.username;
   user.role = coach.role;
-  user.displayName = coach.name;
+  user.displayName = coachDisplayName;
   user.email = coach.email || "";
   user.active = coach.active !== false;
 }
@@ -425,7 +432,19 @@ async function loadInitialAppData() {
 
     await loadTrainingsFromSupabase();
     await loadPlayersFromSupabase();
+    await loadCoachesFromSupabase();
     await loadResponsesFromSupabase();
+
+    if (
+      (state.currentUser.role === "adminCoach" || state.currentUser.role === "headAdmin") &&
+      !state.currentUser.coachId
+    ) {
+      const ownCoach = coaches.find(c => c.profile_id === state.currentUser.id);
+      if (ownCoach) {
+        state.currentUser.coachId = ownCoach.id;
+        saveSession();
+      }
+    }
 
     renderApp();
     showApp();
