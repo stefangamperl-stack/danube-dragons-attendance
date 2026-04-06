@@ -322,12 +322,9 @@ async function updatePlayer() {
     if (editPlayer.profileId) {
       const profilePayload = {
         username,
-        display_name: `${firstName} ${lastName}`
+        display_name: `${firstName} ${lastName}`,
+        email
       };
-
-      if (email) {
-        profilePayload.email = email;
-      }
 
       const { error: profileError } = await supabaseClient
         .from("profiles")
@@ -349,5 +346,79 @@ async function updatePlayer() {
   } catch (err) {
     console.error("Unerwarteter Fehler beim Speichern des Spielers:", err);
     alert("Unerwarteter Fehler beim Speichern des Spielers:\n" + (err.message || err));
+  }
+}
+
+async function deletePlayer(playerId) {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf Spieler löschen.");
+      return;
+    }
+
+    const player = players.find(p => p.id === playerId);
+    if (!player) {
+      alert("Der Spieler wurde nicht gefunden.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Bist du sicher, dass Spieler ${fullName(player)} gelöscht werden soll?`);
+    if (!confirmed) {
+      return;
+    }
+
+    const { error: responsesError } = await supabaseClient
+      .from("responses")
+      .delete()
+      .eq("player_id", player.id);
+
+    if (responsesError) {
+      console.error("Fehler beim Löschen der Antworten:", responsesError);
+      alert("Antworten des Spielers konnten nicht gelöscht werden:\n" + (responsesError.message || JSON.stringify(responsesError)));
+      return;
+    }
+
+    const { error: playerError } = await supabaseClient
+      .from("players")
+      .delete()
+      .eq("id", player.id);
+
+    if (playerError) {
+      console.error("Fehler beim Löschen des Spielers:", playerError);
+      alert("Spieler konnte nicht gelöscht werden:\n" + (playerError.message || JSON.stringify(playerError)));
+      return;
+    }
+
+    if (player.profileId) {
+      const { error: profileError } = await supabaseClient
+        .from("profiles")
+        .delete()
+        .eq("id", player.profileId);
+
+      if (profileError) {
+        console.error("Fehler beim Löschen des Profils:", profileError);
+        alert("Spieler wurde gelöscht, aber das Profil konnte nicht gelöscht werden:\n" + (profileError.message || JSON.stringify(profileError)));
+        await loadPlayersFromSupabase();
+        await loadResponsesFromSupabase();
+        if (state.editPlayerId === player.id) {
+          state.editPlayerId = null;
+        }
+        renderPlayersView();
+        return;
+      }
+    }
+
+    await loadPlayersFromSupabase();
+    await loadResponsesFromSupabase();
+
+    if (state.editPlayerId === player.id) {
+      state.editPlayerId = null;
+    }
+
+    renderPlayersView();
+    alert(`Spieler ${fullName(player)} wurde gelöscht.`);
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Löschen des Spielers:", err);
+    alert("Unerwarteter Fehler beim Löschen des Spielers:\n" + (err.message || err));
   }
 }
