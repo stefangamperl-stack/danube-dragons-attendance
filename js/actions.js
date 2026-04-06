@@ -134,6 +134,61 @@ async function loadPlayersFromSupabase() {
   }
 }
 
+async function loadCoachesFromSupabase() {
+  try {
+    if (typeof supabaseClient === "undefined" || !supabaseClient) {
+      throw new Error("Supabase-Client ist nicht geladen.");
+    }
+
+    if (typeof coaches === "undefined") {
+      throw new Error("Die Variable 'coaches' ist nicht definiert.");
+    }
+
+    const { data, error } = await supabaseClient
+      .from("coaches")
+      .select("*")
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true });
+
+    if (error) {
+      console.error("Fehler beim Laden der Coaches:", error);
+      alert("Coaches konnten nicht geladen werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    coaches.length = 0;
+
+    (data || []).forEach(row => {
+      coaches.push({
+        id: row.id,
+        name: row.name || `${row.first_name || ""} ${row.last_name || ""}`.trim(),
+        first_name: row.first_name || "",
+        last_name: row.last_name || "",
+        username: row.username || "",
+        birthday: row.birthday || "",
+        email: row.email || "",
+        role: row.role || "adminCoach",
+        profile_id: row.profile_id || null,
+        is_active: row.is_active !== false,
+        active: row.active !== false,
+        created_at: row.created_at || null,
+        updated_at: row.updated_at || null
+      });
+    });
+
+    if (state.currentUser?.role && state.currentUser.role !== "player" && !state.currentUser.coachId) {
+      const ownCoach = coaches.find(c => c.profile_id === state.currentUser.id);
+      if (ownCoach) {
+        state.currentUser.coachId = ownCoach.id;
+        saveSession();
+      }
+    }
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Laden der Coaches:", err);
+    alert("Unerwarteter Fehler beim Laden der Coaches:\n" + (err.message || err));
+  }
+}
+
 async function loadResponsesFromSupabase() {
   try {
     if (typeof supabaseClient === "undefined" || !supabaseClient) {
@@ -334,6 +389,20 @@ function clearPlayerForm() {
   if (unitSelect) unitSelect.selectedIndex = 0;
 }
 
+function clearCoachForm() {
+  const firstNameInput = document.getElementById("coachFirstName");
+  const lastNameInput = document.getElementById("coachLastName");
+  const usernameInput = document.getElementById("coachUsername");
+  const emailInput = document.getElementById("coachEmail");
+  const roleSelect = document.getElementById("coachRole");
+
+  if (firstNameInput) firstNameInput.value = "";
+  if (lastNameInput) lastNameInput.value = "";
+  if (usernameInput) usernameInput.value = "";
+  if (emailInput) emailInput.value = "";
+  if (roleSelect) roleSelect.value = "adminCoach";
+}
+
 async function createPlayer() {
   try {
     const firstName = document.getElementById("playerFirstName")?.value?.trim() || "";
@@ -395,6 +464,75 @@ async function createPlayer() {
   }
 }
 
+async function createCoach() {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf Coaches anlegen.");
+      return;
+    }
+
+    const firstName = document.getElementById("coachFirstName")?.value?.trim() || "";
+    const lastName = document.getElementById("coachLastName")?.value?.trim() || "";
+    const usernameInput = document.getElementById("coachUsername")?.value?.trim() || "";
+    const email = document.getElementById("coachEmail")?.value?.trim() || "";
+    const role = document.getElementById("coachRole")?.value || "adminCoach";
+
+    if (!firstName || !lastName) {
+      alert("Bitte Vorname und Nachname ausfüllen.");
+      return;
+    }
+
+    const username = usernameInput || buildPlayerUsername(firstName, lastName);
+
+    const response = await fetch("/api/create-coach", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        username,
+        email,
+        role
+      })
+    });
+
+    let result = null;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+
+    if (!response.ok) {
+      console.error("Fehler beim Anlegen des Coaches:", result);
+      alert(result?.error || "Coach konnte nicht angelegt werden.");
+      return;
+    }
+
+    await loadCoachesFromSupabase();
+
+    state.editCoachId = null;
+    clearCoachForm();
+    renderCoachesView();
+
+    const finalUsername = result?.credentials?.username || username || "-";
+    const finalEmail = result?.credentials?.email || email || "-";
+    const finalPassword = result?.credentials?.password || "test123";
+
+    alert(
+      `Coach wurde angelegt.\n` +
+      `Loginname: ${finalUsername}\n` +
+      `E-Mail: ${finalEmail}\n` +
+      `Initialpasswort: ${finalPassword}`
+    );
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Anlegen des Coaches:", err);
+    alert("Unerwarteter Fehler beim Anlegen des Coaches:\n" + (err.message || err));
+  }
+}
+
 function clearPlayerListSearch() {
   state.playerListSearch = "";
   state.playerListGroup = "all";
@@ -416,6 +554,16 @@ function setPlayerListGroup(group) {
 function cancelPlayerEdit() {
   state.editPlayerId = null;
   renderPlayersView();
+}
+
+function startCoachEdit(coachId) {
+  state.editCoachId = coachId;
+  renderCoachesView();
+}
+
+function cancelCoachEdit() {
+  state.editCoachId = null;
+  renderCoachesView();
 }
 
 async function updatePlayer() {
@@ -533,6 +681,91 @@ async function updatePlayer() {
   }
 }
 
+async function updateCoach() {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf Coaches bearbeiten.");
+      return;
+    }
+
+    if (!state.editCoachId) {
+      alert("Kein Coach zum Bearbeiten ausgewählt.");
+      return;
+    }
+
+    const editCoach = coaches.find(c => c.id === state.editCoachId);
+    if (!editCoach) {
+      alert("Der zu bearbeitende Coach wurde nicht gefunden.");
+      return;
+    }
+
+    const firstName = document.getElementById("coachFirstName")?.value?.trim() || "";
+    const lastName = document.getElementById("coachLastName")?.value?.trim() || "";
+    const usernameInput = document.getElementById("coachUsername")?.value?.trim() || "";
+    const email = document.getElementById("coachEmail")?.value?.trim() || "";
+    const role = document.getElementById("coachRole")?.value || "adminCoach";
+
+    if (!firstName || !lastName) {
+      alert("Bitte Vorname und Nachname ausfüllen.");
+      return;
+    }
+
+    const username = usernameInput || buildPlayerUsername(firstName, lastName, editCoach.username || "");
+
+    const { error: coachError } = await supabaseClient
+      .from("coaches")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        name: `${firstName} ${lastName}`.trim(),
+        username,
+        email: email || null,
+        role,
+        is_active: true,
+        active: true
+      })
+      .eq("id", editCoach.id);
+
+    if (coachError) {
+      console.error("Fehler beim Aktualisieren des Coaches:", coachError);
+      alert("Coachdaten konnten nicht gespeichert werden:\n" + (coachError.message || JSON.stringify(coachError)));
+      return;
+    }
+
+    if (editCoach.profile_id) {
+      const profilePayload = {
+        username,
+        email: email || null,
+        role,
+        display_name: `${firstName} ${lastName}`.trim()
+      };
+
+      const { error: profileError } = await supabaseClient
+        .from("profiles")
+        .update(profilePayload)
+        .eq("id", editCoach.profile_id);
+
+      if (profileError) {
+        console.error("Fehler beim Aktualisieren des Coach-Profils:", profileError);
+        alert("Coach wurde gespeichert, aber das Profil konnte nicht vollständig aktualisiert werden:\n" + (profileError.message || JSON.stringify(profileError)));
+        await loadCoachesFromSupabase();
+        state.editCoachId = null;
+        renderCoachesView();
+        return;
+      }
+    }
+
+    await loadCoachesFromSupabase();
+
+    state.editCoachId = null;
+    renderCoachesView();
+    alert("Coach wurde gespeichert.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Speichern des Coaches:", err);
+    alert("Unerwarteter Fehler beim Speichern des Coaches:\n" + (err.message || err));
+  }
+}
+
 async function deletePlayer(playerId) {
   try {
     if (state.currentUser?.role !== "headAdmin") {
@@ -604,6 +837,68 @@ async function deletePlayer(playerId) {
   } catch (err) {
     console.error("Unerwarteter Fehler beim Löschen des Spielers:", err);
     alert("Unerwarteter Fehler beim Löschen des Spielers:\n" + (err.message || err));
+  }
+}
+
+async function deleteCoach(coachId) {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf Coaches löschen.");
+      return;
+    }
+
+    const coach = coaches.find(c => c.id === coachId);
+    if (!coach) {
+      alert("Der Coach wurde nicht gefunden.");
+      return;
+    }
+
+    const coachName = `${coach.first_name || ""} ${coach.last_name || ""}`.trim() || coach.name || "dieser Coach";
+    const confirmed = window.confirm(`Bist du sicher, dass Coach ${coachName} gelöscht werden soll?`);
+    if (!confirmed) {
+      return;
+    }
+
+    const { error: coachError } = await supabaseClient
+      .from("coaches")
+      .delete()
+      .eq("id", coach.id);
+
+    if (coachError) {
+      console.error("Fehler beim Löschen des Coaches:", coachError);
+      alert("Coach konnte nicht gelöscht werden:\n" + (coachError.message || JSON.stringify(coachError)));
+      return;
+    }
+
+    if (coach.profile_id) {
+      const { error: profileError } = await supabaseClient
+        .from("profiles")
+        .delete()
+        .eq("id", coach.profile_id);
+
+      if (profileError) {
+        console.error("Fehler beim Löschen des Coach-Profils:", profileError);
+        alert("Coach wurde gelöscht, aber das Profil konnte nicht gelöscht werden:\n" + (profileError.message || JSON.stringify(profileError)));
+        await loadCoachesFromSupabase();
+        if (state.editCoachId === coach.id) {
+          state.editCoachId = null;
+        }
+        renderCoachesView();
+        return;
+      }
+    }
+
+    await loadCoachesFromSupabase();
+
+    if (state.editCoachId === coach.id) {
+      state.editCoachId = null;
+    }
+
+    renderCoachesView();
+    alert(`Coach ${coachName} wurde gelöscht.`);
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Löschen des Coaches:", err);
+    alert("Unerwarteter Fehler beim Löschen des Coaches:\n" + (err.message || err));
   }
 }
 
