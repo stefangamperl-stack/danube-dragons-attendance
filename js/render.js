@@ -372,9 +372,7 @@ function renderDashboardView() {
 
   content.innerHTML = `
     ${renderMustChangePasswordNotice()}
-    <div class="grid unitSummary">
-      ${summaryCards}
-    </div>
+    ${summaryCards}
 
     <div class="twoCol">
       <div class="card">
@@ -722,9 +720,7 @@ function renderReportsView() {
       <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
     </div>
 
-    <div class="grid unitSummary">
-      ${renderDashboardUnitSummary(selectedTraining.id)}
-    </div>
+    ${renderDashboardUnitSummary(selectedTraining.id)}
 
     <div class="twoCol">
       <div class="card">
@@ -1245,22 +1241,92 @@ function renderCoachesView() {
 }
 
 function renderDashboardUnitSummary(trainingId) {
-  const cards = [];
+  const offenseSet = [...offenseUnits];
+  const defenseSet = [...defenseUnits];
+  const teamUnits = [...offenseSet, ...defenseSet, "K"];
 
-  orderedGroups.forEach(group => {
-    const groupPlayers = getPlayersForGroup(group);
-    if (!groupPlayers.length) return;
+  const teamPlayers = players.filter(p => teamUnits.includes(p.unit));
+  const offensePlayers = players.filter(p => offenseSet.includes(p.unit));
+  const defensePlayers = players.filter(p => defenseSet.includes(p.unit));
+  const kickerPlayers = players.filter(p => p.unit === "K");
 
-    const groupYes = groupPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
-    cards.push(`
-      <div class="card">
-        <div class="smallMuted">${group}</div>
-        <div class="kpi">${groupYes}/${groupPlayers.length}</div>
+  function buildSummaryCard(label, yesCount, totalCount, variant = "neutral") {
+    let background = "rgba(255,255,255,0.03)";
+    let border = "#214235";
+    let labelColor = "#d1fae5";
+    let valueColor = "#ffffff";
+
+    if (variant === "offense") {
+      background = "rgba(127, 29, 29, 0.35)";
+      border = "#dc2626";
+      labelColor = "#fecaca";
+      valueColor = "#ffffff";
+    }
+
+    if (variant === "defense") {
+      background = "rgba(30, 58, 138, 0.35)";
+      border = "#3b82f6";
+      labelColor = "#dbeafe";
+      valueColor = "#ffffff";
+    }
+
+    if (variant === "kicker") {
+      background = "rgba(255,255,255,0.12)";
+      border = "#f3f4f6";
+      labelColor = "#f9fafb";
+      valueColor = "#ffffff";
+    }
+
+    if (variant === "team") {
+      background = "rgba(4, 120, 87, 0.3)";
+      border = "#10b981";
+      labelColor = "#d1fae5";
+      valueColor = "#ffffff";
+    }
+
+    return `
+      <div class="card" style="background:${background}; border:1px solid ${border};">
+        <div class="smallMuted" style="color:${labelColor};">${label}</div>
+        <div class="kpi" style="color:${valueColor};">${yesCount}/${totalCount}</div>
       </div>
-    `);
-  });
+    `;
+  }
 
-  return cards.join("");
+  const teamYes = teamPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+  const offenseYes = offensePlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+  const defenseYes = defensePlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+  const kickerYes = kickerPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+
+  const firstRow = `
+    <div class="grid unitSummary" style="margin-bottom:16px;">
+      ${buildSummaryCard("Team", teamYes, teamPlayers.length, "team")}
+      ${buildSummaryCard("Offense", offenseYes, offensePlayers.length, "offense")}
+      ${buildSummaryCard("Defense", defenseYes, defensePlayers.length, "defense")}
+      ${buildSummaryCard("Kicker", kickerYes, kickerPlayers.length, "kicker")}
+    </div>
+  `;
+
+  const secondRow = `
+    <div class="grid unitSummary" style="margin-bottom:16px;">
+      ${offenseSet.map(unit => {
+        const unitPlayers = players.filter(p => p.unit === unit);
+        const unitYes = unitPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+        return buildSummaryCard(unit, unitYes, unitPlayers.length, "offense");
+      }).join("")}
+    </div>
+  `;
+
+  const thirdRow = `
+    <div class="grid unitSummary">
+      ${defenseSet.map(unit => {
+        const unitPlayers = players.filter(p => p.unit === unit);
+        const unitYes = unitPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
+        return buildSummaryCard(unit, unitYes, unitPlayers.length, "defense");
+      }).join("")}
+    </div>
+  `;
+
+  return `${firstRow}${secondRow}${thirdRow}`;
 }
 
 function searchPlayerList() {
