@@ -1391,3 +1391,110 @@ async function importRosterCsv() {
     alert("Unerwarteter Fehler beim CSV-Import:\n" + (err.message || err));
   }
 }
+
+function changeGroupFilter(group) {
+  state.filterGroup = group || "all";
+
+  if (state.currentView === "dashboard") {
+    renderDashboardView();
+    return;
+  }
+
+  if (state.currentView === "reports") {
+    renderReportsView();
+    return;
+  }
+
+  renderApp();
+}
+
+function changeDashboardResponseFilter(value) {
+  state.dashboardResponseFilter = value || "all";
+  renderDashboardView();
+}
+
+function changeResponseFilter(value) {
+  state.filterResponse = value || "all";
+  renderReportsView();
+}
+
+function changeReportsTraining(trainingId) {
+  state.reportsTrainingId = trainingId || null;
+  renderReportsView();
+}
+
+function setReportsSort(key) {
+  if (!key) return;
+
+  if (state.reportsSort.key === key) {
+    state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
+  } else {
+    state.reportsSort = { key, dir: "asc" };
+  }
+
+  renderReportsView();
+}
+
+async function setCoachResponse(trainingId, playerId, status) {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches oder der Hauptadmin dürfen Antworten bearbeiten.");
+      return;
+    }
+
+    const training = trainings.find(t => t.id === trainingId);
+    const player = players.find(p => p.id === playerId);
+
+    if (!training) {
+      alert("Das Training wurde nicht gefunden.");
+      return;
+    }
+
+    if (!player) {
+      alert("Der Spieler wurde nicht gefunden.");
+      return;
+    }
+
+    const payload = {
+      training_id: trainingId,
+      player_id: playerId,
+      status,
+      updated_at: new Date().toISOString(),
+      changed_on_event_day: getTodayYmd() === training.date
+    };
+
+    const { error } = await supabaseClient
+      .from("responses")
+      .upsert([payload], {
+        onConflict: "training_id,player_id"
+      });
+
+    if (error) {
+      console.error("Fehler beim Speichern der Coach-Antwort:", error);
+      alert("Antwort konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    responses[trainingId] = responses[trainingId] || {};
+    responses[trainingId][playerId] = {
+      status,
+      updatedAt: payload.updated_at,
+      changedOnEventDay: payload.changed_on_event_day
+    };
+
+    if (state.currentView === "reports") {
+      renderReportsView();
+      return;
+    }
+
+    if (state.currentView === "dashboard") {
+      renderDashboardView();
+      return;
+    }
+
+    renderApp();
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Speichern der Coach-Antwort:", err);
+    alert("Unerwarteter Fehler beim Speichern der Coach-Antwort:\n" + (err.message || err));
+  }
+}
