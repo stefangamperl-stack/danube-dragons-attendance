@@ -63,7 +63,7 @@ function normalizeLimitationsArray(limitations) {
   return limitations
     .map(normalizeLimitationRecord)
     .filter(Boolean)
-    .sort((a, b) => String(b.from).localeCompare(String(a.from)));
+    .sort((a, b) => String(a.from).localeCompare(String(b.from)));
 }
 
 function calculateLimitationEnd(fromDate, durationDays) {
@@ -73,12 +73,105 @@ function calculateLimitationEnd(fromDate, durationDays) {
   return toYmdLocal(start);
 }
 
-function getCurrentLimitationFromArray(limitations) {
+function limitationIsCurrent(limitation) {
+  const normalized = normalizeLimitationRecord(limitation);
+  if (!normalized) return false;
+
   const today = getTodayYmd();
-  return normalizeLimitationsArray(limitations).find(l => {
-    const until = calculateLimitationEnd(l.from, l.durationDays);
-    return l.from <= today && until >= today;
+  const until = calculateLimitationEnd(normalized.from, normalized.durationDays);
+  return normalized.from <= today && until >= today;
+}
+
+function limitationIsFuture(limitation) {
+  const normalized = normalizeLimitationRecord(limitation);
+  if (!normalized) return false;
+
+  const today = getTodayYmd();
+  return normalized.from > today;
+}
+
+function limitationIsPast(limitation) {
+  const normalized = normalizeLimitationRecord(limitation);
+  if (!normalized) return false;
+
+  const today = getTodayYmd();
+  const until = calculateLimitationEnd(normalized.from, normalized.durationDays);
+  return until < today;
+}
+
+function getCurrentLimitationFromArray(limitations) {
+  return normalizeLimitationsArray(limitations).find(l => limitationIsCurrent(l)) || null;
+}
+
+function getNextFutureLimitationFromArray(limitations) {
+  return normalizeLimitationsArray(limitations).find(l => limitationIsFuture(l)) || null;
+}
+
+function getOpenLimitationFromArray(limitations) {
+  const normalized = normalizeLimitationsArray(limitations);
+  const current = getCurrentLimitationFromArray(normalized);
+  if (current) return current;
+  return getNextFutureLimitationFromArray(normalized);
+}
+
+function getCurrentPlayerLimitation(playerId) {
+  const player = players.find(p => p.id === playerId);
+  if (!player) return null;
+  return getCurrentLimitationFromArray(player.injuries || []);
+}
+
+function getNextFuturePlayerLimitation(playerId) {
+  const player = players.find(p => p.id === playerId);
+  if (!player) return null;
+  return getNextFutureLimitationFromArray(player.injuries || []);
+}
+
+function getOpenPlayerLimitation(playerId) {
+  const player = players.find(p => p.id === playerId);
+  if (!player) return null;
+  return getOpenLimitationFromArray(player.injuries || []);
+}
+
+function findLimitationAffectingDate(playerId, dateYmd) {
+  const player = players.find(p => p.id === playerId);
+  if (!player || !dateYmd) return null;
+
+  const limitations = normalizeLimitationsArray(player.injuries || []);
+  return limitations.find(l => {
+    const end = calculateLimitationEnd(l.from, l.durationDays);
+    return dateYmd >= l.from && dateYmd <= end;
   }) || null;
+}
+
+function findOverlappingLimitation(playerId, validFrom, durationDays, excludeLimitationId = null) {
+  const player = players.find(p => p.id === playerId);
+  if (!player) return null;
+
+  const newStart = validFrom;
+  const newEnd = calculateLimitationEnd(validFrom, durationDays);
+
+  return normalizeLimitationsArray(player.injuries || []).find(l => {
+    if (excludeLimitationId && l.id === excludeLimitationId) {
+      return false;
+    }
+
+    const existingStart = l.from;
+    const existingEnd = calculateLimitationEnd(l.from, l.durationDays);
+
+    return !(newEnd < existingStart || newStart > existingEnd);
+  }) || null;
+}
+
+function getReferenceDateForFitAction() {
+  if (state?.currentView === "reports" && state?.reportsTrainingId) {
+    const training = trainings.find(t => t.id === state.reportsTrainingId);
+    if (training?.date) {
+      return training.date;
+    }
+  }
+
+  const today = getTodayYmd();
+  return today;
 }
 
 function makePlayer(id, username, firstName, lastName, birthday, unit, limitations = []) {
