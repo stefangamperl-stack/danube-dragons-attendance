@@ -611,37 +611,73 @@ function renderTrainingsView() {
 
         <div class="field">
           <label>Titel</label>
-          <input id="trainingTitle" class="input" placeholder="z. B. Teamtraining Dienstag" value="${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.title) : ""}" />
+          <input
+            id="trainingTitle"
+            class="input"
+            placeholder="z. B. Dienstag Gameweek 2"
+            value="${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.title) : ""}"
+          />
         </div>
 
         <div class="field">
           <label>Datum</label>
-          <input id="trainingDate" class="input" type="date" value="${state.editingTrainingId && selectedTraining ? selectedTraining.date : ""}" />
+          <input
+            id="trainingDate"
+            class="input"
+            type="date"
+            value="${state.editingTrainingId && selectedTraining ? selectedTraining.date : ""}"
+          />
         </div>
 
         <div class="field">
           <label>Uhrzeit</label>
-          <input id="trainingTime" class="input" type="time" value="${state.editingTrainingId && selectedTraining ? selectedTraining.time : ""}" />
+          <input
+            id="trainingTime"
+            class="input"
+            type="time"
+            value="${state.editingTrainingId && selectedTraining ? selectedTraining.time : "20:00"}"
+          />
         </div>
 
         <div class="field">
           <label>Ort</label>
-          <input id="trainingLocation" class="input" placeholder="Sportzentrum Nord" value="${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.location) : ""}" />
+          <input
+            id="trainingLocation"
+            class="input"
+            placeholder="Donaufeld"
+            value="${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.location) : "Donaufeld"}"
+          />
         </div>
 
         <div class="field">
           <label>Notizen</label>
-          <textarea id="trainingNotes" class="textarea" placeholder="Pads mitbringen">${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.notes) : ""}</textarea>
+          <textarea
+            id="trainingNotes"
+            class="textarea"
+            placeholder="normales Training"
+          >${state.editingTrainingId && selectedTraining ? escapeHtml(selectedTraining.notes) : "normales Training"}</textarea>
         </div>
 
         <div class="field">
           <label>Abstimmung startet X Stunden vor Beginn</label>
-          <input id="voteOpensHoursBefore" class="input" type="number" min="0" value="${state.editingTrainingId && selectedTraining ? selectedTraining.voteOpensHoursBefore : 72}" />
+          <input
+            id="voteOpensHoursBefore"
+            class="input"
+            type="number"
+            min="0"
+            value="${state.editingTrainingId && selectedTraining ? selectedTraining.voteOpensHoursBefore : 120}"
+          />
         </div>
 
         <div class="field">
           <label>Abstimmung endet X Stunden vor Beginn</label>
-          <input id="voteClosesHoursBefore" class="input" type="number" min="0" value="${state.editingTrainingId && selectedTraining ? selectedTraining.voteClosesHoursBefore : 6}" />
+          <input
+            id="voteClosesHoursBefore"
+            class="input"
+            type="number"
+            min="0"
+            value="${state.editingTrainingId && selectedTraining ? selectedTraining.voteClosesHoursBefore : 8}"
+          />
         </div>
 
         <div class="rowActions">
