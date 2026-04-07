@@ -175,42 +175,66 @@ function renderPlayerView() {
     document.getElementById("screenTitle").textContent = "Mein Status";
     document.getElementById("screenSubtitle").textContent = "Aktueller Status und bisherige Limitations";
 
-    const pastLimitations = (player.injuries || [])
-      .filter(l => !limitationIsCurrent(l))
+    const currentLimitation = getCurrentPlayerLimitation(player.id);
+    const futureLimitation = getNextFuturePlayerLimitation(player.id);
+    const openLimitation = getOpenPlayerLimitation(player.id);
+
+    const pastLimitations = normalizeLimitationsArray(player.injuries || [])
+      .filter(l => limitationIsPast(l))
       .sort((a, b) => b.from.localeCompare(a.from));
+
+    const healthStatusValue = currentLimitation ? "injured" : "fit";
+    const injuryTypeValue = openLimitation ? openLimitation.type : "";
+    const injuryFromValue = openLimitation ? openLimitation.from : getTodayYmd();
+    const injuryDurationValue = openLimitation ? openLimitation.durationDays : 7;
 
     content.innerHTML = `
       ${renderMustChangePasswordNotice()}
       <div class="card">
         <div class="smallMuted">Aktueller Status</div>
         <div class="statusBig">${getCurrentPlayerStatusLabel(player)}</div>
-        <p style="margin-top: 12px;"><strong>Art:</strong> ${player.injuryType || "Keine aktive Limitation"}</p>
-        <p><strong>Dauer:</strong> ${player.unavailableDuration || "-"}</p>
+        <p style="margin-top: 12px;"><strong>Art:</strong> ${currentLimitation ? currentLimitation.type : "Keine aktive Limitation"}</p>
+        <p><strong>Dauer:</strong> ${currentLimitation ? `${currentLimitation.durationDays} Tage` : "-"}</p>
+
+        ${futureLimitation ? `
+          <div class="deadlineBox" style="margin-top:16px;">
+            <div><strong>Kommende Limitation geplant</strong></div>
+            <div class="smallMuted" style="margin-top:8px;">
+              Art: ${futureLimitation.type}<br>
+              Von: ${formatDateDisplay(futureLimitation.from)}<br>
+              Dauer: ${futureLimitation.durationDays} Tage<br>
+              Bis: ${formatDateDisplay(calculateLimitationEnd(futureLimitation.from, futureLimitation.durationDays))}
+            </div>
+          </div>
+        ` : ""}
 
         <div class="field">
           <label>Status</label>
           <select id="healthStatusSelect" class="select">
-            <option value="fit" ${player.healthStatus === "fit" ? "selected" : ""}>Fit</option>
-            <option value="injured" ${player.healthStatus === "injured" ? "selected" : ""}>Verletzt/Krank</option>
+            <option value="fit" ${healthStatusValue === "fit" ? "selected" : ""}>Fit</option>
+            <option value="injured" ${healthStatusValue === "injured" ? "selected" : ""}>Verletzt/Krank</option>
           </select>
         </div>
 
         <div class="field">
           <label>Art der Limitation</label>
-          <input id="injuryType" class="input" value="${player.injuryType || ""}" placeholder="z. B. Schulter, Knie, Krankheit" />
+          <input id="injuryType" class="input" value="${escapeHtml(injuryTypeValue)}" placeholder="z. B. Schulter, Knie, Krankheit" />
         </div>
 
         <div class="field">
           <label>Gültig seit</label>
-          <input id="injuryFrom" class="input" type="date" value="${getTodayYmd()}" />
+          <input id="injuryFrom" class="input" type="date" value="${injuryFromValue}" />
         </div>
 
         <div class="field">
           <label>Dauer in Tagen</label>
-          <input id="injuryDurationDays" class="input" type="number" min="1" value="7" />
+          <input id="injuryDurationDays" class="input" type="number" min="1" value="${injuryDurationValue}" />
         </div>
 
-        <button class="button" onclick="saveHealthStatus()">Speichern</button>
+        <div class="rowActions">
+          <button class="button" onclick="saveHealthStatus()">${openLimitation ? "Limitation speichern" : "Speichern"}</button>
+          ${openLimitation ? `<button class="secondaryButton" onclick="endOwnLimitation()">Limitation beenden</button>` : ""}
+        </div>
       </div>
 
       <div class="card" style="margin-top: 24px;">
@@ -815,10 +839,10 @@ function renderLimitationsView() {
   const pastLimitations = [];
 
   players.forEach(p => {
-    (p.injuries || []).forEach(lim => {
+    normalizeLimitationsArray(p.injuries || []).forEach(lim => {
       const item = { player: p, limitation: lim };
       if (limitationIsCurrent(lim)) currentLimitations.push(item);
-      else pastLimitations.push(item);
+      else if (limitationIsPast(lim)) pastLimitations.push(item);
     });
   });
 
@@ -972,7 +996,7 @@ function renderPlayerSearchView() {
                   <div class="twoCol">
                     <div class="card">
                       <h3>Verletzungen</h3>
-                      ${player.injuries && player.injuries.length > 0 ? player.injuries.map(injury => `
+                      ${player.injuries && player.injuries.length > 0 ? normalizeLimitationsArray(player.injuries).map(injury => `
                         <div style="border:1px solid #214235; border-radius:12px; padding:12px; margin-bottom:12px;">
                           <p><strong>Art:</strong> ${injury.type}</p>
                           <p><strong>Von:</strong> ${formatDateDisplay(injury.from)}</p>
