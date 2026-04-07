@@ -36,8 +36,8 @@ async function loadTrainingsFromSupabase() {
         time: String(row.training_time || "").slice(0, 5),
         location: row.location || "",
         notes: row.notes || "",
-        voteOpensHoursBefore: row.vote_opens_hours_before ?? 72,
-        voteClosesHoursBefore: row.vote_closes_hours_before ?? 6
+        voteOpensHoursBefore: row.vote_opens_hours_before ?? 120,
+        voteClosesHoursBefore: row.vote_closes_hours_before ?? 8
       });
 
       if (!responses[row.id]) {
@@ -403,6 +403,24 @@ function clearCoachForm() {
   if (roleSelect) roleSelect.value = "adminCoach";
 }
 
+function clearTrainingForm() {
+  const titleInput = document.getElementById("trainingTitle");
+  const dateInput = document.getElementById("trainingDate");
+  const timeInput = document.getElementById("trainingTime");
+  const locationInput = document.getElementById("trainingLocation");
+  const notesInput = document.getElementById("trainingNotes");
+  const opensInput = document.getElementById("voteOpensHoursBefore");
+  const closesInput = document.getElementById("voteClosesHoursBefore");
+
+  if (titleInput) titleInput.value = "";
+  if (dateInput) dateInput.value = "";
+  if (timeInput) timeInput.value = "20:00";
+  if (locationInput) locationInput.value = "Donaufeld";
+  if (notesInput) notesInput.value = "normales Training";
+  if (opensInput) opensInput.value = 120;
+  if (closesInput) closesInput.value = 8;
+}
+
 async function createPlayer() {
   try {
     const firstName = document.getElementById("playerFirstName")?.value?.trim() || "";
@@ -530,6 +548,214 @@ async function createCoach() {
   } catch (err) {
     console.error("Unerwarteter Fehler beim Anlegen des Coaches:", err);
     alert("Unerwarteter Fehler beim Anlegen des Coaches:\n" + (err.message || err));
+  }
+}
+
+async function createTraining() {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches oder der Hauptadmin dürfen Trainings anlegen.");
+      return;
+    }
+
+    const title = document.getElementById("trainingTitle")?.value?.trim() || "";
+    const date = document.getElementById("trainingDate")?.value || "";
+    const time = document.getElementById("trainingTime")?.value || "";
+    const location = document.getElementById("trainingLocation")?.value?.trim() || "";
+    const notes = document.getElementById("trainingNotes")?.value?.trim() || "";
+    const voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore")?.value || 120);
+    const voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore")?.value || 8);
+
+    if (!title || !date || !time) {
+      alert("Bitte Titel, Datum und Uhrzeit ausfüllen.");
+      return;
+    }
+
+    if (voteOpensHoursBefore < 0 || voteClosesHoursBefore < 0) {
+      alert("Die Abstimmungswerte dürfen nicht negativ sein.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("trainings")
+      .insert([
+        {
+          title,
+          training_date: date,
+          training_time: time,
+          location,
+          notes,
+          vote_opens_hours_before: voteOpensHoursBefore,
+          vote_closes_hours_before: voteClosesHoursBefore
+        }
+      ]);
+
+    if (error) {
+      console.error("Fehler beim Anlegen des Trainings:", error);
+      alert("Training konnte nicht angelegt werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    await loadTrainingsFromSupabase();
+
+    state.editingTrainingId = null;
+    state.selectedTrainingId = trainings[trainings.length - 1]?.id || state.selectedTrainingId;
+    renderTrainingsView();
+
+    alert("Training wurde angelegt.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Anlegen des Trainings:", err);
+    alert("Unerwarteter Fehler beim Anlegen des Trainings:\n" + (err.message || err));
+  }
+}
+
+function startTrainingEdit(trainingId) {
+  state.editingTrainingId = trainingId;
+  state.selectedTrainingId = trainingId;
+  renderTrainingsView();
+}
+
+function cancelTrainingEdit() {
+  state.editingTrainingId = null;
+  renderTrainingsView();
+}
+
+function changeTrainingSelection(trainingId) {
+  state.selectedTrainingId = trainingId || null;
+  if (!state.editingTrainingId) {
+    renderTrainingsView();
+    return;
+  }
+
+  state.editingTrainingId = trainingId || null;
+  renderTrainingsView();
+}
+
+async function updateTraining() {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches oder der Hauptadmin dürfen Trainings bearbeiten.");
+      return;
+    }
+
+    if (!state.editingTrainingId) {
+      alert("Kein Training zum Bearbeiten ausgewählt.");
+      return;
+    }
+
+    const title = document.getElementById("trainingTitle")?.value?.trim() || "";
+    const date = document.getElementById("trainingDate")?.value || "";
+    const time = document.getElementById("trainingTime")?.value || "";
+    const location = document.getElementById("trainingLocation")?.value?.trim() || "";
+    const notes = document.getElementById("trainingNotes")?.value?.trim() || "";
+    const voteOpensHoursBefore = Number(document.getElementById("voteOpensHoursBefore")?.value || 120);
+    const voteClosesHoursBefore = Number(document.getElementById("voteClosesHoursBefore")?.value || 8);
+
+    if (!title || !date || !time) {
+      alert("Bitte Titel, Datum und Uhrzeit ausfüllen.");
+      return;
+    }
+
+    if (voteOpensHoursBefore < 0 || voteClosesHoursBefore < 0) {
+      alert("Die Abstimmungswerte dürfen nicht negativ sein.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("trainings")
+      .update({
+        title,
+        training_date: date,
+        training_time: time,
+        location,
+        notes,
+        vote_opens_hours_before: voteOpensHoursBefore,
+        vote_closes_hours_before: voteClosesHoursBefore
+      })
+      .eq("id", state.editingTrainingId);
+
+    if (error) {
+      console.error("Fehler beim Speichern des Trainings:", error);
+      alert("Training konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    await loadTrainingsFromSupabase();
+
+    state.selectedTrainingId = state.editingTrainingId;
+    state.editingTrainingId = null;
+    renderTrainingsView();
+
+    alert("Training wurde gespeichert.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Speichern des Trainings:", err);
+    alert("Unerwarteter Fehler beim Speichern des Trainings:\n" + (err.message || err));
+  }
+}
+
+async function deleteTraining(trainingId) {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf Trainings löschen.");
+      return;
+    }
+
+    const training = trainings.find(t => t.id === trainingId);
+    if (!training) {
+      alert("Das Training wurde nicht gefunden.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Bist du sicher, dass das Training "${training.title}" am ${formatDateDisplay(training.date)} gelöscht werden soll?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const { error: responsesError } = await supabaseClient
+      .from("responses")
+      .delete()
+      .eq("training_id", training.id);
+
+    if (responsesError) {
+      console.error("Fehler beim Löschen der Antworten des Trainings:", responsesError);
+      alert("Antworten des Trainings konnten nicht gelöscht werden:\n" + (responsesError.message || JSON.stringify(responsesError)));
+      return;
+    }
+
+    const { error: trainingError } = await supabaseClient
+      .from("trainings")
+      .delete()
+      .eq("id", training.id);
+
+    if (trainingError) {
+      console.error("Fehler beim Löschen des Trainings:", trainingError);
+      alert("Training konnte nicht gelöscht werden:\n" + (trainingError.message || JSON.stringify(trainingError)));
+      return;
+    }
+
+    await loadTrainingsFromSupabase();
+    await loadResponsesFromSupabase();
+
+    if (state.editingTrainingId === training.id) {
+      state.editingTrainingId = null;
+    }
+
+    if (state.selectedTrainingId === training.id) {
+      state.selectedTrainingId = trainings[0]?.id || null;
+    }
+
+    if (state.reportsTrainingId === training.id) {
+      state.reportsTrainingId = trainings[0]?.id || null;
+    }
+
+    renderTrainingsView();
+    alert("Training wurde gelöscht.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Löschen des Trainings:", err);
+    alert("Unerwarteter Fehler beim Löschen des Trainings:\n" + (err.message || err));
   }
 }
 
