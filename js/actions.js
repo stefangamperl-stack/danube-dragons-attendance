@@ -72,6 +72,139 @@ async function loadTrainingsFromSupabase() {
   }
 }
 
+function buildClientLimitationFromRow(row) {
+  if (!row) return null;
+
+  const durationDays = Number(row.duration_days || 0);
+  if (!row.id || !row.player_id || !row.valid_from || !row.type || !Number.isFinite(durationDays) || durationDays < 1) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    type: row.type,
+    from: row.valid_from,
+    durationDays
+  };
+}
+
+function clearAllPlayerLimitationsOnClient() {
+  players.forEach(player => {
+    player.injuries = [];
+    player.healthStatus = "fit";
+    player.injuryType = "";
+    player.unavailableDuration = "";
+  });
+}
+
+function applyLimitationsToPlayers(limitationsRows) {
+  clearAllPlayerLimitationsOnClient();
+
+  (limitationsRows || []).forEach(row => {
+    const limitation = buildClientLimitationFromRow(row);
+    if (!limitation) return;
+
+    const player = players.find(p => p.id === row.player_id);
+    if (!player) return;
+
+    if (!Array.isArray(player.injuries)) {
+      player.injuries = [];
+    }
+
+    player.injuries.push(limitation);
+  });
+
+  players.forEach(player => {
+    player.injuries = (player.injuries || []).sort((a, b) => String(b.from).localeCompare(String(a.from)));
+    refreshPlayerHealthStatus(player);
+  });
+}
+
+async function loadLimitationsFromSupabase() {
+  try {
+    if (typeof supabaseClient === "undefined" || !supabaseClient) {
+      throw new Error("Supabase-Client ist nicht geladen.");
+    }
+
+    const { data, error } = await supabaseClient
+      .from("limitations")
+      .select("*")
+      .order("valid_from", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Fehler beim Laden der Limitations:", error);
+      alert("Limitations konnten nicht geladen werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    applyLimitationsToPlayers(data || []);
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Laden der Limitations:", err);
+    alert("Unerwarteter Fehler beim Laden der Limitations:\n" + (err.message || err));
+  }
+}
+
+function getPlayerLimitations(playerId) {
+  const player = players.find(p => p.id === playerId);
+  return player?.injuries || [];
+}
+
+function getCurrentPlayerLimitation(playerId) {
+  const player = players.find(p => p.id === playerId);
+  if (!player) return null;
+  return getCurrentLimitationFromArray(player.injuries || []);
+}
+
+function addDaysToYmd(dateStr, days) {
+  const dateObj = parseDateOnly(dateStr);
+  if (!dateObj) return "";
+  dateObj.setDate(dateObj.getDate() + Number(days || 0));
+  return toYmdLocal(dateObj);
+}
+
+function getDayBefore(dateStr) {
+  return addDaysToYmd(dateStr, -1);
+}
+
+function rangesOverlap(startA, endA, startB, endB) {
+  return startA <= endB && startB <= endA;
+}
+
+function findOverlappingLimitation(playerId, from, durationDays, ignoreLimitationId = null) {
+  const end = calculateLimitationEnd(from, durationDays);
+
+  return getPlayerLimitations(playerId).find(limitation => {
+    if (ignoreLimitationId && limitation.id === ignoreLimitationId) {
+      return false;
+    }
+
+    const limitationEnd = calculateLimitationEnd(limitation.from, limitation.durationDays);
+    return rangesOverlap(from, end, limitation.from, limitationEnd);
+  }) || null;
+}
+
+function getReferenceDateForFitAction() {
+  if (state.currentView === "reports") {
+    const training = trainings.find(t => t.id === state.reportsTrainingId);
+    return training?.date || getTodayYmd();
+  }
+
+  if (state.currentView === "dashboard") {
+    const training = getUpcomingTraining();
+    return training?.date || getTodayYmd();
+  }
+
+  return getTodayYmd();
+}
+
+function findLimitationAffectingDate(playerId, dateStr) {
+  return getPlayerLimitations(playerId).find(limitation => {
+    const end = calculateLimitationEnd(limitation.from, limitation.durationDays);
+    return dateStr >= limitation.from && dateStr <= end;
+  }) || null;
+}
+
 async function loadPlayersFromSupabase() {
   try {
     if (typeof supabaseClient === "undefined" || !supabaseClient) {
@@ -115,6 +248,7 @@ async function loadPlayersFromSupabase() {
       player.profileId = row.profile_id || null;
       player.email = row.email || "";
       player.mustChangePassword = row.must_change_password ?? true;
+      player.injuries = [];
 
       players.push(player);
     });
@@ -128,6 +262,8 @@ async function loadPlayersFromSupabase() {
         saveSession();
       }
     }
+
+    await loadLimitationsFromSupabase();
   } catch (err) {
     console.error("Unerwarteter Fehler beim Laden der Spieler:", err);
     alert("Unerwarteter Fehler beim Laden der Spieler:\n" + (err.message || err));
