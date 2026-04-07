@@ -207,34 +207,40 @@ function filterPlayerByGroup(player, group) {
 function getSortedPlayers(list, sortState) {
   const copy = [...list];
   copy.sort((a, b) => {
-    let av = "";
-    let bv = "";
+    let result = 0;
 
     if (sortState.key === "name") {
-      av = fullName(a).toLowerCase();
-      bv = fullName(b).toLowerCase();
+      const lastCompare = String(a.lastName || "").localeCompare(String(b.lastName || ""));
+      if (lastCompare !== 0) {
+        result = lastCompare;
+      } else {
+        result = String(a.firstName || "").localeCompare(String(b.firstName || ""));
+      }
     } else if (sortState.key === "group") {
-      av = getGroupLabelForUnit(a.unit);
-      bv = getGroupLabelForUnit(b.unit);
+      result = String(getGroupLabelForUnit(a.unit) || "").localeCompare(String(getGroupLabelForUnit(b.unit) || ""));
     } else if (sortState.key === "unit") {
-      av = a.unit;
-      bv = b.unit;
+      result = String(a.unit || "").localeCompare(String(b.unit || ""));
     } else if (sortState.key === "status") {
-      av = getPlayerTrainingStatus(a, state.reportsTrainingId);
-      bv = getPlayerTrainingStatus(b, state.reportsTrainingId);
+      result = String(getPlayerTrainingStatus(a, state.reportsTrainingId) || "").localeCompare(
+        String(getPlayerTrainingStatus(b, state.reportsTrainingId) || "")
+      );
     } else if (sortState.key === "updatedAt") {
-      av = ((responses[state.reportsTrainingId] || {})[a.id]?.updatedAt) || "";
-      bv = ((responses[state.reportsTrainingId] || {})[b.id]?.updatedAt) || "";
+      const av = ((responses[state.reportsTrainingId] || {})[a.id]?.updatedAt) || "";
+      const bv = ((responses[state.reportsTrainingId] || {})[b.id]?.updatedAt) || "";
+      result = String(av).localeCompare(String(bv));
+    } else {
+      const lastCompare = String(a.lastName || "").localeCompare(String(b.lastName || ""));
+      if (lastCompare !== 0) {
+        result = lastCompare;
+      } else {
+        result = String(a.firstName || "").localeCompare(String(b.firstName || ""));
+      }
     }
 
-    const result = String(av).localeCompare(String(bv));
     return sortState.dir === "asc" ? result : -result;
   });
-  return copy;
-}
 
-function createPlayerIdDateTime(training) {
-  return `${training.date} 12:00`;
+  return copy;
 }
 
 function getCountdownString(targetDate) {
