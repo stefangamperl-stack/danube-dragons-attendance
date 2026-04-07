@@ -9,7 +9,8 @@ function pad2(value) {
 
 function parseDateOnly(dateStr) {
   if (!dateStr) return null;
-  const [y, m, d] = dateStr.split("-").map(Number);
+  const [y, m, d] = String(dateStr).split("-").map(Number);
+  if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
 }
 
@@ -33,6 +34,38 @@ function initialPasswordFromBirthday(birthday) {
   return String(birthday || "").slice(0, 4);
 }
 
+function normalizeLimitationRecord(limitation) {
+  if (!limitation || typeof limitation !== "object") return null;
+
+  const id = String(limitation.id || "");
+  const type = String(limitation.type || limitation.injury_type || "").trim();
+  const from = String(limitation.from || limitation.valid_from || "").trim();
+  const durationDays = Number(
+    limitation.durationDays ??
+    limitation.duration_days ??
+    0
+  );
+
+  if (!type || !from || !Number.isFinite(durationDays) || durationDays < 1) {
+    return null;
+  }
+
+  return {
+    id: id || `lim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    type,
+    from,
+    durationDays
+  };
+}
+
+function normalizeLimitationsArray(limitations) {
+  if (!Array.isArray(limitations)) return [];
+  return limitations
+    .map(normalizeLimitationRecord)
+    .filter(Boolean)
+    .sort((a, b) => String(b.from).localeCompare(String(a.from)));
+}
+
 function calculateLimitationEnd(fromDate, durationDays) {
   const start = parseDateOnly(fromDate);
   if (!start) return "";
@@ -42,14 +75,16 @@ function calculateLimitationEnd(fromDate, durationDays) {
 
 function getCurrentLimitationFromArray(limitations) {
   const today = getTodayYmd();
-  return (limitations || []).find(l => {
+  return normalizeLimitationsArray(limitations).find(l => {
     const until = calculateLimitationEnd(l.from, l.durationDays);
     return l.from <= today && until >= today;
   }) || null;
 }
 
 function makePlayer(id, username, firstName, lastName, birthday, unit, limitations = []) {
-  const current = getCurrentLimitationFromArray(limitations);
+  const normalizedLimitations = normalizeLimitationsArray(limitations);
+  const current = getCurrentLimitationFromArray(normalizedLimitations);
+
   return {
     id,
     username,
@@ -61,36 +96,17 @@ function makePlayer(id, username, firstName, lastName, birthday, unit, limitatio
     healthStatus: current ? "injured" : "fit",
     injuryType: current ? current.type : "",
     unavailableDuration: current ? `${current.durationDays} Tage` : "",
-    injuries: limitations
+    injuries: normalizedLimitations
   };
 }
 
 function fullName(player) {
-  return player.firstName + " " + player.lastName;
+  return `${player.firstName} ${player.lastName}`;
 }
 
 const players = [];
 
-const coaches = [
-  {
-    id: "c1",
-    name: "Coach Hönig",
-    username: "mhoenig",
-    birthday: "1982-04-22",
-    role: "adminCoach",
-    active: true,
-    email: "mhoenig@example.com"
-  },
-  {
-    id: "c2",
-    name: "Hauptadmin",
-    username: "hauptadmin",
-    birthday: "1995-06-24",
-    role: "headAdmin",
-    active: true,
-    email: "hauptadmin@example.com"
-  }
-];
+const coaches = [];
 
 const users = [];
 
@@ -102,7 +118,7 @@ function createPlayerUserRecord(player) {
     role: "player",
     displayName: fullName(player),
     playerId: player.id,
-    email: "",
+    email: player.email || "",
     mustChangePassword: true,
     active: player.active !== false
   };
@@ -112,9 +128,9 @@ function createCoachUserRecord(coach) {
   return {
     id: "auth_" + coach.id,
     username: coach.username,
-    password: initialPasswordFromBirthday(coach.birthday),
+    password: "test123",
     role: coach.role,
-    displayName: coach.name,
+    displayName: coach.name || `${coach.first_name || ""} ${coach.last_name || ""}`.trim(),
     coachId: coach.id,
     email: coach.email || "",
     mustChangePassword: true,
@@ -144,9 +160,25 @@ function rebuildPlayerUsersFromPlayers() {
   });
 }
 
+function rebuildCoachUsersFromCoaches() {
+  for (let i = users.length - 1; i >= 0; i--) {
+    if (users[i].role === "adminCoach" || users[i].role === "headAdmin") {
+      users.splice(i, 1);
+    }
+  }
+
+  coaches.forEach(coach => {
+    users.push(createCoachUserRecord(coach));
+  });
+}
+
 function isPlayerLimitedForTraining(player, training) {
+  if (!player || !training?.date) return false;
+
   const trainingDay = training.date;
-  return (player.injuries || []).some(l => {
+  const limitations = normalizeLimitationsArray(player.injuries || []);
+
+  return limitations.some(l => {
     const end = calculateLimitationEnd(l.from, l.durationDays);
     return trainingDay >= l.from && trainingDay <= end;
   });
