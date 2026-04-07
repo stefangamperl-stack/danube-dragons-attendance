@@ -115,7 +115,7 @@ function applyLimitationsToPlayers(limitationsRows) {
   });
 
   players.forEach(player => {
-    player.injuries = (player.injuries || []).sort((a, b) => String(b.from).localeCompare(String(a.from)));
+    player.injuries = normalizeLimitationsArray(player.injuries || []);
     refreshPlayerHealthStatus(player);
   });
 }
@@ -147,13 +147,34 @@ async function loadLimitationsFromSupabase() {
 
 function getPlayerLimitations(playerId) {
   const player = players.find(p => p.id === playerId);
-  return player?.injuries || [];
+  return normalizeLimitationsArray(player?.injuries || []);
+}
+
+function limitationIsFuture(limitation) {
+  if (!limitation?.from) return false;
+  return limitation.from > getTodayYmd();
+}
+
+function limitationIsPast(limitation) {
+  if (!limitation?.from || !limitation?.durationDays) return false;
+  const end = calculateLimitationEnd(limitation.from, limitation.durationDays);
+  return end < getTodayYmd();
 }
 
 function getCurrentPlayerLimitation(playerId) {
   const player = players.find(p => p.id === playerId);
   if (!player) return null;
   return getCurrentLimitationFromArray(player.injuries || []);
+}
+
+function getNextFuturePlayerLimitation(playerId) {
+  return getPlayerLimitations(playerId)
+    .filter(limitation => limitationIsFuture(limitation))
+    .sort((a, b) => String(a.from).localeCompare(String(b.from)))[0] || null;
+}
+
+function getOpenPlayerLimitation(playerId) {
+  return getCurrentPlayerLimitation(playerId) || getNextFuturePlayerLimitation(playerId);
 }
 
 function addDaysToYmd(dateStr, days) {
@@ -1217,6 +1238,17 @@ async function deletePlayer(playerId) {
       return;
     }
 
+    const { error: limitationsError } = await supabaseClient
+      .from("limitations")
+      .delete()
+      .eq("player_id", player.id);
+
+    if (limitationsError) {
+      console.error("Fehler beim Löschen der Limitations:", limitationsError);
+      alert("Limitations des Spielers konnten nicht gelöscht werden:\n" + (limitationsError.message || JSON.stringify(limitationsError)));
+      return;
+    }
+
     const { error: playerError } = await supabaseClient
       .from("players")
       .delete()
@@ -1634,6 +1666,7 @@ async function setCoachResponse(trainingId, playerId, status) {
     alert("Unerwarteter Fehler beim Speichern der Coach-Antwort:\n" + (err.message || err));
   }
 }
+
 async function saveHealthStatus() {
   try {
     if (state.currentUser?.role !== "player") {
@@ -1654,10 +1687,10 @@ async function saveHealthStatus() {
     const validFrom = document.getElementById("injuryFrom")?.value || "";
     const durationDays = Number(document.getElementById("injuryDurationDays")?.value || 0);
 
-    const currentLimitation = getCurrentPlayerLimitation(playerId);
+    const openLimitation = getOpenPlayerLimitation(playerId);
 
     if (healthStatus === "fit") {
-      if (!currentLimitation) {
+      if (!openLimitation) {
         player.healthStatus = "fit";
         player.injuryType = "";
         player.unavailableDuration = "";
@@ -1666,30 +1699,7 @@ async function saveHealthStatus() {
         return;
       }
 
-      const today = getTodayYmd();
-      const newDuration = daysBetweenInclusive(currentLimitation.from, today);
-
-      if (newDuration < 1) {
-        alert("Die aktuelle Limitation kann nicht beendet werden.");
-        return;
-      }
-
-      const { error } = await supabaseClient
-        .from("limitations")
-        .update({
-          duration_days: newDuration
-        })
-        .eq("id", currentLimitation.id);
-
-      if (error) {
-        console.error("Fehler beim Beenden der Limitation:", error);
-        alert("Die Limitation konnte nicht beendet werden:\n" + (error.message || JSON.stringify(error)));
-        return;
-      }
-
-      await loadLimitationsFromSupabase();
-      renderPlayerView();
-      alert("Dein Status wurde auf Fit gesetzt.");
+      await endOwnLimitation();
       return;
     }
 
@@ -1702,7 +1712,7 @@ async function saveHealthStatus() {
       playerId,
       validFrom,
       durationDays,
-      currentLimitation?.id || null
+      openLimitation?.id || null
     );
 
     if (overlapping) {
@@ -1710,9 +1720,9 @@ async function saveHealthStatus() {
       return;
     }
 
+    const end = calculateLimitationEnd(validFrom, durationDays);
     const pastTrainingExists = trainings.some(training => {
       if (getTrainingStartDate(training) >= new Date()) return false;
-      const end = calculateLimitationEnd(validFrom, durationDays);
       return training.date >= validFrom && training.date <= end;
     });
 
@@ -1721,7 +1731,7 @@ async function saveHealthStatus() {
       return;
     }
 
-    if (currentLimitation) {
+    if (openLimitation) {
       const { error } = await supabaseClient
         .from("limitations")
         .update({
@@ -1729,7 +1739,7 @@ async function saveHealthStatus() {
           valid_from: validFrom,
           duration_days: durationDays
         })
-        .eq("id", currentLimitation.id);
+        .eq("id", openLimitation.id);
 
       if (error) {
         console.error("Fehler beim Aktualisieren der Limitation:", error);
@@ -1761,6 +1771,69 @@ async function saveHealthStatus() {
   } catch (err) {
     console.error("Unerwarteter Fehler beim Speichern des Gesundheitsstatus:", err);
     alert("Unerwarteter Fehler beim Speichern des Gesundheitsstatus:\n" + (err.message || err));
+  }
+}
+
+async function endOwnLimitation() {
+  try {
+    if (state.currentUser?.role !== "player") {
+      alert("Nur Spieler können ihre eigene Limitation beenden.");
+      return;
+    }
+
+    const playerId = state.currentUser.playerId;
+    const openLimitation = getOpenPlayerLimitation(playerId);
+
+    if (!openLimitation) {
+      alert("Es gibt keine laufende oder geplante Limitation zum Beenden.");
+      return;
+    }
+
+    if (limitationIsFuture(openLimitation)) {
+      const { error } = await supabaseClient
+        .from("limitations")
+        .delete()
+        .eq("id", openLimitation.id);
+
+      if (error) {
+        console.error("Fehler beim Löschen der zukünftigen Limitation:", error);
+        alert("Die zukünftige Limitation konnte nicht beendet werden:\n" + (error.message || JSON.stringify(error)));
+        return;
+      }
+
+      await loadLimitationsFromSupabase();
+      renderPlayerView();
+      alert("Die geplante Limitation wurde entfernt.");
+      return;
+    }
+
+    const today = getTodayYmd();
+    const newDuration = daysBetweenInclusive(openLimitation.from, today);
+
+    if (newDuration < 1) {
+      alert("Die Limitation kann nicht beendet werden.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("limitations")
+      .update({
+        duration_days: newDuration
+      })
+      .eq("id", openLimitation.id);
+
+    if (error) {
+      console.error("Fehler beim Beenden der laufenden Limitation:", error);
+      alert("Die laufende Limitation konnte nicht beendet werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    await loadLimitationsFromSupabase();
+    renderPlayerView();
+    alert("Die laufende Limitation wurde beendet.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Beenden der eigenen Limitation:", err);
+    alert("Unerwarteter Fehler beim Beenden der eigenen Limitation:\n" + (err.message || err));
   }
 }
 
@@ -2001,256 +2074,5 @@ async function setPlayerFit(playerId) {
   } catch (err) {
     console.error("Unerwarteter Fehler beim Setzen auf Fit:", err);
     alert("Unerwarteter Fehler beim Setzen auf Fit:\n" + (err.message || err));
-  }
-}
-
-async function importRosterCsv() {
-  try {
-    if (state.currentUser?.role !== "headAdmin") {
-      alert("Nur der Hauptadmin darf einen Kader importieren.");
-      return;
-    }
-
-    const fileInput = document.getElementById("rosterImportFile");
-    const file = fileInput?.files?.[0];
-
-    if (!file) {
-      alert("Bitte wähle zuerst eine CSV-Datei aus.");
-      return;
-    }
-
-    const rawText = await file.text();
-    const text = rawText.replace(/^\uFEFF/, "").trim();
-
-    if (!text) {
-      alert("Die CSV-Datei ist leer.");
-      return;
-    }
-
-    const lines = text
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(Boolean);
-
-    if (lines.length < 2) {
-      alert("Die CSV-Datei enthält keine Datensätze.");
-      return;
-    }
-
-    const delimiter = detectCsvDelimiter(lines[0]);
-    const headers = parseCsvLine(lines[0], delimiter);
-    const headerMap = mapCsvHeaders(headers);
-
-    const missingHeaders = [];
-    if (headerMap.firstName === -1) missingHeaders.push("Vorname");
-    if (headerMap.lastName === -1) missingHeaders.push("Nachname");
-    if (headerMap.birthday === -1) missingHeaders.push("Geburtstag");
-    if (headerMap.unit === -1) missingHeaders.push("Unit");
-    if (headerMap.email === -1) missingHeaders.push("E-Mail");
-
-    if (missingHeaders.length) {
-      alert(`Diese Spalten fehlen in der CSV:\n${missingHeaders.join(", ")}`);
-      return;
-    }
-
-    const existingNameKeys = new Set(
-      players.map(player => buildPlayerNameKey(player.firstName, player.lastName))
-    );
-
-    const seenImportNameKeys = new Set();
-
-    let created = 0;
-    let skippedDuplicates = 0;
-    let skippedInvalid = 0;
-    let failed = 0;
-    const details = [];
-
-    for (let i = 1; i < lines.length; i += 1) {
-      const values = parseCsvLine(lines[i], delimiter);
-
-      if (!values.some(v => String(v || "").trim())) {
-        continue;
-      }
-
-      const firstName = values[headerMap.firstName]?.trim() || "";
-      const lastName = values[headerMap.lastName]?.trim() || "";
-      const birthday = values[headerMap.birthday]?.trim() || "";
-      const unit = values[headerMap.unit]?.trim() || "";
-      const email = values[headerMap.email]?.trim() || "";
-
-      if (!firstName || !lastName || !birthday || !unit || !email) {
-        skippedInvalid += 1;
-        details.push(`Zeile ${i + 1}: unvollständig übersprungen`);
-        continue;
-      }
-
-      const nameKey = buildPlayerNameKey(firstName, lastName);
-
-      if (existingNameKeys.has(nameKey) || seenImportNameKeys.has(nameKey)) {
-        skippedDuplicates += 1;
-        details.push(`Zeile ${i + 1}: ${firstName} ${lastName} bereits vorhanden`);
-        continue;
-      }
-
-      const username = buildPlayerUsername(firstName, lastName);
-
-      const response = await fetch("/api/create-player", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          username,
-          email,
-          birthday,
-          unit
-        })
-      });
-
-      let result = null;
-      try {
-        result = await response.json();
-      } catch {
-        result = null;
-      }
-
-      if (!response.ok) {
-        failed += 1;
-        details.push(`Zeile ${i + 1}: ${firstName} ${lastName} konnte nicht angelegt werden`);
-        console.error("Fehler beim Import eines Spielers:", result || response.statusText);
-        continue;
-      }
-
-      created += 1;
-      existingNameKeys.add(nameKey);
-      seenImportNameKeys.add(nameKey);
-    }
-
-    await loadPlayersFromSupabase();
-
-    state.importSummary = [
-      `Angelegt: ${created}`,
-      `Übersprungen (bereits vorhanden): ${skippedDuplicates}`,
-      `Übersprungen (unvollständig): ${skippedInvalid}`,
-      `Fehlgeschlagen: ${failed}`,
-      details.length ? `Details: ${details.join(" | ")}` : ""
-    ].filter(Boolean).join(" · ");
-
-    renderPlayersView();
-
-    alert(`Import abgeschlossen.\nAngelegt: ${created}\nÜbersprungen: ${skippedDuplicates + skippedInvalid}\nFehlgeschlagen: ${failed}`);
-  } catch (err) {
-    console.error("Unerwarteter Fehler beim CSV-Import:", err);
-    state.importSummary = "";
-    alert("Unerwarteter Fehler beim CSV-Import:\n" + (err.message || err));
-  }
-}
-
-function changeGroupFilter(group) {
-  state.filterGroup = group || "all";
-
-  if (state.currentView === "dashboard") {
-    renderDashboardView();
-    return;
-  }
-
-  if (state.currentView === "reports") {
-    renderReportsView();
-    return;
-  }
-
-  renderApp();
-}
-
-function changeDashboardResponseFilter(value) {
-  state.dashboardResponseFilter = value || "all";
-  renderDashboardView();
-}
-
-function changeResponseFilter(value) {
-  state.filterResponse = value || "all";
-  renderReportsView();
-}
-
-function changeReportsTraining(trainingId) {
-  state.reportsTrainingId = trainingId || null;
-  renderReportsView();
-}
-
-function setReportsSort(key) {
-  if (!key) return;
-
-  if (state.reportsSort.key === key) {
-    state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
-  } else {
-    state.reportsSort = { key, dir: "asc" };
-  }
-
-  renderReportsView();
-}
-
-async function setCoachResponse(trainingId, playerId, status) {
-  try {
-    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
-      alert("Nur Coaches oder der Hauptadmin dürfen Antworten bearbeiten.");
-      return;
-    }
-
-    const training = trainings.find(t => t.id === trainingId);
-    const player = players.find(p => p.id === playerId);
-
-    if (!training) {
-      alert("Das Training wurde nicht gefunden.");
-      return;
-    }
-
-    if (!player) {
-      alert("Der Spieler wurde nicht gefunden.");
-      return;
-    }
-
-    const payload = {
-      training_id: trainingId,
-      player_id: playerId,
-      status,
-      updated_at: new Date().toISOString(),
-      changed_on_event_day: getTodayYmd() === training.date
-    };
-
-    const { error } = await supabaseClient
-      .from("responses")
-      .upsert([payload], {
-        onConflict: "training_id,player_id"
-      });
-
-    if (error) {
-      console.error("Fehler beim Speichern der Coach-Antwort:", error);
-      alert("Antwort konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
-      return;
-    }
-
-    responses[trainingId] = responses[trainingId] || {};
-    responses[trainingId][playerId] = {
-      status,
-      updatedAt: payload.updated_at,
-      changedOnEventDay: payload.changed_on_event_day
-    };
-
-    if (state.currentView === "reports") {
-      renderReportsView();
-      return;
-    }
-
-    if (state.currentView === "dashboard") {
-      renderDashboardView();
-      return;
-    }
-
-    renderApp();
-  } catch (err) {
-    console.error("Unerwarteter Fehler beim Speichern der Coach-Antwort:", err);
-    alert("Unerwarteter Fehler beim Speichern der Coach-Antwort:\n" + (err.message || err));
   }
 }
