@@ -1634,3 +1634,623 @@ async function setCoachResponse(trainingId, playerId, status) {
     alert("Unerwarteter Fehler beim Speichern der Coach-Antwort:\n" + (err.message || err));
   }
 }
+async function saveHealthStatus() {
+  try {
+    if (state.currentUser?.role !== "player") {
+      alert("Nur Spieler können ihren Status hier selbst ändern.");
+      return;
+    }
+
+    const playerId = state.currentUser.playerId;
+    const player = players.find(p => p.id === playerId);
+
+    if (!player) {
+      alert("Dein Spielerprofil wurde nicht gefunden.");
+      return;
+    }
+
+    const healthStatus = document.getElementById("healthStatusSelect")?.value || "fit";
+    const type = document.getElementById("injuryType")?.value?.trim() || "";
+    const validFrom = document.getElementById("injuryFrom")?.value || "";
+    const durationDays = Number(document.getElementById("injuryDurationDays")?.value || 0);
+
+    const currentLimitation = getCurrentPlayerLimitation(playerId);
+
+    if (healthStatus === "fit") {
+      if (!currentLimitation) {
+        player.healthStatus = "fit";
+        player.injuryType = "";
+        player.unavailableDuration = "";
+        renderPlayerView();
+        alert("Du bist bereits als Fit eingetragen.");
+        return;
+      }
+
+      const today = getTodayYmd();
+      const newDuration = daysBetweenInclusive(currentLimitation.from, today);
+
+      if (newDuration < 1) {
+        alert("Die aktuelle Limitation kann nicht beendet werden.");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("limitations")
+        .update({
+          duration_days: newDuration
+        })
+        .eq("id", currentLimitation.id);
+
+      if (error) {
+        console.error("Fehler beim Beenden der Limitation:", error);
+        alert("Die Limitation konnte nicht beendet werden:\n" + (error.message || JSON.stringify(error)));
+        return;
+      }
+
+      await loadLimitationsFromSupabase();
+      renderPlayerView();
+      alert("Dein Status wurde auf Fit gesetzt.");
+      return;
+    }
+
+    if (!type || !validFrom || durationDays < 1) {
+      alert("Bitte Art der Limitation, Gültig seit und Dauer in Tagen korrekt ausfüllen.");
+      return;
+    }
+
+    const overlapping = findOverlappingLimitation(
+      playerId,
+      validFrom,
+      durationDays,
+      currentLimitation?.id || null
+    );
+
+    if (overlapping) {
+      alert("Du hast bereits eine überlappende Limitation. Bitte bearbeite zuerst die bestehende Limitation.");
+      return;
+    }
+
+    const pastTrainingExists = trainings.some(training => {
+      if (getTrainingStartDate(training) >= new Date()) return false;
+      const end = calculateLimitationEnd(validFrom, durationDays);
+      return training.date >= validFrom && training.date <= end;
+    });
+
+    if (pastTrainingExists) {
+      alert("Für vergangene Trainings darfst du keine neue Limitation eintragen.");
+      return;
+    }
+
+    if (currentLimitation) {
+      const { error } = await supabaseClient
+        .from("limitations")
+        .update({
+          type,
+          valid_from: validFrom,
+          duration_days: durationDays
+        })
+        .eq("id", currentLimitation.id);
+
+      if (error) {
+        console.error("Fehler beim Aktualisieren der Limitation:", error);
+        alert("Deine Limitation konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+        return;
+      }
+    } else {
+      const { error } = await supabaseClient
+        .from("limitations")
+        .insert([
+          {
+            player_id: playerId,
+            type,
+            valid_from: validFrom,
+            duration_days: durationDays
+          }
+        ]);
+
+      if (error) {
+        console.error("Fehler beim Anlegen der Limitation:", error);
+        alert("Deine Limitation konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+        return;
+      }
+    }
+
+    await loadLimitationsFromSupabase();
+    renderPlayerView();
+    alert("Dein Status wurde gespeichert.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Speichern des Gesundheitsstatus:", err);
+    alert("Unerwarteter Fehler beim Speichern des Gesundheitsstatus:\n" + (err.message || err));
+  }
+}
+
+function openLimitationEdit(playerId) {
+  state.editingLimitationPlayerId = playerId || null;
+  state.editingLimitationId = null;
+  state.currentView = "limitations";
+  renderLimitationsView();
+}
+
+function startLimitationEdit(playerId, limitationId) {
+  state.editingLimitationPlayerId = playerId || null;
+  state.editingLimitationId = limitationId || null;
+  state.currentView = "limitations";
+  renderLimitationsView();
+}
+
+function cancelLimitationEdit() {
+  state.editingLimitationPlayerId = null;
+  state.editingLimitationId = null;
+  renderLimitationsView();
+}
+
+async function createLimitation() {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches oder der Hauptadmin dürfen Limitations anlegen.");
+      return;
+    }
+
+    const playerId = document.getElementById("limitationPlayer")?.value || "";
+    const type = document.getElementById("limitationType")?.value?.trim() || "";
+    const validFrom = document.getElementById("limitationFrom")?.value || "";
+    const durationDays = Number(document.getElementById("limitationDurationDays")?.value || 0);
+
+    if (!playerId || !type || !validFrom || durationDays < 1) {
+      alert("Bitte Spieler, Art, Gültig seit und Dauer korrekt ausfüllen.");
+      return;
+    }
+
+    const overlapping = findOverlappingLimitation(playerId, validFrom, durationDays);
+    if (overlapping) {
+      alert("Für diesen Spieler existiert bereits eine überlappende Limitation.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("limitations")
+      .insert([
+        {
+          player_id: playerId,
+          type,
+          valid_from: validFrom,
+          duration_days: durationDays
+        }
+      ]);
+
+    if (error) {
+      console.error("Fehler beim Anlegen der Limitation:", error);
+      alert("Limitation konnte nicht angelegt werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    await loadLimitationsFromSupabase();
+    state.editingLimitationPlayerId = null;
+    state.editingLimitationId = null;
+    renderLimitationsView();
+    alert("Limitation wurde angelegt.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Anlegen der Limitation:", err);
+    alert("Unerwarteter Fehler beim Anlegen der Limitation:\n" + (err.message || err));
+  }
+}
+
+async function updateLimitation() {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches oder der Hauptadmin dürfen Limitations bearbeiten.");
+      return;
+    }
+
+    if (!state.editingLimitationPlayerId || !state.editingLimitationId) {
+      alert("Keine Limitation zum Bearbeiten ausgewählt.");
+      return;
+    }
+
+    const playerId = document.getElementById("limitationPlayer")?.value || state.editingLimitationPlayerId;
+    const type = document.getElementById("limitationType")?.value?.trim() || "";
+    const validFrom = document.getElementById("limitationFrom")?.value || "";
+    const durationDays = Number(document.getElementById("limitationDurationDays")?.value || 0);
+
+    if (!playerId || !type || !validFrom || durationDays < 1) {
+      alert("Bitte Spieler, Art, Gültig seit und Dauer korrekt ausfüllen.");
+      return;
+    }
+
+    const overlapping = findOverlappingLimitation(
+      playerId,
+      validFrom,
+      durationDays,
+      state.editingLimitationId
+    );
+
+    if (overlapping) {
+      alert("Für diesen Spieler existiert bereits eine überlappende Limitation.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("limitations")
+      .update({
+        player_id: playerId,
+        type,
+        valid_from: validFrom,
+        duration_days: durationDays
+      })
+      .eq("id", state.editingLimitationId);
+
+    if (error) {
+      console.error("Fehler beim Speichern der Limitation:", error);
+      alert("Limitation konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    await loadLimitationsFromSupabase();
+    state.editingLimitationPlayerId = null;
+    state.editingLimitationId = null;
+    renderLimitationsView();
+    alert("Limitation wurde gespeichert.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Speichern der Limitation:", err);
+    alert("Unerwarteter Fehler beim Speichern der Limitation:\n" + (err.message || err));
+  }
+}
+
+async function deleteLimitation(playerId, limitationId) {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches oder der Hauptadmin dürfen Limitations löschen.");
+      return;
+    }
+
+    const player = players.find(p => p.id === playerId);
+    const limitation = findLimitation(player, limitationId);
+
+    if (!player || !limitation) {
+      alert("Die Limitation wurde nicht gefunden.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Soll die Limitation "${limitation.type}" von ${fullName(player)} wirklich gelöscht werden?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("limitations")
+      .delete()
+      .eq("id", limitationId);
+
+    if (error) {
+      console.error("Fehler beim Löschen der Limitation:", error);
+      alert("Limitation konnte nicht gelöscht werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    await loadLimitationsFromSupabase();
+
+    if (state.editingLimitationId === limitationId) {
+      state.editingLimitationPlayerId = null;
+      state.editingLimitationId = null;
+    }
+
+    renderLimitationsView();
+    alert("Limitation wurde gelöscht.");
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Löschen der Limitation:", err);
+    alert("Unerwarteter Fehler beim Löschen der Limitation:\n" + (err.message || err));
+  }
+}
+
+async function setPlayerFit(playerId) {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches oder der Hauptadmin dürfen Spieler auf Fit setzen.");
+      return;
+    }
+
+    const player = players.find(p => p.id === playerId);
+    if (!player) {
+      alert("Der Spieler wurde nicht gefunden.");
+      return;
+    }
+
+    const referenceDate = getReferenceDateForFitAction();
+    const limitation = findLimitationAffectingDate(playerId, referenceDate) || getCurrentPlayerLimitation(playerId);
+
+    if (!limitation) {
+      alert("Für diesen Spieler ist keine aktive passende Limitation vorhanden.");
+      return;
+    }
+
+    const newDuration = daysBetweenInclusive(limitation.from, referenceDate);
+    if (newDuration < 1) {
+      alert("Die Limitation kann nicht sinnvoll beendet werden.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("limitations")
+      .update({
+        duration_days: newDuration
+      })
+      .eq("id", limitation.id);
+
+    if (error) {
+      console.error("Fehler beim Setzen auf Fit:", error);
+      alert("Der Spieler konnte nicht auf Fit gesetzt werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    await loadLimitationsFromSupabase();
+
+    if (state.currentView === "reports") {
+      renderReportsView();
+      return;
+    }
+
+    if (state.currentView === "dashboard") {
+      renderDashboardView();
+      return;
+    }
+
+    renderApp();
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Setzen auf Fit:", err);
+    alert("Unerwarteter Fehler beim Setzen auf Fit:\n" + (err.message || err));
+  }
+}
+
+async function importRosterCsv() {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf einen Kader importieren.");
+      return;
+    }
+
+    const fileInput = document.getElementById("rosterImportFile");
+    const file = fileInput?.files?.[0];
+
+    if (!file) {
+      alert("Bitte wähle zuerst eine CSV-Datei aus.");
+      return;
+    }
+
+    const rawText = await file.text();
+    const text = rawText.replace(/^\uFEFF/, "").trim();
+
+    if (!text) {
+      alert("Die CSV-Datei ist leer.");
+      return;
+    }
+
+    const lines = text
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+
+    if (lines.length < 2) {
+      alert("Die CSV-Datei enthält keine Datensätze.");
+      return;
+    }
+
+    const delimiter = detectCsvDelimiter(lines[0]);
+    const headers = parseCsvLine(lines[0], delimiter);
+    const headerMap = mapCsvHeaders(headers);
+
+    const missingHeaders = [];
+    if (headerMap.firstName === -1) missingHeaders.push("Vorname");
+    if (headerMap.lastName === -1) missingHeaders.push("Nachname");
+    if (headerMap.birthday === -1) missingHeaders.push("Geburtstag");
+    if (headerMap.unit === -1) missingHeaders.push("Unit");
+    if (headerMap.email === -1) missingHeaders.push("E-Mail");
+
+    if (missingHeaders.length) {
+      alert(`Diese Spalten fehlen in der CSV:\n${missingHeaders.join(", ")}`);
+      return;
+    }
+
+    const existingNameKeys = new Set(
+      players.map(player => buildPlayerNameKey(player.firstName, player.lastName))
+    );
+
+    const seenImportNameKeys = new Set();
+
+    let created = 0;
+    let skippedDuplicates = 0;
+    let skippedInvalid = 0;
+    let failed = 0;
+    const details = [];
+
+    for (let i = 1; i < lines.length; i += 1) {
+      const values = parseCsvLine(lines[i], delimiter);
+
+      if (!values.some(v => String(v || "").trim())) {
+        continue;
+      }
+
+      const firstName = values[headerMap.firstName]?.trim() || "";
+      const lastName = values[headerMap.lastName]?.trim() || "";
+      const birthday = values[headerMap.birthday]?.trim() || "";
+      const unit = values[headerMap.unit]?.trim() || "";
+      const email = values[headerMap.email]?.trim() || "";
+
+      if (!firstName || !lastName || !birthday || !unit || !email) {
+        skippedInvalid += 1;
+        details.push(`Zeile ${i + 1}: unvollständig übersprungen`);
+        continue;
+      }
+
+      const nameKey = buildPlayerNameKey(firstName, lastName);
+
+      if (existingNameKeys.has(nameKey) || seenImportNameKeys.has(nameKey)) {
+        skippedDuplicates += 1;
+        details.push(`Zeile ${i + 1}: ${firstName} ${lastName} bereits vorhanden`);
+        continue;
+      }
+
+      const username = buildPlayerUsername(firstName, lastName);
+
+      const response = await fetch("/api/create-player", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          username,
+          email,
+          birthday,
+          unit
+        })
+      });
+
+      let result = null;
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      if (!response.ok) {
+        failed += 1;
+        details.push(`Zeile ${i + 1}: ${firstName} ${lastName} konnte nicht angelegt werden`);
+        console.error("Fehler beim Import eines Spielers:", result || response.statusText);
+        continue;
+      }
+
+      created += 1;
+      existingNameKeys.add(nameKey);
+      seenImportNameKeys.add(nameKey);
+    }
+
+    await loadPlayersFromSupabase();
+
+    state.importSummary = [
+      `Angelegt: ${created}`,
+      `Übersprungen (bereits vorhanden): ${skippedDuplicates}`,
+      `Übersprungen (unvollständig): ${skippedInvalid}`,
+      `Fehlgeschlagen: ${failed}`,
+      details.length ? `Details: ${details.join(" | ")}` : ""
+    ].filter(Boolean).join(" · ");
+
+    renderPlayersView();
+
+    alert(`Import abgeschlossen.\nAngelegt: ${created}\nÜbersprungen: ${skippedDuplicates + skippedInvalid}\nFehlgeschlagen: ${failed}`);
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim CSV-Import:", err);
+    state.importSummary = "";
+    alert("Unerwarteter Fehler beim CSV-Import:\n" + (err.message || err));
+  }
+}
+
+function changeGroupFilter(group) {
+  state.filterGroup = group || "all";
+
+  if (state.currentView === "dashboard") {
+    renderDashboardView();
+    return;
+  }
+
+  if (state.currentView === "reports") {
+    renderReportsView();
+    return;
+  }
+
+  renderApp();
+}
+
+function changeDashboardResponseFilter(value) {
+  state.dashboardResponseFilter = value || "all";
+  renderDashboardView();
+}
+
+function changeResponseFilter(value) {
+  state.filterResponse = value || "all";
+  renderReportsView();
+}
+
+function changeReportsTraining(trainingId) {
+  state.reportsTrainingId = trainingId || null;
+  renderReportsView();
+}
+
+function setReportsSort(key) {
+  if (!key) return;
+
+  if (state.reportsSort.key === key) {
+    state.reportsSort.dir = state.reportsSort.dir === "asc" ? "desc" : "asc";
+  } else {
+    state.reportsSort = { key, dir: "asc" };
+  }
+
+  renderReportsView();
+}
+
+async function setCoachResponse(trainingId, playerId, status) {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches oder der Hauptadmin dürfen Antworten bearbeiten.");
+      return;
+    }
+
+    const training = trainings.find(t => t.id === trainingId);
+    const player = players.find(p => p.id === playerId);
+
+    if (!training) {
+      alert("Das Training wurde nicht gefunden.");
+      return;
+    }
+
+    if (!player) {
+      alert("Der Spieler wurde nicht gefunden.");
+      return;
+    }
+
+    const payload = {
+      training_id: trainingId,
+      player_id: playerId,
+      status,
+      updated_at: new Date().toISOString(),
+      changed_on_event_day: getTodayYmd() === training.date
+    };
+
+    const { error } = await supabaseClient
+      .from("responses")
+      .upsert([payload], {
+        onConflict: "training_id,player_id"
+      });
+
+    if (error) {
+      console.error("Fehler beim Speichern der Coach-Antwort:", error);
+      alert("Antwort konnte nicht gespeichert werden:\n" + (error.message || JSON.stringify(error)));
+      return;
+    }
+
+    responses[trainingId] = responses[trainingId] || {};
+    responses[trainingId][playerId] = {
+      status,
+      updatedAt: payload.updated_at,
+      changedOnEventDay: payload.changed_on_event_day
+    };
+
+    if (state.currentView === "reports") {
+      renderReportsView();
+      return;
+    }
+
+    if (state.currentView === "dashboard") {
+      renderDashboardView();
+      return;
+    }
+
+    renderApp();
+  } catch (err) {
+    console.error("Unerwarteter Fehler beim Speichern der Coach-Antwort:", err);
+    alert("Unerwarteter Fehler beim Speichern der Coach-Antwort:\n" + (err.message || err));
+  }
+}
