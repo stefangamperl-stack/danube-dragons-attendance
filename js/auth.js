@@ -1,6 +1,6 @@
-function showLanding() { 
-  document.getElementById("landing").classList.remove("hidden");
-  document.getElementById("loginScreen").classList.add("hidden");
+function showLanding() {
+  document.getElementById("landing").classList.add("hidden");
+  document.getElementById("loginScreen").classList.remove("hidden");
   document.getElementById("appScreen").classList.add("hidden");
 }
 
