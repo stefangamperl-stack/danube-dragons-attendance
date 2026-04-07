@@ -350,6 +350,15 @@ function generateUniqueUsername(firstName, lastName) {
   return `${base}${counter}`;
 }
 
+function isEditingAnyForm() {
+  return Boolean(
+    state.editingTrainingId ||
+    state.editPlayerId ||
+    state.editCoachId ||
+    state.editingLimitationId
+  );
+}
+
 async function hydrateCurrentUserFromSupabase() {
   const { data, error } = await supabaseClient.auth.getSession();
 
@@ -460,8 +469,17 @@ Promise.resolve(loadInitialAppData()).catch(error => {
 
 updateCurrentDateTime();
 setInterval(updateCurrentDateTime, 30000);
+
 setInterval(() => {
-  if (!document.getElementById("appScreen").classList.contains("hidden")) {
-    renderApp();
+  const appScreen = document.getElementById("appScreen");
+  if (!appScreen || appScreen.classList.contains("hidden")) {
+    return;
   }
+
+  if (isEditingAnyForm()) {
+    updateCurrentDateTime();
+    return;
+  }
+
+  renderApp();
 }, 60000);
