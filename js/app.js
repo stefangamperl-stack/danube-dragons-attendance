@@ -361,7 +361,16 @@ function isEditingAnyForm() {
     state.editingTrainingId ||
     state.editPlayerId ||
     state.editCoachId ||
-    state.editingLimitationId
+    state.editingLimitationId ||
+    state.editingLimitationPlayerId ||
+    state.currentView === "health" ||
+    state.currentView === "players" ||
+    state.currentView === "coaches" ||
+    state.currentView === "trainings" ||
+    state.currentView === "limitations" ||
+    state.currentView === "playerSearch" ||
+    (state.playerListSearch && state.playerListSearch.trim()) ||
+    (state.playerSearchValue && state.playerSearchValue.trim())
   );
 }
 
