@@ -2,8 +2,18 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Danube Dragons Attendance</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="Trainingsanwesenheit und Teamorganisation der Danube Dragons." />
+  <meta name="theme-color" content="#07110d" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Salix" />
+  <title>Salix · Danube Dragons</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -12,7 +22,7 @@
   <div id="loginScreen">
     <section class="hero">
       <div class="roleBadge">Login</div>
-      <h1>DD Attendix</h1>
+      <h1>Salix</h1>
       <p class="smallMuted">
         ...
       </p>
@@ -45,7 +55,7 @@
 
   <div id="appScreen" class="hidden app">
     <aside class="sidebar">
-      <div class="brand">Danube Dragons</div>
+      <div class="brand">Salix</div>
       <div class="nav" id="nav"></div>
     </aside>
 
@@ -73,5 +83,6 @@
   <script src="js/render.js"></script>
   <script src="js/actions.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/pwa.js"></script>
 </body>
 </html>
