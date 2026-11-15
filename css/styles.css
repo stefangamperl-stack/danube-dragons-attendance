@@ -610,3 +610,49 @@
         bottom: calc(90px + var(--safe-bottom));
       }
     }
+
+
+    .installCard {
+      margin-top: 20px;
+      background: linear-gradient(145deg, #0b1b15, #10241c);
+    }
+
+    .installHeader {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .installHeader h2 {
+      margin-bottom: 6px;
+    }
+
+    .installHeader p {
+      margin-bottom: 0;
+    }
+
+    .installIcon {
+      width: 64px;
+      height: 64px;
+      flex: 0 0 64px;
+      border-radius: 16px;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+    }
+
+    .pwaInstallHelp {
+      align-items: flex-start;
+    }
+
+    @media (max-width: 520px) {
+      .installHeader {
+        align-items: flex-start;
+      }
+
+      .installIcon {
+        width: 54px;
+        height: 54px;
+        flex-basis: 54px;
+        border-radius: 14px;
+      }
+    }
