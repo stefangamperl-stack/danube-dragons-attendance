@@ -1,4 +1,4 @@
-const CACHE_NAME = "dd-attendix-v1";
+const CACHE_NAME = "salix-v2";
 const APP_SHELL = [
   "/",
   "/index.html",

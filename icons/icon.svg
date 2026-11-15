@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-  <title id="title">DD Attendix</title>
+  <title id="title">Salix</title>
   <rect width="512" height="512" rx="112" fill="#07110d"/>
   <circle cx="256" cy="256" r="176" fill="#0b1b15" stroke="#4ade80" stroke-width="18"/>
-  <path fill="#ecfdf5" fill-rule="evenodd" d="M105 168h80c64 0 99 33 99 88s-35 88-99 88h-80V168Zm50 46v84h29c33 0 50-14 50-42s-17-42-50-42h-29Z"/>
-  <path fill="#15803d" fill-rule="evenodd" d="M236 168h80c64 0 99 33 99 88s-35 88-99 88h-80V168Zm50 46v84h29c33 0 50-14 50-42s-17-42-50-42h-29Z"/>
+  <text x="256" y="336" fill="#ecfdf5" font-family="Arial, Helvetica, sans-serif" font-size="228" font-weight="800" text-anchor="middle">S</text>
+  <path d="M332 150c42 12 67 39 72 79-42 9-77-2-104-34 7-20 17-35 32-45Z" fill="#15803d"/>
 </svg>

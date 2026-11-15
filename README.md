@@ -1,6 +1,6 @@
-# DD Attendix
+# Salix
 
-DD Attendix ist die Anwesenheits- und Trainingsapp der Danube Dragons. Die Anwendung läuft als statische Web App auf Vercel und nutzt Supabase für Anmeldung, Rollen und Datenhaltung.
+Salix ist die Anwesenheits- und Trainingsapp der Danube Dragons. Die Anwendung läuft als statische Web App auf Vercel und nutzt Supabase für Anmeldung, Rollen und Datenhaltung.
 
 ## PWA
 
