@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { requireRole } from "../lib/requireRole.js";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -93,6 +94,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    const authorized = await requireRole(req, res, supabaseAdmin, ["adminCoach", "headAdmin"]);
+    if (!authorized) return;
+
     const {
       playerId,
       firstName,

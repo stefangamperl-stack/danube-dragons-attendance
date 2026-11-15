@@ -1,3 +1,17 @@
+async function buildApiAuthHeaders() {
+  const { data, error } = await supabaseClient.auth.getSession();
+  const accessToken = data?.session?.access_token;
+
+  if (error || !accessToken) {
+    throw new Error("Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.");
+  }
+
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${accessToken}`
+  };
+}
+
 async function loadTrainingsFromSupabase() {
   try {
     if (typeof supabaseClient === "undefined" || !supabaseClient) {
@@ -596,9 +610,7 @@ async function createPlayer() {
 
     const response = await fetch("/api/create-player", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: await buildApiAuthHeaders(),
       body: JSON.stringify({
         firstName,
         lastName,
@@ -661,9 +673,7 @@ async function createCoach() {
 
     const response = await fetch("/api/create-coach", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: await buildApiAuthHeaders(),
       body: JSON.stringify({
         firstName,
         lastName,
@@ -979,9 +989,7 @@ async function updatePlayer() {
     if (!editPlayer.profileId) {
       const response = await fetch("/api/activate-player-login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: await buildApiAuthHeaders(),
         body: JSON.stringify({
           playerId: editPlayer.id,
           firstName,
@@ -1508,9 +1516,7 @@ async function importRosterCsv() {
 
       const response = await fetch("/api/create-player", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: await buildApiAuthHeaders(),
         body: JSON.stringify({
           firstName,
           lastName,
