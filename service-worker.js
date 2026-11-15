@@ -1,4 +1,4 @@
-const CACHE_NAME = "salix-v5";
+const CACHE_NAME = "salix-v6";
 const APP_SHELL = [
   "/",
   "/index.html",
