@@ -1197,7 +1197,7 @@ function buildStatisticsChart(rows) {
 function renderCoachesView() {
   const content = document.getElementById("content");
   document.getElementById("screenTitle").textContent = "Coaches";
-  document.getElementById("screenSubtitle").textContent = "Nur Hauptadmin darf Coaches anlegen, bearbeiten, löschen und zurücksetzen";
+  document.getElementById("screenSubtitle").textContent = "Nur Hauptadmin darf Coaches und ihre Logins verwalten";
 
   const editCoach = state.editCoachId ? coaches.find(c => c.id === state.editCoachId) : null;
 
@@ -1222,7 +1222,7 @@ function renderCoachesView() {
           ${editCoach ? `<button class="secondaryButton" onclick="cancelCoachEdit()">Abbrechen</button>` : ""}
         </div>
         <p class="smallMuted" style="margin-top:12px;">
-          Neue Coaches erhalten ein zufälliges Einmalpasswort. Ein Reset setzt auf "test123" und verlangt beim nächsten Login eine Änderung.
+          Neue Coaches erhalten ein zufälliges Einmalpasswort. Für ältere Datensätze ohne Login kann der Zugang mit "test123" aktiviert werden. Beim ersten Login ist eine Passwortänderung erforderlich.
         </p>
       </div>
 
@@ -1236,6 +1236,7 @@ function renderCoachesView() {
                 <th>Loginname</th>
                 <th>E-Mail</th>
                 <th>Rolle</th>
+                <th>Loginstatus</th>
                 <th>Aktionen</th>
               </tr>
             </thead>
@@ -1246,16 +1247,19 @@ function renderCoachesView() {
                   <td>${c.username || "-"}</td>
                   <td>${c.email || "-"}</td>
                   <td>${c.role}</td>
+                  <td>${c.profile_id ? "Aktiv" : "Nicht verknüpft"}</td>
                   <td>
                     <div class="rowActions">
                       <button class="secondaryButton" onclick="startCoachEdit('${c.id}')">Bearbeiten</button>
-                      <button class="secondaryButton" onclick="resetPasswordToDefault('coach','${c.id}')">Passwort zurücksetzen</button>
+                      ${c.role === "headAdmin" ? "" : c.profile_id
+                        ? `<button class="secondaryButton" onclick="resetPasswordToDefault('coach','${c.id}')">Passwort zurücksetzen</button>`
+                        : `<button class="button" onclick="activateCoachLogin('${c.id}')">Login aktivieren</button>`}
                       <button class="dangerButton" onclick="deleteCoach('${c.id}')">Löschen</button>
                     </div>
                   </td>
                 </tr>
               `).join("")}
-              ${coaches.length === 0 ? `<tr><td colspan="5">Keine Coaches vorhanden.</td></tr>` : ""}
+              ${coaches.length === 0 ? `<tr><td colspan="6">Keine Coaches vorhanden.</td></tr>` : ""}
             </tbody>
           </table>
         </div>
