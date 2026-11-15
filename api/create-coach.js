@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { randomBytes } from "node:crypto";
+import { requireRole } from "../lib/requireRole.js";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -11,12 +13,19 @@ function generateUsername(firstName = "", lastName = "") {
   return `${first}${last}`;
 }
 
+function generateTemporaryPassword() {
+  return `Salix-${randomBytes(12).toString("base64url")}!7a`;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   try {
+    const authorized = await requireRole(req, res, supabaseAdmin, ["headAdmin"]);
+    if (!authorized) return;
+
     const {
       firstName,
       lastName,
@@ -37,7 +46,7 @@ export default async function handler(req, res) {
     const finalEmail =
       (email && email.trim()) ||
       `${finalUsername}@danubedragons-attendance.local`;
-    const finalPassword = "test123";
+    const finalPassword = generateTemporaryPassword();
     const displayName = `${firstName} ${lastName}`.trim();
 
     const { data: existingUsername, error: usernameCheckError } =
