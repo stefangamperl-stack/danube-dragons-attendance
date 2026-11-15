@@ -582,7 +582,7 @@ function renderPlayersView() {
                     <div class="rowActions">
                       <button class="secondaryButton" onclick="startPlayerEdit('${p.id}')">Bearbeiten</button>
                       <button class="warnButton" onclick="openLimitationEdit('${p.id}')">Limitation</button>
-                      ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${p.id}')">Reset</button>` : ""}
+                      ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="resetPasswordToDefault('player','${p.id}')">Passwort zurücksetzen</button>` : ""}
                       ${state.currentUser.role === "headAdmin" ? `<button class="dangerButton" onclick="deletePlayer('${p.id}')">Löschen</button>` : ""}
                     </div>
                   </td>
@@ -1011,7 +1011,7 @@ function renderPlayerSearchView() {
                       <div class="rowActions">
                         <button class="secondaryButton" onclick="startPlayerEdit('${player.id}'); setView('players');">Bearbeiten</button>
                         <button class="warnButton" onclick="openLimitationEdit('${player.id}')">Limitation</button>
-                        ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="sendResetLink('player','${player.id}')">Reset</button>` : ""}
+                        ${state.currentUser.role === "headAdmin" ? `<button class="secondaryButton" onclick="resetPasswordToDefault('player','${player.id}')">Passwort zurücksetzen</button>` : ""}
                       </div>
                     </div>
                   </div>
@@ -1222,7 +1222,7 @@ function renderCoachesView() {
           ${editCoach ? `<button class="secondaryButton" onclick="cancelCoachEdit()">Abbrechen</button>` : ""}
         </div>
         <p class="smallMuted" style="margin-top:12px;">
-          Initialpasswort für neue Coaches ist test123.
+          Neue Coaches erhalten ein zufälliges Einmalpasswort. Ein Reset setzt auf "test123" und verlangt beim nächsten Login eine Änderung.
         </p>
       </div>
 
@@ -1249,7 +1249,7 @@ function renderCoachesView() {
                   <td>
                     <div class="rowActions">
                       <button class="secondaryButton" onclick="startCoachEdit('${c.id}')">Bearbeiten</button>
-                      <button class="secondaryButton" onclick="sendResetLink('coach','${c.id}')">Reset</button>
+                      <button class="secondaryButton" onclick="resetPasswordToDefault('coach','${c.id}')">Passwort zurücksetzen</button>
                       <button class="dangerButton" onclick="deleteCoach('${c.id}')">Löschen</button>
                     </div>
                   </td>
