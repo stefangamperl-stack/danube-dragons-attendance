@@ -1217,6 +1217,75 @@ async function updateCoach() {
   }
 }
 
+async function resetPasswordToDefault(targetType, targetId) {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf Passwörter zurücksetzen.");
+      return;
+    }
+
+    const isPlayer = targetType === "player";
+    const target = isPlayer
+      ? players.find(player => player.id === targetId)
+      : coaches.find(coach => coach.id === targetId);
+
+    if (!target) {
+      alert(isPlayer ? "Der Spieler wurde nicht gefunden." : "Der Coach wurde nicht gefunden.");
+      return;
+    }
+
+    const profileId = isPlayer ? target.profileId : target.profile_id;
+    if (!profileId) {
+      alert("Für diese Person ist noch kein Login verknüpft.");
+      return;
+    }
+
+    if (!isPlayer && target.role === "headAdmin") {
+      alert("Passwörter von Hauptadmins werden nicht über diese Funktion zurückgesetzt.");
+      return;
+    }
+
+    const displayName = isPlayer
+      ? fullName(target)
+      : getCoachDisplayName(target);
+
+    const confirmed = window.confirm(
+      `Passwort für ${displayName} wirklich auf "test123" zurücksetzen?\n\nBeim nächsten Login muss ein neues Passwort vergeben werden.`
+    );
+
+    if (!confirmed) return;
+
+    const response = await fetch("/api/reset-password", {
+      method: "POST",
+      headers: await buildApiAuthHeaders(),
+      body: JSON.stringify({ targetType, targetId })
+    });
+
+    let result = null;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+
+    if (!response.ok || !result?.success) {
+      alert(result?.error || "Das Passwort konnte nicht zurückgesetzt werden.");
+      return;
+    }
+
+    if (isPlayer) {
+      target.mustChangePassword = true;
+    }
+
+    alert(
+      `Passwort für ${displayName} wurde auf "test123" zurückgesetzt.\nBeim nächsten Login ist eine Passwortänderung erforderlich.`
+    );
+  } catch (error) {
+    console.error("Fehler beim Zurücksetzen des Passworts:", error);
+    alert(error.message || "Das Passwort konnte nicht zurückgesetzt werden.");
+  }
+}
+
 async function deletePlayer(playerId) {
   try {
     if (state.currentUser?.role !== "headAdmin") {
