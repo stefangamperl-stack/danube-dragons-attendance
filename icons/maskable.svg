@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">DD Attendix</title>
+  <rect width="512" height="512" fill="#07110d"/>
+  <circle cx="256" cy="256" r="164" fill="#0b1b15" stroke="#4ade80" stroke-width="16"/>
+  <path fill="#ecfdf5" fill-rule="evenodd" d="M112 181h73c58 0 90 28 90 75s-32 75-90 75h-73V181Zm45 40v70h27c29 0 44-12 44-35s-15-35-44-35h-27Z"/>
+  <path fill="#15803d" fill-rule="evenodd" d="M237 181h73c58 0 90 28 90 75s-32 75-90 75h-73V181Zm45 40v70h27c29 0 44-12 44-35s-15-35-44-35h-27Z"/>
+</svg>

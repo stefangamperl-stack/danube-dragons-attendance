@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#07110d" />
+  <title>DD Attendix ist offline</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #07110d;
+      color: #ecfdf5;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    main {
+      width: min(100%, 520px);
+      padding: 28px;
+      border: 1px solid #214235;
+      border-radius: 18px;
+      background: #0b1b15;
+      text-align: center;
+    }
+    p { color: #a7f3d0; line-height: 1.6; }
+    button {
+      min-height: 48px;
+      border: 0;
+      border-radius: 12px;
+      padding: 0 18px;
+      background: #15803d;
+      color: #fff;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Keine Verbindung</h1>
+    <p>DD Attendix kann gerade keine Verbindung herstellen. Bereits geladene Ansichten bleiben verfügbar. Für Anmeldung, aktuelle Trainingsdaten und Änderungen ist eine Internetverbindung erforderlich.</p>
+    <button type="button" onclick="location.reload()">Erneut versuchen</button>
+  </main>
+</body>
+</html>

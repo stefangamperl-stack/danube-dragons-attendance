@@ -1,17 +1,43 @@
-<style>
+    :root {
+      color-scheme: dark;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+
     * {
       box-sizing: border-box;
     }
 
+    html {
+      min-height: 100%;
+      background: #07110d;
+      -webkit-text-size-adjust: 100%;
+    }
+
     body {
       margin: 0;
+      min-height: 100%;
       font-family: Arial, Helvetica, sans-serif;
       background: #07110d;
       color: #ecfdf5;
+      padding-top: var(--safe-top);
+      -webkit-tap-highlight-color: transparent;
     }
 
     button, input, select, textarea {
       font: inherit;
+    }
+
+    button, a, input, select, textarea {
+      touch-action: manipulation;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid #4ade80;
+      outline-offset: 2px;
     }
 
     .hidden {
@@ -430,14 +456,135 @@
       color: #fde68a;
     }
 
+    .pwaInstallButton {
+      position: fixed;
+      right: 18px;
+      bottom: calc(18px + var(--safe-bottom));
+      z-index: 1100;
+      min-height: 48px;
+      border: 1px solid #4ade80;
+      border-radius: 999px;
+      padding: 0 18px;
+      background: #15803d;
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.42);
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .pwaToast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(18px + var(--safe-bottom));
+      z-index: 1200;
+      display: flex;
+      width: min(92vw, 520px);
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid #2a4a3d;
+      border-radius: 14px;
+      background: #10241c;
+      color: #ecfdf5;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.46);
+      transform: translateX(-50%);
+    }
+
+    .pwaToast button {
+      min-height: 40px;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 14px;
+      background: #15803d;
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .connectionBadge {
+      position: fixed;
+      top: calc(12px + var(--safe-top));
+      left: 50%;
+      z-index: 1250;
+      border: 1px solid #854d0e;
+      border-radius: 999px;
+      padding: 8px 14px;
+      background: #451a03;
+      color: #fde68a;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.36);
+      transform: translateX(-50%);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
     @media (max-width: 900px) {
       .app {
-        grid-template-columns: 1fr;
+        display: block;
+        min-height: 100dvh;
+        padding-bottom: calc(78px + var(--safe-bottom));
       }
 
       .sidebar {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1000;
+        border-top: 1px solid #214235;
         border-right: none;
-        border-bottom: 1px solid #214235;
+        padding: 9px 10px calc(9px + var(--safe-bottom));
+        background: rgba(11, 27, 21, 0.97);
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.36);
+        backdrop-filter: blur(12px);
+      }
+
+      .brand {
+        display: none;
+      }
+
+      .nav {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(108px, 1fr);
+        gap: 8px;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: none;
+      }
+
+      .nav::-webkit-scrollbar {
+        display: none;
+      }
+
+      .nav button {
+        min-height: 50px;
+        padding: 8px 10px;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .main {
+        padding: 16px;
+      }
+
+      .hero {
+        width: calc(100% - 24px);
+        margin: 12px auto;
+        padding: 22px 18px;
+        border-radius: 16px;
+      }
+
+      .hero h1 {
+        font-size: clamp(32px, 10vw, 42px);
+      }
+
+      .card {
+        padding: 16px;
+      }
+
+      .input, .select, .textarea {
+        min-height: 48px;
+        font-size: 16px;
       }
 
       .twoCol, .threeCol {
@@ -457,5 +604,9 @@
         flex-direction: column;
         align-items: flex-start;
       }
+
+      .pwaInstallButton,
+      .pwaToast {
+        bottom: calc(90px + var(--safe-bottom));
+      }
     }
-  </style>
