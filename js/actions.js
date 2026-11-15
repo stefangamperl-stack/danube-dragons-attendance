@@ -1286,6 +1286,70 @@ async function resetPasswordToDefault(targetType, targetId) {
   }
 }
 
+async function activateCoachLogin(coachId) {
+  try {
+    if (state.currentUser?.role !== "headAdmin") {
+      alert("Nur der Hauptadmin darf Coach-Logins aktivieren.");
+      return;
+    }
+
+    const coach = coaches.find(item => item.id === coachId);
+    if (!coach) {
+      alert("Der Coach wurde nicht gefunden.");
+      return;
+    }
+
+    if (coach.profile_id) {
+      alert("Für diesen Coach ist bereits ein Login verknüpft.");
+      return;
+    }
+
+    if (coach.role === "headAdmin") {
+      alert("Logins für Hauptadmins werden nicht über diese Funktion aktiviert.");
+      return;
+    }
+
+    const displayName = getCoachDisplayName(coach);
+    const confirmed = window.confirm(
+      `Login für ${displayName} aktivieren?\n\nDas Startpasswort lautet "test123" und muss beim ersten Login geändert werden.`
+    );
+
+    if (!confirmed) return;
+
+    const response = await fetch("/api/activate-coach-login", {
+      method: "POST",
+      headers: await buildApiAuthHeaders(),
+      body: JSON.stringify({ coachId })
+    });
+
+    let result = null;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+
+    if (!response.ok || !result?.success) {
+      alert(result?.error || "Der Coach-Login konnte nicht aktiviert werden.");
+      return;
+    }
+
+    await loadCoachesFromSupabase();
+    renderCoachesView();
+
+    alert(
+      `Login für ${displayName} wurde aktiviert.\n` +
+      `Loginname: ${result.credentials?.username || "-"}\n` +
+      `E-Mail: ${result.credentials?.email || "-"}\n` +
+      `Startpasswort: ${result.credentials?.password || "test123"}\n\n` +
+      "Beim ersten Login muss ein neues Passwort vergeben werden."
+    );
+  } catch (error) {
+    console.error("Fehler beim Aktivieren des Coach-Logins:", error);
+    alert(error.message || "Der Coach-Login konnte nicht aktiviert werden.");
+  }
+}
+
 async function deletePlayer(playerId) {
   try {
     if (state.currentUser?.role !== "headAdmin") {
