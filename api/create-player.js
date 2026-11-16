@@ -155,7 +155,7 @@ export default async function handler(req, res) {
         display_name: displayName,
         role: "player",
         email: finalEmail,
-        must_change_password: true,
+        must_change_password: false,
         active: true
       }]);
 
