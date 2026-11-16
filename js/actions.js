@@ -1835,6 +1835,17 @@ function changeReportsTraining(trainingId) {
   renderReportsView();
 }
 
+function changeReportsPeriod(period) {
+  state.reportsPeriod = period === "past" ? "past" : "upcoming";
+  state.reportsTrainingId = null;
+  renderReportsView();
+}
+
+function toggleCoachAttendance() {
+  state.coachAttendanceExpanded = !state.coachAttendanceExpanded;
+  renderApp();
+}
+
 function setReportsSort(key) {
   if (!key) return;
 

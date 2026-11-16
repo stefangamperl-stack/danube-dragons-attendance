@@ -23,62 +23,78 @@ function renderCoachAttendance(training) {
     getCoachDisplayName(a).localeCompare(getCoachDisplayName(b))
   );
   const counts = getCoachStatusCounts(training.id);
+  const answeredCount = counts.yes + counts.no;
   const ownCoach = activeCoaches.find(coach => coach.id === state.currentUser.coachId);
   const ownStatus = getCoachTrainingStatus(ownCoach, training.id);
   const trainingPast = isTrainingPast(training);
+  const expanded = state.coachAttendanceExpanded === true;
 
   return `
-    <div class="card" style="margin-top:24px;">
-      <h2>Coach-Zusagen und -Absagen</h2>
-      <p class="smallMuted">Alle Coaches sehen hier, wer beim Training dabei ist.</p>
+    <div class="card coachAttendanceCard">
+      <button
+        type="button"
+        class="coachAttendanceToggle"
+        onclick="toggleCoachAttendance()"
+        aria-expanded="${expanded}"
+      >
+        <span class="coachAttendanceTitle">Coach-Zusagen/Absagen</span>
+        <span class="coachAttendanceTotal">${answeredCount}/${activeCoaches.length}</span>
+        <span class="coachAttendanceChevron" aria-hidden="true">${expanded ? "▲" : "▼"}</span>
+      </button>
 
-      ${ownCoach ? `
-        <div class="deadlineBox" style="margin:16px 0;">
-          <div><strong>Meine Antwort:</strong> ${getStatusTag(ownStatus)}</div>
-          ${trainingPast ? `
-            <div class="smallMuted" style="margin-top:8px;">Das Training ist bereits vergangen.</div>
-          ` : `
-            <div class="statusButtons" style="margin-top:12px;">
-              <button class="button" onclick="setOwnCoachResponse('${training.id}','yes')">Ich komme</button>
-              <button class="warnButton" onclick="setOwnCoachResponse('${training.id}','no')">Ich komme nicht</button>
+      ${expanded ? `
+        <div class="coachAttendanceBody">
+          <p class="smallMuted">Alle Coaches sehen hier, wer beim Training dabei ist.</p>
+
+          ${ownCoach ? `
+            <div class="deadlineBox coachOwnResponse">
+              <div><strong>Meine Antwort:</strong> ${getStatusTag(ownStatus)}</div>
+              ${trainingPast ? `
+                <div class="smallMuted" style="margin-top:8px;">Das Training ist bereits vergangen.</div>
+              ` : `
+                <div class="statusButtons coachOwnResponseButtons">
+                  <button class="button" onclick="setOwnCoachResponse('${training.id}','yes')">Ich komme</button>
+                  <button class="warnButton" onclick="setOwnCoachResponse('${training.id}','no')">Ich komme nicht</button>
+                </div>
+              `}
             </div>
+          ` : `
+            <div class="noticeBox">Dein Coach-Profil ist noch nicht mit diesem Login verknüpft.</div>
           `}
-        </div>
-      ` : `
-        <div class="noticeBox">Dein Coach-Profil ist noch nicht mit diesem Login verknüpft.</div>
-      `}
 
-      <div class="statusSummary" style="margin-bottom:16px;">
-        <div class="statusSummaryRow"><span>Zusage</span><strong>${counts.yes}</strong></div>
-        <div class="statusSummaryRow"><span>Absage</span><strong>${counts.no}</strong></div>
-        <div class="statusSummaryRow"><span>Keine Antwort</span><strong>${counts.open}</strong></div>
-      </div>
+          <div class="statusSummary coachStatusSummary">
+            <div class="statusSummaryRow"><span>Zusage</span><strong>${counts.yes}</strong></div>
+            <div class="statusSummaryRow"><span>Absage</span><strong>${counts.no}</strong></div>
+            <div class="statusSummaryRow"><span>Keine Antwort</span><strong>${counts.open}</strong></div>
+          </div>
 
-      <div class="tableWrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Coach</th>
-              <th>Status</th>
-              <th>Letzte Änderung</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${activeCoaches.map(coach => {
-              const response = (coachResponses[training.id] || {})[coach.id];
-              const status = getCoachTrainingStatus(coach, training.id);
-              return `
+          <div class="tableWrap">
+            <table>
+              <thead>
                 <tr>
-                  <td>${escapeHtml(getCoachDisplayName(coach))}</td>
-                  <td>${getStatusTag(status)}</td>
-                  <td>${formatResponseTimestamp(response?.updatedAt)}</td>
+                  <th>Coach</th>
+                  <th>Status</th>
+                  <th>Letzte Änderung</th>
                 </tr>
-              `;
-            }).join("")}
-            ${activeCoaches.length === 0 ? `<tr><td colspan="3">Keine aktiven Coaches vorhanden.</td></tr>` : ""}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                ${activeCoaches.map(coach => {
+                  const response = (coachResponses[training.id] || {})[coach.id];
+                  const status = getCoachTrainingStatus(coach, training.id);
+                  return `
+                    <tr>
+                      <td>${escapeHtml(getCoachDisplayName(coach))}</td>
+                      <td>${getStatusTag(status)}</td>
+                      <td>${formatResponseTimestamp(response?.updatedAt)}</td>
+                    </tr>
+                  `;
+                }).join("")}
+                ${activeCoaches.length === 0 ? `<tr><td colspan="3">Keine aktiven Coaches vorhanden.</td></tr>` : ""}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ""}
     </div>
   `;
 }
@@ -797,13 +813,105 @@ function renderTrainingsView() {
   `;
 }
 
+function renderPlayerResponseActions(trainingId, player, status, mobile = false) {
+  const wrapperClass = mobile
+    ? `mobileResponseActions${status === "limited" ? " limitedActions" : ""}`
+    : "rowActions";
+
+  if (status === "limited") {
+    return `
+      <div class="${wrapperClass}">
+        <button class="warnButton" onclick="openLimitationEdit('${player.id}')">Limitation bearbeiten</button>
+        <button class="secondaryButton" onclick="setPlayerFit('${player.id}')">Auf Fit setzen</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="${wrapperClass}">
+      <button class="button responseYesButton ${status === "yes" ? "isCurrent" : ""}" onclick="setCoachResponse('${trainingId}','${player.id}','yes')">Zusage</button>
+      <button class="secondaryButton responseMaybeButton ${status === "maybe" ? "isCurrent" : ""}" onclick="setCoachResponse('${trainingId}','${player.id}','maybe')">Unsicher</button>
+      <button class="dangerButton responseNoButton ${status === "no" ? "isCurrent" : ""}" onclick="setCoachResponse('${trainingId}','${player.id}','no')">Absage</button>
+      <button class="warnButton responseLimitationButton" onclick="openLimitationEdit('${player.id}')">Limitation</button>
+    </div>
+  `;
+}
+
+function renderMobilePlayerResponseCard(training, player) {
+  const response = (responses[training.id] || {})[player.id];
+  const changed = response?.changedOnEventDay;
+  const status = getPlayerTrainingStatus(player, training.id);
+  const changedAt = response
+    ? `${formatDateDisplay(response.updatedAt.slice(0, 10))} ${response.updatedAt.slice(11, 16)}`
+    : (status === "limited" ? "automatisch" : "offen");
+
+  return `
+    <article class="mobilePlayerCard ${changed ? "highlightRow" : ""}">
+      <div class="mobilePlayerCardHeader">
+        <div>
+          <h3>${escapeHtml(fullName(player))}</h3>
+          <span class="mobileUnitLabel">${escapeHtml(player.unit || "–")} · ${escapeHtml(getGroupLabelForUnit(player.unit) || "–")}</span>
+        </div>
+        ${getStatusTag(status)}
+      </div>
+
+      <div class="mobilePlayerMeta">
+        <div><span>Letzte Änderung</span><strong>${changedAt}</strong></div>
+        <div><span>Gesundheit</span><strong>${escapeHtml(getCurrentPlayerStatusLabel(player))}</strong></div>
+        ${changed ? `<div class="eventDayNotice">Am Trainingstag geändert</div>` : ""}
+      </div>
+
+      ${renderPlayerResponseActions(training.id, player, status, true)}
+    </article>
+  `;
+}
+
 function renderReportsView() {
   const content = document.getElementById("content");
   document.getElementById("screenTitle").textContent = "Zusagen/Absagen";
   document.getElementById("screenSubtitle").textContent = "Antworten von Spielern und Coaches pro Training";
 
-  const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
-  const selectedTraining = orderedTrainings.find(t => t.id === state.reportsTrainingId) || orderedTrainings[0];
+  const period = state.reportsPeriod === "past" ? "past" : "upcoming";
+  const periodTrainings = [...trainings]
+    .filter(training => period === "past" ? isTrainingPast(training) : !isTrainingPast(training))
+    .sort((a, b) => period === "past"
+      ? getTrainingStartDate(b) - getTrainingStartDate(a)
+      : getTrainingStartDate(a) - getTrainingStartDate(b));
+
+  const selectedTraining = periodTrainings.find(t => t.id === state.reportsTrainingId) || periodTrainings[0] || null;
+  state.reportsTrainingId = selectedTraining?.id || null;
+
+  const trainingSelector = `
+    <div class="card reportsTrainingSelector">
+      <h2>Trainingsdatum auswählen</h2>
+      <div class="periodToggle" role="group" aria-label="Trainingszeitraum">
+        <button type="button" class="periodToggleButton ${period === "upcoming" ? "active" : ""}" onclick="changeReportsPeriod('upcoming')">Kommend</button>
+        <button type="button" class="periodToggleButton ${period === "past" ? "active" : ""}" onclick="changeReportsPeriod('past')">Vergangen</button>
+      </div>
+      ${selectedTraining ? `
+        <div class="field trainingDateField">
+          <label>Datum</label>
+          <select class="select" onchange="changeReportsTraining(this.value)">
+            ${periodTrainings.map(t => `<option value="${t.id}" ${t.id === selectedTraining.id ? "selected" : ""}>${formatDateDisplay(t.date)} · ${escapeHtml(t.title)}</option>`).join("")}
+          </select>
+        </div>
+        <div class="selectedTrainingDetails">
+          <p><strong>${escapeHtml(selectedTraining.title)}</strong></p>
+          <p>${formatDateDisplay(selectedTraining.date)} um ${escapeHtml(selectedTraining.time)}</p>
+          <p>${escapeHtml(selectedTraining.location)}</p>
+          <p class="smallMuted">${escapeHtml(selectedTraining.notes)}</p>
+          <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
+        </div>
+      ` : `
+        <div class="emptyTrainingState">Keine ${period === "upcoming" ? "kommenden" : "vergangenen"} Trainings vorhanden.</div>
+      `}
+    </div>
+  `;
+
+  if (!selectedTraining) {
+    content.innerHTML = `${renderMustChangePasswordNotice()}${trainingSelector}`;
+    return;
+  }
 
   let filteredPlayers = players.filter(p => filterPlayerByGroup(p, state.filterGroup));
   if (state.filterResponse !== "all") {
@@ -815,32 +923,19 @@ function renderReportsView() {
 
   content.innerHTML = `
     ${renderMustChangePasswordNotice()}
-    <div class="card" style="margin-bottom: 24px;">
-      <h2>Trainingsdatum auswählen</h2>
-      <div class="field">
-        <label>Datum</label>
-        <select class="select" onchange="changeReportsTraining(this.value)">
-          ${orderedTrainings.map(t => `<option value="${t.id}" ${t.id === selectedTraining.id ? "selected" : ""}>${formatDateDisplay(t.date)} · ${t.title}</option>`).join("")}
-        </select>
-      </div>
-      <p><strong>${selectedTraining.title}</strong></p>
-      <p>${formatDateDisplay(selectedTraining.date)} um ${selectedTraining.time}</p>
-      <p>${selectedTraining.location}</p>
-      <p class="smallMuted">${selectedTraining.notes}</p>
-      <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
-    </div>
+    ${trainingSelector}
 
     ${renderCoachAttendance(selectedTraining)}
 
     ${renderDashboardUnitSummary(selectedTraining.id)}
 
-    <div class="twoCol">
+    <div class="twoCol reportsFilters">
       <div class="card">
         <h2>Filter</h2>
         <div class="field">
           <label>Gruppe / Unit</label>
           <select class="select" onchange="changeGroupFilter(this.value)">
-            <option value="all">Alle</option>
+            <option value="all" ${state.filterGroup === "all" ? "selected" : ""}>Alle</option>
             ${getOrderedFilterOptions().map(g => `<option value="${g}" ${g === state.filterGroup ? "selected" : ""}>${g}</option>`).join("")}
           </select>
         </div>
@@ -863,9 +958,10 @@ function renderReportsView() {
       </div>
     </div>
 
-    <div class="card">
-      <h2>Antworten</h2>
-      <div class="tableWrap">
+    <div class="card reportsAnswersCard">
+      <h2>Antworten <span class="answerCount">${filteredPlayers.length}</span></h2>
+
+      <div class="tableWrap reportsDesktopTable">
         <table>
           <thead>
             <tr>
@@ -887,31 +983,25 @@ function renderReportsView() {
 
               return `
                 <tr class="${changed ? "highlightRow" : ""}">
-                  <td>${fullName(player)}</td>
-                  <td>${getGroupLabelForUnit(player.unit)}</td>
-                  <td>${player.unit}</td>
+                  <td>${escapeHtml(fullName(player))}</td>
+                  <td>${escapeHtml(getGroupLabelForUnit(player.unit))}</td>
+                  <td>${escapeHtml(player.unit)}</td>
                   <td>${getStatusTag(status)}</td>
                   <td>${response ? `${formatDateDisplay(response.updatedAt.slice(0,10))} ${response.updatedAt.slice(11,16)}` : (status === "limited" ? "automatisch" : "offen")}</td>
                   <td>${changed ? "Ja" : ""}</td>
-                  <td>${getCurrentPlayerStatusLabel(player)}</td>
-                  <td>
-                    <div class="rowActions">
-                      ${status === "limited" ? `
-                        <button class="warnButton" onclick="openLimitationEdit('${player.id}')">Limitation bearbeiten</button>
-                        <button class="secondaryButton" onclick="setPlayerFit('${player.id}')">Auf Fit setzen</button>
-                      ` : `
-                        <button class="button" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','yes')">Zusage</button>
-                        <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','maybe')">Unsicher</button>
-                        <button class="secondaryButton" onclick="setCoachResponse('${selectedTraining.id}','${player.id}','no')">Absage</button>
-                        <button class="warnButton" onclick="openLimitationEdit('${player.id}')">Limitation</button>
-                      `}
-                    </div>
-                  </td>
+                  <td>${escapeHtml(getCurrentPlayerStatusLabel(player))}</td>
+                  <td>${renderPlayerResponseActions(selectedTraining.id, player, status)}</td>
                 </tr>
               `;
             }).join("")}
+            ${filteredPlayers.length === 0 ? `<tr><td colspan="8">Keine Spieler entsprechen dem gewählten Filter.</td></tr>` : ""}
           </tbody>
         </table>
+      </div>
+
+      <div class="reportsMobileList">
+        ${filteredPlayers.map(player => renderMobilePlayerResponseCard(selectedTraining, player)).join("")}
+        ${filteredPlayers.length === 0 ? `<div class="emptyTrainingState">Keine Spieler entsprechen dem gewählten Filter.</div>` : ""}
       </div>
     </div>
   `;
@@ -1366,7 +1456,7 @@ function renderDashboardUnitSummary(trainingId) {
   const defensePlayers = players.filter(p => defenseSet.includes(p.unit));
   const kickerPlayers = players.filter(p => p.unit === "K");
 
-  function buildSummaryCard(label, yesCount, totalCount, variant = "neutral") {
+  function buildSummaryCard(label, yesCount, totalCount, variant = "neutral", groupFilter = label) {
     let background = "rgba(255,255,255,0.03)";
     let border = "#214235";
     let labelColor = "#d1fae5";
@@ -1400,11 +1490,20 @@ function renderDashboardUnitSummary(trainingId) {
       valueColor = "#ffffff";
     }
 
+    const active = state.filterGroup === groupFilter;
+
     return `
-      <div class="card" style="background:${background}; border:1px solid ${border};">
+      <button
+        type="button"
+        class="card unitSummaryCard ${active ? "active" : ""}"
+        style="background:${background}; border:1px solid ${border};"
+        onclick="changeGroupFilter('${groupFilter}')"
+        aria-pressed="${active}"
+        aria-label="${label} filtern: ${yesCount} von ${totalCount} Zusagen"
+      >
         <div class="smallMuted" style="color:${labelColor};">${label}</div>
         <div class="kpi" style="color:${valueColor};">${yesCount}/${totalCount}</div>
-      </div>
+      </button>
     `;
   }
 
@@ -1415,10 +1514,10 @@ function renderDashboardUnitSummary(trainingId) {
 
   const firstRow = `
     <div class="grid unitSummary" style="margin-bottom:16px;">
-      ${buildSummaryCard("Team", teamYes, teamPlayers.length, "team")}
-      ${buildSummaryCard("Offense", offenseYes, offensePlayers.length, "offense")}
-      ${buildSummaryCard("Defense", defenseYes, defensePlayers.length, "defense")}
-      ${buildSummaryCard("Kicker", kickerYes, kickerPlayers.length, "kicker")}
+      ${buildSummaryCard("Team", teamYes, teamPlayers.length, "team", "all")}
+      ${buildSummaryCard("Offense", offenseYes, offensePlayers.length, "offense", "Offense")}
+      ${buildSummaryCard("Defense", defenseYes, defensePlayers.length, "defense", "Defense")}
+      ${buildSummaryCard("Kicker", kickerYes, kickerPlayers.length, "kicker", "K")}
     </div>
   `;
 
@@ -1427,7 +1526,7 @@ function renderDashboardUnitSummary(trainingId) {
       ${offenseSet.map(unit => {
         const unitPlayers = players.filter(p => p.unit === unit);
         const unitYes = unitPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
-        return buildSummaryCard(unit, unitYes, unitPlayers.length, "offense");
+        return buildSummaryCard(unit, unitYes, unitPlayers.length, "offense", unit);
       }).join("")}
     </div>
   `;
@@ -1437,7 +1536,7 @@ function renderDashboardUnitSummary(trainingId) {
       ${defenseSet.map(unit => {
         const unitPlayers = players.filter(p => p.unit === unit);
         const unitYes = unitPlayers.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length;
-        return buildSummaryCard(unit, unitYes, unitPlayers.length, "defense");
+        return buildSummaryCard(unit, unitYes, unitPlayers.length, "defense", unit);
       }).join("")}
     </div>
   `;

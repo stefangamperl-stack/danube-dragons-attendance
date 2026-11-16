@@ -456,6 +456,243 @@
       color: #fde68a;
     }
 
+    .reportsTrainingSelector {
+      margin-bottom: 24px;
+    }
+
+    .periodToggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      max-width: 420px;
+      margin-bottom: 18px;
+      padding: 4px;
+      border: 1px solid #214235;
+      border-radius: 14px;
+      background: #08140f;
+    }
+
+    .periodToggleButton {
+      min-height: 44px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #a7f3d0;
+      cursor: pointer;
+      font-weight: 800;
+    }
+
+    .periodToggleButton.active {
+      background: #15803d;
+      color: #fff;
+      box-shadow: 0 5px 14px rgba(21, 128, 61, 0.28);
+    }
+
+    .trainingDateField {
+      max-width: 680px;
+    }
+
+    .selectedTrainingDetails p:last-child {
+      margin-bottom: 0;
+    }
+
+    .emptyTrainingState {
+      padding: 18px;
+      border: 1px dashed #2a4a3d;
+      border-radius: 14px;
+      background: #08140f;
+      color: #a7f3d0;
+      text-align: center;
+    }
+
+    .coachAttendanceCard {
+      margin: 0 0 24px;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .coachAttendanceToggle {
+      display: grid;
+      width: 100%;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 64px;
+      border: 0;
+      padding: 14px 20px;
+      background: transparent;
+      color: #ecfdf5;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .coachAttendanceToggle:hover {
+      background: rgba(255,255,255,0.03);
+    }
+
+    .coachAttendanceTitle {
+      min-width: 0;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .coachAttendanceTotal {
+      min-width: 58px;
+      border: 1px solid #2a4a3d;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #10241c;
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .coachAttendanceChevron {
+      color: #86efac;
+      font-size: 13px;
+    }
+
+    .coachAttendanceBody {
+      border-top: 1px solid #214235;
+      padding: 18px 20px 20px;
+    }
+
+    .coachOwnResponse {
+      margin: 16px 0;
+    }
+
+    .coachStatusSummary {
+      margin-bottom: 16px;
+    }
+
+    .unitSummaryCard {
+      width: 100%;
+      min-height: 96px;
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 140ms ease, box-shadow 140ms ease;
+    }
+
+    .unitSummaryCard:hover {
+      transform: translateY(-2px);
+    }
+
+    .unitSummaryCard.active {
+      box-shadow: 0 0 0 3px #facc15, 0 12px 28px rgba(0, 0, 0, 0.28);
+    }
+
+    .answerCount {
+      display: inline-grid;
+      place-items: center;
+      min-width: 30px;
+      min-height: 30px;
+      margin-left: 6px;
+      border-radius: 999px;
+      background: #163126;
+      color: #a7f3d0;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    .responseActionButton.isCurrent,
+    .responseYesButton.isCurrent,
+    .responseMaybeButton.isCurrent,
+    .responseNoButton.isCurrent {
+      box-shadow: 0 0 0 3px #facc15;
+    }
+
+    .reportsMobileList {
+      display: none;
+    }
+
+    .mobilePlayerCard {
+      display: grid;
+      gap: 14px;
+      border: 1px solid #214235;
+      border-radius: 16px;
+      padding: 14px;
+      background: #08140f;
+    }
+
+    .mobilePlayerCardHeader {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .mobilePlayerCardHeader h3 {
+      margin: 0 0 4px;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    .mobileUnitLabel {
+      color: #86efac;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .mobilePlayerMeta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mobilePlayerMeta > div:not(.eventDayNotice) {
+      display: grid;
+      gap: 3px;
+      min-width: 0;
+      padding: 10px;
+      border-radius: 11px;
+      background: #10241c;
+    }
+
+    .mobilePlayerMeta span {
+      color: #86efac;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .mobilePlayerMeta strong {
+      overflow-wrap: anywhere;
+      font-size: 13px;
+    }
+
+    .eventDayNotice {
+      grid-column: 1 / -1;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: rgba(34, 197, 94, 0.13);
+      color: #bbf7d0;
+      font-size: 12px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .mobileResponseActions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .mobileResponseActions button {
+      min-width: 0;
+      min-height: 42px;
+      padding: 0 8px;
+      font-size: 13px;
+    }
+
+    .mobileResponseActions .responseLimitationButton {
+      grid-column: 1 / -1;
+    }
+
+    .mobileResponseActions.limitedActions {
+      grid-template-columns: 1fr 1fr;
+    }
+
     .pwaInstallButton {
       position: fixed;
       right: 18px;
@@ -545,7 +782,7 @@
 
       .nav {
         grid-auto-flow: column;
-        grid-auto-columns: minmax(108px, 1fr);
+        grid-auto-columns: max-content;
         gap: 8px;
         overflow-x: auto;
         overscroll-behavior-inline: contain;
@@ -557,6 +794,7 @@
       }
 
       .nav button {
+        min-width: max-content;
         min-height: 50px;
         padding: 8px 10px;
         text-align: center;
@@ -589,6 +827,44 @@
 
       .twoCol, .threeCol {
         grid-template-columns: 1fr;
+      }
+
+      .grid.unitSummary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .unitSummaryCard {
+        min-height: 84px;
+        padding: 14px;
+      }
+
+      .unitSummaryCard .kpi {
+        font-size: 25px;
+      }
+
+      .reportsDesktopTable {
+        display: none;
+      }
+
+      .reportsMobileList {
+        display: grid;
+        gap: 12px;
+      }
+
+      .reportsAnswersCard {
+        padding: 14px;
+      }
+
+      .coachOwnResponseButtons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .coachOwnResponseButtons button {
+        width: 100%;
+        min-width: 0;
+        padding: 0 10px;
       }
 
       .topbar {
@@ -645,6 +921,30 @@
     }
 
     @media (max-width: 520px) {
+      .coachAttendanceToggle {
+        padding: 13px 14px;
+      }
+
+      .coachAttendanceTitle {
+        font-size: 16px;
+      }
+
+      .coachAttendanceBody {
+        padding: 16px 14px;
+      }
+
+      .periodToggle {
+        max-width: none;
+      }
+
+      .mobilePlayerMeta {
+        grid-template-columns: 1fr;
+      }
+
+      .eventDayNotice {
+        grid-column: auto;
+      }
+
       .installHeader {
         align-items: flex-start;
       }
