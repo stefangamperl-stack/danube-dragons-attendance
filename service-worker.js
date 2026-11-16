@@ -1,9 +1,10 @@
-const CACHE_NAME = "salix-v7";
+const CACHE_NAME = "salix-v8";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/offline.html",
   "/manifest.webmanifest",
+  "/manifest-v2.webmanifest",
   "/css/styles.css",
   "/js/data.js",
   "/js/supabaseClient.js",
@@ -12,10 +13,10 @@ const APP_SHELL = [
   "/js/actions.js",
   "/js/app.js",
   "/js/pwa.js",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/maskable-512.png",
-  "/icons/apple-touch-icon.png"
+  "/icons/salix-icon-192-v2.png",
+  "/icons/salix-icon-512-v2.png",
+  "/icons/salix-maskable-512-v2.png",
+  "/icons/salix-apple-touch-icon-v2.png"
 ];
 
 self.addEventListener("install", event => {
