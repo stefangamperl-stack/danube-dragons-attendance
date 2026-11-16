@@ -30,10 +30,6 @@ function daysBetweenInclusive(fromDateStr, toDateStr) {
   return Math.floor(ms / (1000 * 60 * 60 * 24)) + 1;
 }
 
-function initialPasswordFromBirthday(birthday) {
-  return String(birthday || "").slice(0, 4);
-}
-
 function normalizeLimitationRecord(limitation) {
   if (!limitation || typeof limitation !== "object") return null;
 
@@ -203,16 +199,18 @@ const coaches = [];
 
 const users = [];
 
+const coachResponses = {};
+
 function createPlayerUserRecord(player) {
   return {
     id: "auth_" + player.id,
     username: player.username,
-    password: initialPasswordFromBirthday(player.birthday),
+    password: "test123",
     role: "player",
     displayName: fullName(player),
     playerId: player.id,
     email: player.email || "",
-    mustChangePassword: true,
+    mustChangePassword: player.mustChangePassword ?? true,
     active: player.active !== false
   };
 }
@@ -226,7 +224,7 @@ function createCoachUserRecord(coach) {
     displayName: coach.name || `${coach.first_name || ""} ${coach.last_name || ""}`.trim(),
     coachId: coach.id,
     email: coach.email || "",
-    mustChangePassword: true,
+    mustChangePassword: coach.mustChangePassword ?? true,
     active: coach.active !== false
   };
 }
