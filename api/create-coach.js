@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { randomBytes } from "node:crypto";
 import { requireRole } from "../lib/requireRole.js";
+
+const INITIAL_PASSWORD = "test123";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -11,10 +12,6 @@ function generateUsername(firstName = "", lastName = "") {
   const first = firstName.trim().charAt(0).toLowerCase();
   const last = lastName.trim().toLowerCase().replace(/\s+/g, "");
   return `${first}${last}`;
-}
-
-function generateTemporaryPassword() {
-  return `Salix-${randomBytes(12).toString("base64url")}!7a`;
 }
 
 export default async function handler(req, res) {
@@ -46,7 +43,7 @@ export default async function handler(req, res) {
     const finalEmail =
       (email && email.trim()) ||
       `${finalUsername}@danubedragons-attendance.local`;
-    const finalPassword = generateTemporaryPassword();
+    const finalPassword = INITIAL_PASSWORD;
     const displayName = `${firstName} ${lastName}`.trim();
 
     const { data: existingUsername, error: usernameCheckError } =
