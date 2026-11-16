@@ -210,7 +210,7 @@ function createPlayerUserRecord(player) {
     displayName: fullName(player),
     playerId: player.id,
     email: player.email || "",
-    mustChangePassword: player.mustChangePassword ?? true,
+    mustChangePassword: false,
     active: player.active !== false
   };
 }
@@ -224,7 +224,7 @@ function createCoachUserRecord(coach) {
     displayName: coach.name || `${coach.first_name || ""} ${coach.last_name || ""}`.trim(),
     coachId: coach.id,
     email: coach.email || "",
-    mustChangePassword: coach.mustChangePassword ?? true,
+    mustChangePassword: false,
     active: coach.active !== false
   };
 }
