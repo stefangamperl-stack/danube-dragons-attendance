@@ -171,6 +171,25 @@ function getPlayerTrainingStatus(player, trainingId) {
   return response ? response.status : "open";
 }
 
+function getCoachTrainingStatus(coach, trainingId) {
+  if (!coach) return "open";
+  const response = (coachResponses[trainingId] || {})[coach.id];
+  return response?.status || "open";
+}
+
+function getActiveCoaches() {
+  return coaches.filter(coach => coach.active !== false && coach.is_active !== false);
+}
+
+function getCoachStatusCounts(trainingId) {
+  const activeCoaches = getActiveCoaches();
+  return {
+    yes: activeCoaches.filter(coach => getCoachTrainingStatus(coach, trainingId) === "yes").length,
+    no: activeCoaches.filter(coach => getCoachTrainingStatus(coach, trainingId) === "no").length,
+    open: activeCoaches.filter(coach => getCoachTrainingStatus(coach, trainingId) === "open").length
+  };
+}
+
 function getStatusTag(status) {
   if (status === "yes") return '<span class="tag tagYes">Zusage</span>';
   if (status === "no") return '<span class="tag tagNo">Absage</span>';
@@ -458,6 +477,7 @@ async function loadInitialAppData() {
     await loadPlayersFromSupabase();
     await loadCoachesFromSupabase();
     await loadResponsesFromSupabase();
+    await loadCoachResponsesFromApi();
 
     if (
       (state.currentUser.role === "adminCoach" || state.currentUser.role === "headAdmin") &&
@@ -485,7 +505,7 @@ Promise.resolve(loadInitialAppData()).catch(error => {
 updateCurrentDateTime();
 setInterval(updateCurrentDateTime, 30000);
 
-setInterval(() => {
+setInterval(async () => {
   const appScreen = document.getElementById("appScreen");
   if (!appScreen || appScreen.classList.contains("hidden")) {
     return;
@@ -494,6 +514,10 @@ setInterval(() => {
   if (isEditingAnyForm()) {
     updateCurrentDateTime();
     return;
+  }
+
+  if (state.currentUser?.role === "adminCoach" || state.currentUser?.role === "headAdmin") {
+    await loadCoachResponsesFromApi({ silent: true });
   }
 
   renderApp();
