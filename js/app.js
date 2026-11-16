@@ -2,6 +2,8 @@ let state = {
   currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
   currentView: "dashboard",
   reportsTrainingId: trainings[0]?.id || null,
+  reportsPeriod: "upcoming",
+  coachAttendanceExpanded: false,
   selectedTrainingId: trainings[0]?.id || null,
   filterGroup: "all",
   filterResponse: "all",
