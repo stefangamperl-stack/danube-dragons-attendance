@@ -1,4 +1,4 @@
-const CACHE_NAME = "salix-v12";
+const CACHE_NAME = "salix-v13";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -8,6 +8,7 @@ const APP_SHELL = [
   "/css/styles.css",
   "/js/data.js",
   "/js/supabaseClient.js",
+  "/js/loginName.js",
   "/js/auth.js",
   "/js/render.js",
   "/js/actions.js",

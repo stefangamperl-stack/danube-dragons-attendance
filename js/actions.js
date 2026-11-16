@@ -562,11 +562,7 @@ async function setPlayerResponse(trainingId, status) {
 }
 
 function buildPlayerUsername(firstName, lastName, fallbackUsername = "") {
-  const clean = value =>
-    String(value || "")
-      .trim()
-      .replace(/\s+/g, "")
-      .toLowerCase();
+  const clean = value => normalizeLoginName(value);
 
   const first = clean(firstName);
   const last = clean(lastName);
@@ -576,7 +572,7 @@ function buildPlayerUsername(firstName, lastName, fallbackUsername = "") {
   }
 
   if (fallbackUsername) {
-    return fallbackUsername;
+    return normalizeLoginName(fallbackUsername);
   }
 
   return "";
@@ -711,7 +707,7 @@ async function createPlayer() {
       return;
     }
 
-    const username = usernameInput || buildPlayerUsername(firstName, lastName);
+    const username = normalizeLoginName(usernameInput || buildPlayerUsername(firstName, lastName));
 
     const response = await fetch("/api/create-player", {
       method: "POST",
@@ -748,7 +744,8 @@ async function createPlayer() {
     alert(
       `Spieler wurde angelegt.\n` +
       `Loginname: ${result?.username || username || "-"}\n` +
-      `Initialpasswort: ${result?.initialPassword || "test123"}`
+      `Startpasswort: ${result?.initialPassword || "test123"}\n` +
+      `Eine Änderung ist freiwillig.`
     );
   } catch (err) {
     console.error("Unerwarteter Fehler beim Anlegen des Spielers:", err);
@@ -774,7 +771,7 @@ async function createCoach() {
       return;
     }
 
-    const username = usernameInput || buildPlayerUsername(firstName, lastName);
+    const username = normalizeLoginName(usernameInput || buildPlayerUsername(firstName, lastName));
 
     const response = await fetch("/api/create-coach", {
       method: "POST",
@@ -815,7 +812,8 @@ async function createCoach() {
       `Coach wurde angelegt.\n` +
       `Loginname: ${finalUsername}\n` +
       `E-Mail: ${finalEmail}\n` +
-      `Initialpasswort: ${finalPassword}`
+      `Startpasswort: ${finalPassword}\n` +
+      `Eine Änderung ist freiwillig.`
     );
   } catch (err) {
     console.error("Unerwarteter Fehler beim Anlegen des Coaches:", err);
@@ -1089,7 +1087,9 @@ async function updatePlayer() {
       return;
     }
 
-    const username = usernameInput || buildPlayerUsername(firstName, lastName, editPlayer.username || "");
+    const username = normalizeLoginName(
+      usernameInput || buildPlayerUsername(firstName, lastName, editPlayer.username || "")
+    );
 
     if (!editPlayer.profileId) {
       const response = await fetch("/api/activate-player-login", {
@@ -1127,7 +1127,8 @@ async function updatePlayer() {
       alert(
         `Spieler wurde gespeichert und für Login aktiviert.\n` +
         `Loginname: ${result?.username || username}\n` +
-        `Initialpasswort: ${result?.initialPassword || "test123"}`
+        `Startpasswort: ${result?.initialPassword || "test123"}\n` +
+        `Eine Änderung ist freiwillig.`
       );
       return;
     }
@@ -1206,7 +1207,9 @@ async function updateCoach() {
       return;
     }
 
-    const username = usernameInput || buildPlayerUsername(firstName, lastName, editCoach.username || "");
+    const username = normalizeLoginName(
+      usernameInput || buildPlayerUsername(firstName, lastName, editCoach.username || "")
+    );
 
     const isUuid = value =>
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
@@ -1416,7 +1419,7 @@ async function activateCoachLogin(coachId) {
 
     const displayName = getCoachDisplayName(coach);
     const confirmed = window.confirm(
-      `Login für ${displayName} aktivieren?\n\nDas Startpasswort lautet "test123" und kann freiwillig geändert werden.`
+      `Login für ${displayName} aktivieren?\n\nDas Startpasswort lautet "test123". Es darf unverändert bleiben und kann freiwillig geändert werden.`
     );
 
     if (!confirmed) return;
@@ -1446,7 +1449,8 @@ async function activateCoachLogin(coachId) {
       `Login für ${displayName} wurde aktiviert.\n` +
       `Loginname: ${result.credentials?.username || "-"}\n` +
       `E-Mail: ${result.credentials?.email || "-"}\n` +
-      `Startpasswort: ${result.credentials?.password || "test123"}`
+      `Startpasswort: ${result.credentials?.password || "test123"}\n` +
+      `Eine Änderung ist freiwillig.`
     );
   } catch (error) {
     console.error("Fehler beim Aktivieren des Coach-Logins:", error);

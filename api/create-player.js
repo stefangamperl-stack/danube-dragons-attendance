@@ -1,27 +1,20 @@
 import { createClient } from "@supabase/supabase-js";
 import { requireRole } from "../lib/requireRole.js";
+import { loginNameToEmailLocalPart, normalizeLoginName } from "../lib/loginName.js";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-function normalizeUsernamePart(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "")
-    .replace(/[^a-z0-9äöüß]/gi, "");
-}
-
 function buildBaseUsername(firstName, lastName, providedUsername = "") {
-  const cleanedProvided = normalizeUsernamePart(providedUsername);
+  const cleanedProvided = normalizeLoginName(providedUsername);
   if (cleanedProvided) {
     return cleanedProvided;
   }
 
-  const first = normalizeUsernamePart(firstName);
-  const last = normalizeUsernamePart(lastName);
+  const first = normalizeLoginName(firstName);
+  const last = normalizeLoginName(lastName);
 
   if (!first || !last) {
     return "";
@@ -34,7 +27,7 @@ async function usernameExists(username) {
   const { data: profileMatch } = await supabaseAdmin
     .from("profiles")
     .select("id")
-    .eq("username", username)
+    .ilike("username", username)
     .maybeSingle();
 
   if (profileMatch) return true;
@@ -42,7 +35,7 @@ async function usernameExists(username) {
   const { data: playerMatch } = await supabaseAdmin
     .from("players")
     .select("id")
-    .eq("username", username)
+    .ilike("username", username)
     .maybeSingle();
 
   return !!playerMatch;
@@ -82,11 +75,12 @@ async function buildSystemEmail(finalUsername, providedEmail = "") {
     return cleanedEmail;
   }
 
-  let candidate = `${finalUsername}@danubedragons.local`;
+  const emailLocalPart = loginNameToEmailLocalPart(finalUsername);
+  let candidate = `${emailLocalPart}@danubedragons.local`;
   let counter = 2;
 
   while (await emailExists(candidate)) {
-    candidate = `${finalUsername}${counter}@danubedragons.local`;
+    candidate = `${emailLocalPart}${counter}@danubedragons.local`;
     counter += 1;
   }
 

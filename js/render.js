@@ -210,7 +210,7 @@ function renderOwnProfileView() {
           </div>
           <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
           <p class="smallMuted" style="margin-top:12px;">
-            Das Startpasswort test123 kann freiwillig geändert werden.
+            Das Startpasswort test123 darf unverändert bleiben und kann freiwillig geändert werden.
           </p>
         </div>
       </div>
@@ -246,7 +246,7 @@ function renderOwnProfileView() {
           </div>
           <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
           <p class="smallMuted" style="margin-top:12px;">
-            Das Startpasswort test123 kann freiwillig geändert werden.
+            Das Startpasswort test123 darf unverändert bleiben und kann freiwillig geändert werden.
           </p>
         </div>
       </div>
@@ -585,7 +585,8 @@ function renderPlayersView() {
 
           <div class="field"><label>Vorname</label><input id="playerFirstName" class="input" value="${editPlayer ? escapeHtml(editPlayer.firstName) : ""}" placeholder="Vorname" /></div>
           <div class="field"><label>Nachname</label><input id="playerLastName" class="input" value="${editPlayer ? escapeHtml(editPlayer.lastName) : ""}" placeholder="Nachname" /></div>
-          <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${escapeHtml(editPlayerUsername)}" placeholder="z. B. sgamperl" /></div>
+          <div class="field"><label>Loginname</label><input id="playerUsername" class="input" value="${escapeHtml(editPlayerUsername)}" placeholder="z. B. jmüller" /></div>
+          <p class="smallMuted">Umlaute sind erlaubt. Groß- und Kleinschreibung werden bei der Anmeldung gleich behandelt.</p>
           <div class="field"><label>E-Mail</label><input id="playerEmail" class="input" type="email" value="${escapeHtml(editPlayerEmail)}" placeholder="spieler@example.com" /></div>
           <div class="field"><label>Geburtstag</label><input id="playerBirthday" class="input" type="date" value="${editPlayer ? editPlayer.birthday : ""}" /></div>
           <div class="field">
@@ -599,7 +600,7 @@ function renderPlayersView() {
             ${editPlayer ? `<button class="secondaryButton" onclick="cancelPlayerEdit()">Abbrechen</button>` : ""}
           </div>
           <p class="smallMuted" style="margin-top:12px;">
-            Das Startpasswort für neue und importierte Spieler ist "test123" und kann freiwillig geändert werden.
+            Das Startpasswort für neue und importierte Spieler ist "test123". Eine Änderung ist freiwillig.
           </p>
         </div>
 
@@ -1372,7 +1373,8 @@ function renderCoachesView() {
         <h2>${editCoach ? "Coach bearbeiten" : "Coach anlegen"}</h2>
         <div class="field"><label>Vorname</label><input id="coachFirstName" class="input" value="${editCoach ? escapeHtml(editCoach.first_name || "") : ""}" placeholder="Vorname" /></div>
         <div class="field"><label>Nachname</label><input id="coachLastName" class="input" value="${editCoach ? escapeHtml(editCoach.last_name || "") : ""}" placeholder="Nachname" /></div>
-        <div class="field"><label>Loginname</label><input id="coachUsername" class="input" value="${editCoach ? escapeHtml(editCoach.username || "") : ""}" placeholder="coachlogin" /></div>
+        <div class="field"><label>Loginname</label><input id="coachUsername" class="input" value="${editCoach ? escapeHtml(editCoach.username || "") : ""}" placeholder="z. B. jmüller" /></div>
+        <p class="smallMuted">Umlaute sind erlaubt. Groß- und Kleinschreibung werden bei der Anmeldung gleich behandelt.</p>
         <div class="field"><label>E-Mail</label><input id="coachEmail" class="input" type="email" value="${editCoach ? escapeHtml(editCoach.email || "") : ""}" placeholder="coach@example.com" /></div>
         <div class="field">
           <label>Rolle</label>
@@ -1386,7 +1388,7 @@ function renderCoachesView() {
           ${editCoach ? `<button class="secondaryButton" onclick="cancelCoachEdit()">Abbrechen</button>` : ""}
         </div>
         <p class="smallMuted" style="margin-top:12px;">
-          Neue Coaches erhalten das Startpasswort "test123". Für ältere Datensätze ohne Login kann der Zugang ebenfalls mit "test123" aktiviert werden. Eine Änderung ist freiwillig.
+          Neue Coaches erhalten das Startpasswort "test123". Für ältere Datensätze ohne Login kann der Zugang ebenfalls mit "test123" aktiviert werden. Das Passwort darf unverändert bleiben und kann freiwillig geändert werden.
         </p>
       </div>
 

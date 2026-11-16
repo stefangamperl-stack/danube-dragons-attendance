@@ -329,16 +329,7 @@ function normalizeText(value) {
 }
 
 function normalizeForLogin(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replaceAll("ä", "ae")
-    .replaceAll("ö", "oe")
-    .replaceAll("ü", "ue")
-    .replaceAll("ß", "ss")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]/g, "");
+  return normalizeLoginName(value);
 }
 
 function playerExistsByName(firstName, lastName) {

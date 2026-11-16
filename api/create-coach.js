@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { requireRole } from "../lib/requireRole.js";
+import { loginNameToEmailLocalPart, normalizeLoginName } from "../lib/loginName.js";
 
 const INITIAL_PASSWORD = "test123";
 
@@ -9,9 +10,9 @@ const supabaseAdmin = createClient(
 );
 
 function generateUsername(firstName = "", lastName = "") {
-  const first = firstName.trim().charAt(0).toLowerCase();
-  const last = lastName.trim().toLowerCase().replace(/\s+/g, "");
-  return `${first}${last}`;
+  const first = normalizeLoginName(firstName);
+  const last = normalizeLoginName(lastName);
+  return `${first.charAt(0)}${last}`;
 }
 
 export default async function handler(req, res) {
@@ -38,11 +39,16 @@ export default async function handler(req, res) {
     }
 
     const finalRole = role === "headAdmin" ? "headAdmin" : "adminCoach";
-    const finalUsername =
-      (username && username.trim()) || generateUsername(firstName, lastName);
-    const finalEmail =
-      (email && email.trim()) ||
-      `${finalUsername}@danubedragons-attendance.local`;
+    const finalUsername = normalizeLoginName(
+      username || generateUsername(firstName, lastName)
+    );
+    if (!finalUsername) {
+      return res.status(400).json({ error: "Loginname konnte nicht erzeugt werden." });
+    }
+    const providedEmail = String(email || "").trim().toLowerCase();
+    const emailLocalPart = loginNameToEmailLocalPart(finalUsername);
+    let finalEmail = providedEmail ||
+      `${emailLocalPart}@danubedragons-attendance.local`;
     const finalPassword = INITIAL_PASSWORD;
     const displayName = `${firstName} ${lastName}`.trim();
 
@@ -50,7 +56,7 @@ export default async function handler(req, res) {
       await supabaseAdmin
         .from("profiles")
         .select("id")
-        .eq("username", finalUsername)
+        .ilike("username", finalUsername)
         .maybeSingle();
 
     if (usernameCheckError) {
@@ -63,21 +69,23 @@ export default async function handler(req, res) {
       });
     }
 
-    const { data: existingEmail, error: emailCheckError } =
-      await supabaseAdmin
+    let emailCounter = 2;
+    while (true) {
+      const { data: existingEmail, error: emailCheckError } = await supabaseAdmin
         .from("profiles")
         .select("id")
         .eq("email", finalEmail)
         .maybeSingle();
 
-    if (emailCheckError) {
-      throw emailCheckError;
-    }
+      if (emailCheckError) throw emailCheckError;
+      if (!existingEmail) break;
 
-    if (existingEmail) {
-      return res.status(409).json({
-        error: "Die E-Mail ist bereits vergeben."
-      });
+      if (providedEmail) {
+        return res.status(409).json({ error: "Die E-Mail ist bereits vergeben." });
+      }
+
+      finalEmail = `${emailLocalPart}${emailCounter}@danubedragons-attendance.local`;
+      emailCounter += 1;
     }
 
     const { data: authData, error: authError } =
