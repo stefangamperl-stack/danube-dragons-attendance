@@ -135,6 +135,10 @@ async function login() {
     await loadTrainingsFromSupabase();
     await loadPlayersFromSupabase();
     await loadResponsesFromSupabase();
+    if (profileData.role === "adminCoach" || profileData.role === "headAdmin") {
+      await loadCoachesFromSupabase();
+      await loadCoachResponsesFromApi();
+    }
   } catch (loadErr) {
     console.error("Fehler beim Laden der App-Daten nach Login:", loadErr);
   }
@@ -149,8 +153,23 @@ async function logout() {
   showLanding();
 }
 
-function setView(view) {
+async function setView(view) {
+  if (state.currentUser?.mustChangePassword && view !== "profile") {
+    alert("Bitte ändere zuerst dein Initialpasswort.");
+    state.currentView = "profile";
+    renderApp();
+    return;
+  }
+
   state.currentView = view;
+
+  if (
+    (view === "dashboard" || view === "reports") &&
+    (state.currentUser?.role === "adminCoach" || state.currentUser?.role === "headAdmin")
+  ) {
+    await loadCoachResponsesFromApi({ silent: true });
+  }
+
   renderApp();
 }
 
