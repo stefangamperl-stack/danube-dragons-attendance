@@ -282,7 +282,7 @@ async function loadPlayersFromSupabase() {
       player.active = row.active !== false;
       player.profileId = row.profile_id || null;
       player.email = row.email || "";
-      player.mustChangePassword = row.must_change_password ?? true;
+      player.mustChangePassword = false;
       player.injuries = [];
 
       players.push(player);
@@ -1355,7 +1355,7 @@ async function resetPasswordToDefault(targetType, targetId) {
       : getCoachDisplayName(target);
 
     const confirmed = window.confirm(
-      `Passwort für ${displayName} wirklich auf "test123" zurücksetzen?\n\nBeim nächsten Login muss ein neues Passwort vergeben werden.`
+      `Passwort für ${displayName} wirklich auf "test123" zurücksetzen?`
     );
 
     if (!confirmed) return;
@@ -1379,11 +1379,11 @@ async function resetPasswordToDefault(targetType, targetId) {
     }
 
     if (isPlayer) {
-      target.mustChangePassword = true;
+      target.mustChangePassword = false;
     }
 
     alert(
-      `Passwort für ${displayName} wurde auf "test123" zurückgesetzt.\nBeim nächsten Login ist eine Passwortänderung erforderlich.`
+      `Passwort für ${displayName} wurde auf "test123" zurückgesetzt.`
     );
   } catch (error) {
     console.error("Fehler beim Zurücksetzen des Passworts:", error);
@@ -1416,7 +1416,7 @@ async function activateCoachLogin(coachId) {
 
     const displayName = getCoachDisplayName(coach);
     const confirmed = window.confirm(
-      `Login für ${displayName} aktivieren?\n\nDas Startpasswort lautet "test123" und muss beim ersten Login geändert werden.`
+      `Login für ${displayName} aktivieren?\n\nDas Startpasswort lautet "test123" und kann freiwillig geändert werden.`
     );
 
     if (!confirmed) return;
@@ -1446,8 +1446,7 @@ async function activateCoachLogin(coachId) {
       `Login für ${displayName} wurde aktiviert.\n` +
       `Loginname: ${result.credentials?.username || "-"}\n` +
       `E-Mail: ${result.credentials?.email || "-"}\n` +
-      `Startpasswort: ${result.credentials?.password || "test123"}\n\n` +
-      "Beim ersten Login muss ein neues Passwort vergeben werden."
+      `Startpasswort: ${result.credentials?.password || "test123"}`
     );
   } catch (error) {
     console.error("Fehler beim Aktivieren des Coach-Logins:", error);

@@ -113,7 +113,7 @@ export default async function handler(req, res) {
           username: finalUsername,
           role: finalRole,
           display_name: displayName,
-          must_change_password: true,
+          must_change_password: false,
           active: true
         }
       ]);

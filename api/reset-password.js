@@ -73,14 +73,14 @@ export default async function handler(req, res) {
 
     const { error: updateProfileError } = await supabaseAdmin
       .from("profiles")
-      .update({ must_change_password: true })
+      .update({ must_change_password: false })
       .eq("id", profile.id);
 
     if (updateProfileError) throw updateProfileError;
 
     return res.status(200).json({
       success: true,
-      mustChangePassword: true
+      mustChangePassword: false
     });
   } catch (error) {
     console.error("reset-password error:", error);

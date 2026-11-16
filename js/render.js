@@ -100,12 +100,7 @@ function renderCoachAttendance(training) {
 }
 
 function renderMustChangePasswordNotice() {
-  if (!state.currentUser?.mustChangePassword) return "";
-  return `
-    <div class="noticeBox">
-      Du verwendest noch dein Initialpasswort. Bitte ändere es im Profil auf ein eigenes Passwort.
-    </div>
-  `;
+  return "";
 }
 
 function getEditPlayerUsernameValue(editPlayer) {
@@ -129,11 +124,6 @@ function getCoachDisplayName(coach) {
 function renderNav() {
   const nav = document.getElementById("nav");
   const role = state.currentUser.role;
-
-  if (state.currentUser.mustChangePassword) {
-    nav.innerHTML = `<button onclick="setView('profile')">Passwort ändern</button>`;
-    return;
-  }
 
   let items = [{ key: "dashboard", label: "Dashboard" }];
 
@@ -174,10 +164,6 @@ function renderNav() {
 function renderApp() {
   updateCurrentDateTime();
   players.forEach(refreshPlayerHealthStatus);
-
-  if (state.currentUser?.mustChangePassword) {
-    state.currentView = "profile";
-  }
 
   renderNav();
   document.getElementById("roleBadge").textContent = state.currentUser.role;
@@ -224,7 +210,7 @@ function renderOwnProfileView() {
           </div>
           <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
           <p class="smallMuted" style="margin-top:12px;">
-            Initialpasswort war test123.
+            Das Startpasswort test123 kann freiwillig geändert werden.
           </p>
         </div>
       </div>
@@ -260,7 +246,7 @@ function renderOwnProfileView() {
           </div>
           <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
           <p class="smallMuted" style="margin-top:12px;">
-            Initialpasswort für Coaches war test123.
+            Das Startpasswort test123 kann freiwillig geändert werden.
           </p>
         </div>
       </div>
@@ -613,7 +599,7 @@ function renderPlayersView() {
             ${editPlayer ? `<button class="secondaryButton" onclick="cancelPlayerEdit()">Abbrechen</button>` : ""}
           </div>
           <p class="smallMuted" style="margin-top:12px;">
-            Startpasswort für neue und importierte Spieler ist "test123". Beim ersten Login muss ein eigenes Passwort vergeben werden.
+            Das Startpasswort für neue und importierte Spieler ist "test123" und kann freiwillig geändert werden.
           </p>
         </div>
 
@@ -1400,7 +1386,7 @@ function renderCoachesView() {
           ${editCoach ? `<button class="secondaryButton" onclick="cancelCoachEdit()">Abbrechen</button>` : ""}
         </div>
         <p class="smallMuted" style="margin-top:12px;">
-          Neue Coaches erhalten das Startpasswort "test123". Für ältere Datensätze ohne Login kann der Zugang ebenfalls mit "test123" aktiviert werden. Beim ersten Login ist eine Passwortänderung erforderlich.
+          Neue Coaches erhalten das Startpasswort "test123". Für ältere Datensätze ohne Login kann der Zugang ebenfalls mit "test123" aktiviert werden. Eine Änderung ist freiwillig.
         </p>
       </div>
 
