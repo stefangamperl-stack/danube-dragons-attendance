@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Salix Reports QA</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar"><div class="brand">Salix</div><div class="nav"><button>Dashboard</button><button>Zusagen/Absagen</button><button>Mein Profil</button></div></aside>
+    <main class="main">
+      <div class="topbar"><div><h1 id="screenTitle"></h1><div id="screenSubtitle" class="smallMuted"></div></div></div>
+      <div id="content"></div>
+    </main>
+  </div>
+  <script>
+    const offenseUnits = ["QB", "OL", "RB", "WR", "TE"];
+    const defenseUnits = ["DL", "LB", "DB"];
+    const state = {
+      currentUser: { role: "adminCoach", coachId: "c1", mustChangePassword: false },
+      currentView: "reports", reportsTrainingId: null, reportsPeriod: "upcoming",
+      coachAttendanceExpanded: false, filterGroup: "all", filterResponse: "all",
+      reportsSort: { key: "name", dir: "asc" }
+    };
+    const trainings = [
+      { id: "past", title: "Training vergangen", date: "2026-11-15", time: "18:30", location: "Ravelin", notes: "Technik", voteOpensHoursBefore: 120, voteClosesHoursBefore: 8 },
+      { id: "next", title: "Nächstes Teamtraining", date: "2026-11-17", time: "19:00", location: "Donaufeld", notes: "Normales Training", voteOpensHoursBefore: 120, voteClosesHoursBefore: 8 },
+      { id: "later", title: "Späteres Teamtraining", date: "2026-11-20", time: "19:00", location: "Donaufeld", notes: "Normales Training", voteOpensHoursBefore: 120, voteClosesHoursBefore: 8 }
+    ];
+    const players = [
+      { id: "p1", firstName: "Maximilian", lastName: "Mustermann", unit: "RB", healthStatus: "fit" },
+      { id: "p2", firstName: "Alexander", lastName: "Beispielspieler", unit: "RB", healthStatus: "fit" },
+      { id: "p3", firstName: "Leon", lastName: "Verteidiger", unit: "LB", healthStatus: "fit" },
+      { id: "p4", firstName: "Jonas", lastName: "Quarterback", unit: "QB", healthStatus: "fit" },
+      { id: "p5", firstName: "Felix", lastName: "Limited", unit: "WR", healthStatus: "injured" }
+    ];
+    const responses = {
+      next: {
+        p1: { status: "yes", updatedAt: "2026-11-16T09:15:00", changedOnEventDay: false },
+        p2: { status: "maybe", updatedAt: "2026-11-16T10:20:00", changedOnEventDay: false },
+        p3: { status: "no", updatedAt: "2026-11-16T11:05:00", changedOnEventDay: false },
+        p5: { status: "limited", updatedAt: "2026-11-16T08:00:00", changedOnEventDay: false }
+      },
+      later: {}, past: {}
+    };
+    const coaches = [
+      { id: "c1", first_name: "Anna", last_name: "Coach", active: true, is_active: true },
+      { id: "c2", first_name: "Ben", last_name: "Trainer", active: true, is_active: true },
+      { id: "c3", first_name: "Chris", last_name: "Staff", active: true, is_active: true }
+    ];
+    const coachResponses = { next: { c1: { status: "yes", updatedAt: "2026-11-16T09:00:00" }, c2: { status: "no", updatedAt: "2026-11-16T10:00:00" } } };
+    function formatDateDisplay(value) { const [y,m,d] = value.split("-"); return `${d}.${m}.${y}`; }
+    function getTrainingStartDate(training) { return new Date(`${training.date}T${training.time}:00`); }
+    function isTrainingPast(training) { return getTrainingStartDate(training) < new Date("2026-11-16T12:00:00"); }
+    function fullName(player) { return `${player.firstName} ${player.lastName}`; }
+    function escapeHtml(value) { return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;"); }
+    function getGroupLabelForUnit(unit) { if (offenseUnits.includes(unit)) return "Offense"; if (defenseUnits.includes(unit)) return "Defense"; return unit; }
+    function getPlayerTrainingStatus(player, trainingId) { return responses[trainingId]?.[player.id]?.status || "open"; }
+    function getStatusTag(status) { const labels = { yes: "Zusage", no: "Absage", maybe: "Unsicher", limited: "Limited", open: "Keine Antwort" }; const classes = { yes: "tagYes", no: "tagNo", maybe: "tagMaybe", limited: "tagLimited", open: "tagOpen" }; return `<span class="tag ${classes[status] || classes.open}">${labels[status] || labels.open}</span>`; }
+    function getActiveCoaches() { return coaches; }
+    function getCoachDisplayName(coach) { return `${coach.first_name} ${coach.last_name}`; }
+    function getCoachTrainingStatus(coach, trainingId) { return coachResponses[trainingId]?.[coach?.id]?.status || "open"; }
+    function getCoachStatusCounts(trainingId) { const list = getActiveCoaches(); return { yes: list.filter(c => getCoachTrainingStatus(c, trainingId) === "yes").length, no: list.filter(c => getCoachTrainingStatus(c, trainingId) === "no").length, open: list.filter(c => getCoachTrainingStatus(c, trainingId) === "open").length }; }
+    function filterPlayerByGroup(player, group) { if (group === "all") return true; if (group === "Offense") return offenseUnits.includes(player.unit); if (group === "Defense") return defenseUnits.includes(player.unit); return player.unit === group; }
+    function getSortedPlayers(list) { return [...list].sort((a,b) => a.lastName.localeCompare(b.lastName)); }
+    function getStatusCounts(trainingId, list) { return { yes: list.filter(p => getPlayerTrainingStatus(p, trainingId) === "yes").length, no: list.filter(p => getPlayerTrainingStatus(p, trainingId) === "no").length, maybe: list.filter(p => getPlayerTrainingStatus(p, trainingId) === "maybe").length, limited: list.filter(p => getPlayerTrainingStatus(p, trainingId) === "limited").length, open: list.filter(p => getPlayerTrainingStatus(p, trainingId) === "open").length }; }
+    function getOrderedFilterOptions() { return ["Offense", "Defense", "K", "QB", "OL", "RB", "WR", "TE", "DL", "LB", "DB"]; }
+    function getCurrentPlayerStatusLabel(player) { return player.healthStatus === "injured" ? "Limited / Verletzt" : "Fit"; }
+    function changeGroupFilter(group) { state.filterGroup = group || "all"; renderReportsView(); }
+    function changeResponseFilter(value) { state.filterResponse = value || "all"; renderReportsView(); }
+    function changeReportsTraining(value) { state.reportsTrainingId = value; renderReportsView(); }
+    function changeReportsPeriod(value) { state.reportsPeriod = value; state.reportsTrainingId = null; renderReportsView(); }
+    function toggleCoachAttendance() { state.coachAttendanceExpanded = !state.coachAttendanceExpanded; renderReportsView(); }
+    function setReportsSort() {}
+    function setCoachResponse(trainingId, playerId, status) { responses[trainingId][playerId] = { status, updatedAt: "2026-11-16T12:00:00", changedOnEventDay: false }; renderReportsView(); }
+    function setOwnCoachResponse(trainingId, status) { coachResponses[trainingId]["c1"] = { status, updatedAt: "2026-11-16T12:00:00" }; renderReportsView(); }
+    function openLimitationEdit() {}
+    function setPlayerFit(playerId) { const player = players.find(item => item.id === playerId); if (player) player.healthStatus = "fit"; renderReportsView(); }
+  </script>
+  <script src="/js/render.js"></script>
+  <script>renderReportsView();</script>
+</body>
+</html>
