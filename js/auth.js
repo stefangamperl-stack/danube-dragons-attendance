@@ -123,7 +123,7 @@ async function login() {
     role: profileData.role,
     displayName: profileData.display_name,
     email: profileData.email || "",
-    mustChangePassword: profileData.must_change_password ?? true,
+    mustChangePassword: false,
     playerId,
     coachId
   };
@@ -154,13 +154,6 @@ async function logout() {
 }
 
 async function setView(view) {
-  if (state.currentUser?.mustChangePassword && view !== "profile") {
-    alert("Bitte ändere zuerst dein Initialpasswort.");
-    state.currentView = "profile";
-    renderApp();
-    return;
-  }
-
   state.currentView = view;
 
   if (
