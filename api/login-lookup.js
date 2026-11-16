@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { normalizeLoginName } from "../lib/loginName.js";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -13,7 +14,7 @@ export default async function handler(req, res) {
   try {
     const { username } = req.body || {};
 
-    const cleanedUsername = String(username || "").trim();
+    const cleanedUsername = normalizeLoginName(username);
     if (!cleanedUsername) {
       return res.status(400).json({ error: "Username is required" });
     }
@@ -21,7 +22,7 @@ export default async function handler(req, res) {
     const { data, error } = await supabaseAdmin
       .from("profiles")
       .select("id, username, email, active")
-      .eq("username", cleanedUsername)
+      .ilike("username", cleanedUsername)
       .maybeSingle();
 
     if (error) {
