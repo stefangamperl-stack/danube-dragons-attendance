@@ -401,6 +401,111 @@ async function loadResponsesFromSupabase() {
   }
 }
 
+async function loadCoachResponsesFromApi({ silent = false } = {}) {
+  if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/coach-responses", {
+      method: "GET",
+      headers: await buildApiAuthHeaders(),
+      cache: "no-store"
+    });
+
+    let result = null;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || "Coach-Antworten konnten nicht geladen werden.");
+    }
+
+    Object.keys(coachResponses).forEach(trainingId => {
+      delete coachResponses[trainingId];
+    });
+
+    (result.coaches || []).forEach(item => {
+      const coachId = String(item.coachId || "");
+      if (!coachId) return;
+
+      Object.entries(item.responses || {}).forEach(([trainingId, coachResponse]) => {
+        if (!coachResponses[trainingId]) coachResponses[trainingId] = {};
+        coachResponses[trainingId][coachId] = {
+          status: coachResponse.status,
+          updatedAt: coachResponse.updatedAt
+        };
+      });
+    });
+  } catch (error) {
+    console.error("Fehler beim Laden der Coach-Antworten:", error);
+    if (!silent) {
+      alert(error.message || "Coach-Antworten konnten nicht geladen werden.");
+    }
+  }
+}
+
+async function setOwnCoachResponse(trainingId, status) {
+  try {
+    if (state.currentUser?.role !== "adminCoach" && state.currentUser?.role !== "headAdmin") {
+      alert("Nur Coaches können ihre Trainingsantwort speichern.");
+      return;
+    }
+
+    if (!state.currentUser.coachId) {
+      alert("Dein Coach-Profil ist noch nicht mit dem Login verknüpft.");
+      return;
+    }
+
+    if (status !== "yes" && status !== "no") {
+      alert("Bitte Zusage oder Absage auswählen.");
+      return;
+    }
+
+    const training = trainings.find(item => item.id === trainingId);
+    if (!training) {
+      alert("Das Training wurde nicht gefunden.");
+      return;
+    }
+
+    if (isTrainingPast(training)) {
+      alert("Für ein vergangenes Training kann die Coach-Antwort nicht mehr geändert werden.");
+      return;
+    }
+
+    const response = await fetch("/api/coach-responses", {
+      method: "POST",
+      headers: await buildApiAuthHeaders(),
+      body: JSON.stringify({ trainingId, status })
+    });
+
+    let result = null;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || "Coach-Antwort konnte nicht gespeichert werden.");
+    }
+
+    coachResponses[trainingId] = coachResponses[trainingId] || {};
+    coachResponses[trainingId][state.currentUser.coachId] = {
+      status: result.status,
+      updatedAt: result.updatedAt
+    };
+
+    renderApp();
+  } catch (error) {
+    console.error("Fehler beim Speichern der Coach-Antwort:", error);
+    alert(error.message || "Coach-Antwort konnte nicht gespeichert werden.");
+  }
+}
+
 async function setPlayerResponse(trainingId, status) {
   const playerId = state.currentUser.playerId;
   const player = players.find(p => p.id === playerId);
@@ -643,7 +748,7 @@ async function createPlayer() {
     alert(
       `Spieler wurde angelegt.\n` +
       `Loginname: ${result?.username || username || "-"}\n` +
-      `Initialpasswort: ${result?.initialPassword || String(birthday).slice(0, 4)}`
+      `Initialpasswort: ${result?.initialPassword || "test123"}`
     );
   } catch (err) {
     console.error("Unerwarteter Fehler beim Anlegen des Spielers:", err);
@@ -1022,7 +1127,7 @@ async function updatePlayer() {
       alert(
         `Spieler wurde gespeichert und für Login aktiviert.\n` +
         `Loginname: ${result?.username || username}\n` +
-        `Initialpasswort: ${result?.initialPassword || String(birthday).slice(0, 4)}`
+        `Initialpasswort: ${result?.initialPassword || "test123"}`
       );
       return;
     }
