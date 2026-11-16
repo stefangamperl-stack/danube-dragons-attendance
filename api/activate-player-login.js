@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { requireRole } from "../lib/requireRole.js";
+import { loginNameToEmailLocalPart, normalizeLoginName } from "../lib/loginName.js";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL,
@@ -7,10 +8,7 @@ const supabaseAdmin = createClient(
 );
 
 function normalizeUsernamePart(value) {
-  return String(value || "")
-    .trim()
-    .replace(/\s+/g, "")
-    .toLowerCase();
+  return normalizeLoginName(value);
 }
 
 function buildUsername(firstName, lastName, providedUsername = "") {
@@ -28,7 +26,7 @@ async function usernameExists(username) {
   const { data: profileMatch } = await supabaseAdmin
     .from("profiles")
     .select("id")
-    .eq("username", username)
+    .ilike("username", username)
     .maybeSingle();
 
   if (profileMatch) return true;
@@ -36,7 +34,7 @@ async function usernameExists(username) {
   const { data: playerMatch } = await supabaseAdmin
     .from("players")
     .select("id")
-    .eq("username", username)
+    .ilike("username", username)
     .maybeSingle();
 
   return !!playerMatch;
@@ -77,11 +75,12 @@ async function buildSystemEmail(finalUsername, providedEmail = "") {
     return cleanedEmail;
   }
 
-  let candidate = `${finalUsername}@danubedragons.local`;
+  const emailLocalPart = loginNameToEmailLocalPart(finalUsername);
+  let candidate = `${emailLocalPart}@danubedragons.local`;
   let counter = 2;
 
   while (await emailExists(candidate)) {
-    candidate = `${finalUsername}${counter}@danubedragons.local`;
+    candidate = `${emailLocalPart}${counter}@danubedragons.local`;
     counter += 1;
   }
 
