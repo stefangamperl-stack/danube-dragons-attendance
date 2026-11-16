@@ -458,7 +458,7 @@ async function hydrateCurrentUserFromSupabase() {
     role: profile.role,
     displayName: profile.display_name,
     email: profile.email || "",
-    mustChangePassword: profile.must_change_password ?? true,
+    mustChangePassword: false,
     playerId,
     coachId
   };
