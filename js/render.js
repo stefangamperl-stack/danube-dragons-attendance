@@ -10,9 +10,81 @@ function renderStatusSummary(counts) {
   `;
 }
 
+function formatResponseTimestamp(value) {
+  if (!value || !String(value).includes("T")) return "offen";
+  const [date, time] = String(value).split("T");
+  return `${formatDateDisplay(date)} ${String(time || "").slice(0, 5)}`;
+}
+
+function renderCoachAttendance(training) {
+  if (!training) return "";
+
+  const activeCoaches = [...getActiveCoaches()].sort((a, b) =>
+    getCoachDisplayName(a).localeCompare(getCoachDisplayName(b))
+  );
+  const counts = getCoachStatusCounts(training.id);
+  const ownCoach = activeCoaches.find(coach => coach.id === state.currentUser.coachId);
+  const ownStatus = getCoachTrainingStatus(ownCoach, training.id);
+  const trainingPast = isTrainingPast(training);
+
+  return `
+    <div class="card" style="margin-top:24px;">
+      <h2>Coach-Zusagen und -Absagen</h2>
+      <p class="smallMuted">Alle Coaches sehen hier, wer beim Training dabei ist.</p>
+
+      ${ownCoach ? `
+        <div class="deadlineBox" style="margin:16px 0;">
+          <div><strong>Meine Antwort:</strong> ${getStatusTag(ownStatus)}</div>
+          ${trainingPast ? `
+            <div class="smallMuted" style="margin-top:8px;">Das Training ist bereits vergangen.</div>
+          ` : `
+            <div class="statusButtons" style="margin-top:12px;">
+              <button class="button" onclick="setOwnCoachResponse('${training.id}','yes')">Ich komme</button>
+              <button class="warnButton" onclick="setOwnCoachResponse('${training.id}','no')">Ich komme nicht</button>
+            </div>
+          `}
+        </div>
+      ` : `
+        <div class="noticeBox">Dein Coach-Profil ist noch nicht mit diesem Login verknüpft.</div>
+      `}
+
+      <div class="statusSummary" style="margin-bottom:16px;">
+        <div class="statusSummaryRow"><span>Zusage</span><strong>${counts.yes}</strong></div>
+        <div class="statusSummaryRow"><span>Absage</span><strong>${counts.no}</strong></div>
+        <div class="statusSummaryRow"><span>Keine Antwort</span><strong>${counts.open}</strong></div>
+      </div>
+
+      <div class="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Coach</th>
+              <th>Status</th>
+              <th>Letzte Änderung</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${activeCoaches.map(coach => {
+              const response = (coachResponses[training.id] || {})[coach.id];
+              const status = getCoachTrainingStatus(coach, training.id);
+              return `
+                <tr>
+                  <td>${escapeHtml(getCoachDisplayName(coach))}</td>
+                  <td>${getStatusTag(status)}</td>
+                  <td>${formatResponseTimestamp(response?.updatedAt)}</td>
+                </tr>
+              `;
+            }).join("")}
+            ${activeCoaches.length === 0 ? `<tr><td colspan="3">Keine aktiven Coaches vorhanden.</td></tr>` : ""}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
 function renderMustChangePasswordNotice() {
-  const auth = getCurrentUserAuth();
-  if (!auth || !auth.mustChangePassword) return "";
+  if (!state.currentUser?.mustChangePassword) return "";
   return `
     <div class="noticeBox">
       Du verwendest noch dein Initialpasswort. Bitte ändere es im Profil auf ein eigenes Passwort.
@@ -42,10 +114,18 @@ function renderNav() {
   const nav = document.getElementById("nav");
   const role = state.currentUser.role;
 
-  let items = [
-    { key: "dashboard", label: "Dashboard" },
-    { key: "profile", label: "Mein Profil" }
-  ];
+  if (state.currentUser.mustChangePassword) {
+    nav.innerHTML = `<button onclick="setView('profile')">Passwort ändern</button>`;
+    return;
+  }
+
+  let items = [{ key: "dashboard", label: "Dashboard" }];
+
+  if (role === "adminCoach" || role === "headAdmin") {
+    items.push({ key: "reports", label: "Zusagen/Absagen" });
+  }
+
+  items.push({ key: "profile", label: "Mein Profil" });
 
   if (role === "player") {
     items.push(
@@ -58,7 +138,6 @@ function renderNav() {
     items.push(
       { key: "trainings", label: "Trainings bearbeiten" },
       { key: "players", label: "Spielermanagement" },
-      { key: "reports", label: "Auswertung" },
       { key: "limitations", label: "Limitations" },
       { key: "playerSearch", label: "Spielersuche" },
       { key: "statistics", label: "Statistik" }
@@ -79,6 +158,11 @@ function renderNav() {
 function renderApp() {
   updateCurrentDateTime();
   players.forEach(refreshPlayerHealthStatus);
+
+  if (state.currentUser?.mustChangePassword) {
+    state.currentView = "profile";
+  }
+
   renderNav();
   document.getElementById("roleBadge").textContent = state.currentUser.role;
   if (state.currentUser.role === "player") {
@@ -124,7 +208,7 @@ function renderOwnProfileView() {
           </div>
           <button class="button" onclick="changeOwnPassword()">Passwort speichern</button>
           <p class="smallMuted" style="margin-top:12px;">
-            Initialpasswort war dein Geburtsjahr.
+            Initialpasswort war test123.
           </p>
         </div>
       </div>
@@ -432,6 +516,8 @@ function renderDashboardView() {
       </div>
     </div>
 
+    ${renderCoachAttendance(selectedTraining)}
+
     ${state.filterGroup !== "all" ? `
       <div class="card">
         <h2>${state.filterGroup} · Detailübersicht</h2>
@@ -511,7 +597,7 @@ function renderPlayersView() {
             ${editPlayer ? `<button class="secondaryButton" onclick="cancelPlayerEdit()">Abbrechen</button>` : ""}
           </div>
           <p class="smallMuted" style="margin-top:12px;">
-            Initialpasswort für neue Spieler ist automatisch das Geburtsjahr.
+            Startpasswort für neue und importierte Spieler ist "test123". Beim ersten Login muss ein eigenes Passwort vergeben werden.
           </p>
         </div>
 
@@ -713,8 +799,8 @@ function renderTrainingsView() {
 
 function renderReportsView() {
   const content = document.getElementById("content");
-  document.getElementById("screenTitle").textContent = "Auswertung";
-  document.getElementById("screenSubtitle").textContent = "Kommende, vergangene und zukünftige Trainings mit bearbeitbaren Antworten";
+  document.getElementById("screenTitle").textContent = "Zusagen/Absagen";
+  document.getElementById("screenSubtitle").textContent = "Antworten von Spielern und Coaches pro Training";
 
   const orderedTrainings = [...trainings].sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b));
   const selectedTraining = orderedTrainings.find(t => t.id === state.reportsTrainingId) || orderedTrainings[0];
@@ -743,6 +829,8 @@ function renderReportsView() {
       <p class="smallMuted">${selectedTraining.notes}</p>
       <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
     </div>
+
+    ${renderCoachAttendance(selectedTraining)}
 
     ${renderDashboardUnitSummary(selectedTraining.id)}
 

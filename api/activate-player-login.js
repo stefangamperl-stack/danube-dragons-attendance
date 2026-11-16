@@ -139,7 +139,7 @@ export default async function handler(req, res) {
     }
 
     const finalEmail = await buildSystemEmail(finalUsername, email);
-    const initialPassword = String(birthday).slice(0, 4);
+    const initialPassword = "test123";
     const displayName = `${firstName} ${lastName}`;
 
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
