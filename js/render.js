@@ -1222,7 +1222,7 @@ function renderCoachesView() {
           ${editCoach ? `<button class="secondaryButton" onclick="cancelCoachEdit()">Abbrechen</button>` : ""}
         </div>
         <p class="smallMuted" style="margin-top:12px;">
-          Neue Coaches erhalten ein zufälliges Einmalpasswort. Für ältere Datensätze ohne Login kann der Zugang mit "test123" aktiviert werden. Beim ersten Login ist eine Passwortänderung erforderlich.
+          Neue Coaches erhalten das Startpasswort "test123". Für ältere Datensätze ohne Login kann der Zugang ebenfalls mit "test123" aktiviert werden. Beim ersten Login ist eine Passwortänderung erforderlich.
         </p>
       </div>
 
