@@ -172,6 +172,11 @@ function renderApp() {
   } else {
     renderCoachView();
   }
+
+  focusRequestedTraining();
+  if (typeof window.refreshPushNotificationUi === "function") {
+    window.refreshPushNotificationUi();
+  }
 }
 
 function renderOwnProfileView() {
@@ -213,6 +218,16 @@ function renderOwnProfileView() {
             Das Startpasswort test123 darf unverändert bleiben und kann freiwillig geändert werden.
           </p>
         </div>
+      </div>
+      <div class="card pushSettingsCard">
+        <h2>Push-Benachrichtigungen</h2>
+        <p id="pushNotificationStatus" class="smallMuted">Status wird geprüft …</p>
+        <button id="pushNotificationAction" class="button" type="button" onclick="enablePushNotifications()">
+          Auf diesem Gerät aktivieren
+        </button>
+        <p class="smallMuted pushSettingsHint">
+          Du erhältst nur dann eine Erinnerung, wenn ein Coach sie für ein Training verschickt und du noch keine Zu- oder Absage gespeichert hast.
+        </p>
       </div>
     `;
     return;
@@ -371,10 +386,20 @@ function renderPlayerView() {
   document.getElementById("screenTitle").textContent = "Spieler Dashboard";
   document.getElementById("screenSubtitle").textContent = "Bis zu 3 kommende Trainings mit direkter Rückmeldung";
 
-  const upcomingTrainings = [...trainings]
+  let upcomingTrainings = [...trainings]
     .filter(t => getTrainingStartDate(t) > new Date())
     .sort((a, b) => getTrainingStartDate(a) - getTrainingStartDate(b))
     .slice(0, 3);
+
+  const focusedTraining = state.focusTrainingId
+    ? trainings.find(training => training.id === state.focusTrainingId)
+    : null;
+  if (focusedTraining) {
+    upcomingTrainings = [
+      focusedTraining,
+      ...upcomingTrainings.filter(training => training.id !== focusedTraining.id)
+    ].slice(0, 3);
+  }
 
   if (!upcomingTrainings.length) {
     content.innerHTML = `${renderMustChangePasswordNotice()}<div class="card"><p>Keine kommenden Trainings gefunden.</p></div>`;
@@ -388,7 +413,10 @@ function renderPlayerView() {
     const deadline = getTrainingVoteDeadline(training);
 
     return `
-      <div class="card">
+      <div
+        class="card playerTrainingCard ${state.focusTrainingId === training.id ? "trainingDeepLinkTarget" : ""}"
+        data-training-id="${escapeHtml(training.id)}"
+      >
         <h2>${training.title}</h2>
         <p><strong>Datum:</strong> ${formatDateDisplay(training.date)} um ${training.time}</p>
         <p><strong>Ort:</strong> ${training.location}</p>
@@ -492,6 +520,13 @@ function renderDashboardView() {
         <p>${selectedTraining.location}</p>
         <p class="smallMuted">${selectedTraining.notes}</p>
         <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
+        <button
+          id="sendTrainingPush-${escapeHtml(selectedTraining.id)}"
+          class="button trainingPushButton"
+          type="button"
+          onclick="sendTrainingPush('${escapeHtml(selectedTraining.id)}')"
+        >Spieler ohne Zu-/Absage erinnern</button>
+        <p class="smallMuted trainingPushHint">Push geht nur an passende Spieler, die Push auf ihrem Gerät aktiviert haben.</p>
       </div>
 
       <div class="card">
@@ -888,6 +923,15 @@ function renderReportsView() {
           <p>${escapeHtml(selectedTraining.location)}</p>
           <p class="smallMuted">${escapeHtml(selectedTraining.notes)}</p>
           <p class="smallMuted">Abstimmung: ${selectedTraining.voteOpensHoursBefore}h bis ${selectedTraining.voteClosesHoursBefore}h vor Beginn</p>
+          ${period === "upcoming" ? `
+            <button
+              id="sendTrainingPush-${escapeHtml(selectedTraining.id)}"
+              class="button trainingPushButton"
+              type="button"
+              onclick="sendTrainingPush('${escapeHtml(selectedTraining.id)}')"
+            >Spieler ohne Zu-/Absage erinnern</button>
+            <p class="smallMuted trainingPushHint">Push geht nur an passende Spieler, die Push auf ihrem Gerät aktiviert haben.</p>
+          ` : ""}
         </div>
       ` : `
         <div class="emptyTrainingState">Keine ${period === "upcoming" ? "kommenden" : "vergangenen"} Trainings vorhanden.</div>

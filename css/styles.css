@@ -426,6 +426,34 @@
       border: 1px solid #214235;
     }
 
+    .pushSettingsCard {
+      margin-top: 16px;
+    }
+
+    .pushSettingsHint,
+    .trainingPushHint {
+      margin-top: 12px !important;
+      margin-bottom: 0;
+    }
+
+    .trainingPushButton {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 14px;
+      white-space: normal;
+      line-height: 1.25;
+    }
+
+    .playerTrainingCard {
+      scroll-margin: 24px;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .trainingDeepLinkTarget {
+      border-color: #4ade80;
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.24), 0 16px 40px rgba(0, 0, 0, 0.3);
+    }
+
     .compactList {
       display: grid;
       gap: 10px;

@@ -1,6 +1,7 @@
 let state = {
   currentUser: JSON.parse(localStorage.getItem("dd_user") || "null"),
   currentView: "dashboard",
+  focusTrainingId: new URLSearchParams(window.location.search).get("training"),
   reportsTrainingId: trainings[0]?.id || null,
   reportsPeriod: "upcoming",
   coachAttendanceExpanded: false,
@@ -79,6 +80,26 @@ function updateCurrentDateTime() {
   if (el) {
     el.textContent = formatDateTimeDisplay(new Date());
   }
+}
+
+function focusRequestedTraining() {
+  const trainingId = state.focusTrainingId;
+  if (!trainingId || state.currentUser?.role !== "player") return;
+
+  window.requestAnimationFrame(() => {
+    const target = [...document.querySelectorAll("[data-training-id]")]
+      .find(element => element.dataset.trainingId === trainingId);
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.classList.add("trainingDeepLinkTarget");
+    window.setTimeout(() => target.classList.remove("trainingDeepLinkTarget"), 3500);
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("training");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    state.focusTrainingId = null;
+  });
 }
 
 function sortPlayersByLastName(list) {

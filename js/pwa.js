@@ -116,6 +116,182 @@
     document.body.appendChild(badge);
   }
 
+  function urlBase64ToUint8Array(value) {
+    const padding = "=".repeat((4 - value.length % 4) % 4);
+    const base64 = (value + padding).replaceAll("-", "+").replaceAll("_", "/");
+    const raw = window.atob(base64);
+    return Uint8Array.from([...raw].map(character => character.charCodeAt(0)));
+  }
+
+  function setPushUi({ message, active = false, disabled = false }) {
+    const status = document.getElementById("pushNotificationStatus");
+    const action = document.getElementById("pushNotificationAction");
+    if (!status || !action) return;
+
+    status.textContent = message;
+    action.disabled = disabled;
+    action.textContent = active
+      ? "Auf diesem Gerät deaktivieren"
+      : "Auf diesem Gerät aktivieren";
+    action.onclick = active
+      ? () => window.disablePushNotifications()
+      : () => window.enablePushNotifications();
+  }
+
+  function pushCapabilityError() {
+    if (isIos() && !isStandalone()) {
+      return "Auf iPhone und iPad muss Salix zuerst zum Home-Bildschirm hinzugefügt und von dort geöffnet werden.";
+    }
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+      return "Push-Benachrichtigungen werden von diesem Browser nicht unterstützt.";
+    }
+    if (Notification.permission === "denied") {
+      return "Benachrichtigungen sind für Salix im Browser oder in den Geräteeinstellungen blockiert.";
+    }
+    return "";
+  }
+
+  async function getPushRegistration() {
+    return (await navigator.serviceWorker.getRegistration("/")) ||
+      navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+  }
+
+  async function readJsonResponse(response) {
+    try {
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }
+
+  async function refreshPushNotificationUi() {
+    if (!document.getElementById("pushNotificationAction")) return;
+
+    const capabilityError = pushCapabilityError();
+    if (capabilityError) {
+      setPushUi({ message: capabilityError, disabled: true });
+      return;
+    }
+
+    try {
+      const registration = await getPushRegistration();
+      const subscription = await registration.pushManager.getSubscription();
+      setPushUi({
+        active: Boolean(subscription),
+        message: subscription
+          ? "Push-Benachrichtigungen sind auf diesem Gerät aktiviert."
+          : "Push-Benachrichtigungen sind auf diesem Gerät noch nicht aktiviert."
+      });
+    } catch (error) {
+      console.warn("Push-Status konnte nicht gelesen werden:", error);
+      setPushUi({ message: "Der Push-Status konnte gerade nicht geprüft werden." });
+    }
+  }
+
+  async function enablePushNotifications() {
+    const capabilityError = pushCapabilityError();
+    if (capabilityError) {
+      setPushUi({ message: capabilityError, disabled: true });
+      return;
+    }
+
+    setPushUi({ message: "Push-Benachrichtigungen werden aktiviert …", disabled: true });
+
+    try {
+      const permission = Notification.permission === "granted"
+        ? "granted"
+        : await Notification.requestPermission();
+
+      if (permission !== "granted") {
+        throw new Error("Benachrichtigungen wurden nicht erlaubt.");
+      }
+
+      const [registration, keyResponse] = await Promise.all([
+        getPushRegistration(),
+        fetch("/api/push-public-key", { cache: "no-store" })
+      ]);
+      const keyResult = await readJsonResponse(keyResponse);
+      if (!keyResponse.ok || !keyResult?.publicKey) {
+        throw new Error(keyResult?.error || "Push ist noch nicht vollständig eingerichtet.");
+      }
+
+      let subscription = await registration.pushManager.getSubscription();
+      let createdSubscription = false;
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(keyResult.publicKey)
+        });
+        createdSubscription = true;
+      }
+
+      const response = await fetch("/api/push-subscription", {
+        method: "POST",
+        headers: await buildApiAuthHeaders(),
+        body: JSON.stringify({ subscription: subscription.toJSON() })
+      });
+      const result = await readJsonResponse(response);
+
+      if (!response.ok || !result?.success) {
+        if (createdSubscription) await subscription.unsubscribe();
+        throw new Error(result?.error || "Push-Einstellung konnte nicht gespeichert werden.");
+      }
+
+      setPushUi({
+        active: true,
+        message: "Push-Benachrichtigungen sind auf diesem Gerät aktiviert."
+      });
+    } catch (error) {
+      console.error("Push konnte nicht aktiviert werden:", error);
+      setPushUi({ message: error.message || "Push konnte nicht aktiviert werden." });
+    }
+  }
+
+  async function removePushSubscription({ silent = false } = {}) {
+    const registration = await navigator.serviceWorker.getRegistration("/");
+    const subscription = await registration?.pushManager.getSubscription();
+    if (!subscription) return;
+
+    try {
+      const response = await fetch("/api/push-subscription", {
+        method: "DELETE",
+        headers: await buildApiAuthHeaders(),
+        body: JSON.stringify({ endpoint: subscription.endpoint })
+      });
+      const result = await readJsonResponse(response);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.error || "Push-Einstellung konnte nicht entfernt werden.");
+      }
+    } catch (error) {
+      if (!silent) throw error;
+      console.warn("Push-Zuordnung konnte beim Abmelden nicht entfernt werden:", error);
+    } finally {
+      await subscription.unsubscribe();
+    }
+  }
+
+  async function disablePushNotifications() {
+    setPushUi({ message: "Push-Benachrichtigungen werden deaktiviert …", disabled: true });
+
+    try {
+      await removePushSubscription();
+      setPushUi({
+        message: "Push-Benachrichtigungen sind auf diesem Gerät deaktiviert."
+      });
+    } catch (error) {
+      console.error("Push konnte nicht deaktiviert werden:", error);
+      setPushUi({
+        active: true,
+        message: error.message || "Push konnte nicht deaktiviert werden."
+      });
+    }
+  }
+
+  window.refreshPushNotificationUi = refreshPushNotificationUi;
+  window.enablePushNotifications = enablePushNotifications;
+  window.disablePushNotifications = disablePushNotifications;
+  window.unregisterPushForLogout = () => removePushSubscription({ silent: true });
+
   window.addEventListener("beforeinstallprompt", event => {
     event.preventDefault();
     installPrompt = event;
@@ -161,6 +337,7 @@
         refreshing = true;
         window.location.reload();
       });
+      refreshPushNotificationUi();
     } catch (error) {
       console.warn("Service Worker konnte nicht registriert werden:", error);
     }

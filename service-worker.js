@@ -1,4 +1,4 @@
-const CACHE_NAME = "salix-v13";
+const CACHE_NAME = "salix-v14";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -34,6 +34,51 @@ self.addEventListener("activate", event => {
 
 self.addEventListener("message", event => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+self.addEventListener("push", event => {
+  let payload = {};
+  try {
+    payload = event.data?.json() || {};
+  } catch {
+    payload = { body: event.data?.text() || "Du hast eine neue Trainingserinnerung." };
+  }
+
+  event.waitUntil(self.registration.showNotification(
+    payload.title || "Salix Trainingserinnerung",
+    {
+      body: payload.body || "Bitte gib deine Zu- oder Absage ab.",
+      icon: payload.icon || "/icons/salix-icon-192-v2.png",
+      badge: payload.badge || "/icons/salix-icon-192-v2.png",
+      tag: payload.tag || "salix-training-reminder",
+      data: payload.data || { url: "/" }
+    }
+  ));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+
+  const requestedUrl = new URL(event.notification.data?.url || "/", self.location.origin);
+  const targetUrl = requestedUrl.origin === self.location.origin
+    ? requestedUrl.href
+    : self.location.origin;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then(async windowClients => {
+        const existingClient = windowClients.find(client =>
+          new URL(client.url).origin === self.location.origin
+        );
+
+        if (existingClient) {
+          if ("navigate" in existingClient) await existingClient.navigate(targetUrl);
+          return existingClient.focus();
+        }
+
+        return self.clients.openWindow(targetUrl);
+      })
+  );
 });
 
 self.addEventListener("fetch", event => {

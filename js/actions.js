@@ -12,6 +12,75 @@ async function buildApiAuthHeaders() {
   };
 }
 
+async function sendTrainingPush(trainingId) {
+  const training = trainings.find(item => item.id === trainingId);
+  if (!training) {
+    alert("Das Training wurde nicht gefunden.");
+    return;
+  }
+
+  const eligibleCount = players.filter(player => {
+    const status = getPlayerTrainingStatus(player, trainingId);
+    return status !== "yes" && status !== "no" && status !== "limited";
+  }).length;
+
+  if (eligibleCount === 0) {
+    alert("Alle verfügbaren Spieler haben bereits zu- oder abgesagt.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Push-Erinnerung für „${training.title}“ an Spieler ohne Zu- oder Absage senden?`
+  );
+  if (!confirmed) return;
+
+  const button = document.getElementById(`sendTrainingPush-${trainingId}`);
+  const previousLabel = button?.textContent;
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Wird gesendet …";
+  }
+
+  try {
+    const response = await fetch("/api/send-training-push", {
+      method: "POST",
+      headers: await buildApiAuthHeaders(),
+      body: JSON.stringify({ trainingId })
+    });
+
+    let result = null;
+    try {
+      result = await response.json();
+    } catch {
+      result = null;
+    }
+
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || "Push-Benachrichtigung konnte nicht gesendet werden.");
+    }
+
+    const deliveryText = result.sent === 1
+      ? "1 Gerät wurde benachrichtigt."
+      : `${result.sent} Geräte wurden benachrichtigt.`;
+    const missingText = result.playersWithoutPush === 1
+      ? "1 passender Spieler hat Push noch nicht aktiviert."
+      : `${result.playersWithoutPush} passende Spieler haben Push noch nicht aktiviert.`;
+    const failedText = result.failed > 0
+      ? ` ${result.failed} Zustellungen sind fehlgeschlagen.`
+      : "";
+
+    alert(`${deliveryText}\n${missingText}${failedText}`);
+  } catch (error) {
+    console.error("Fehler beim Senden der Push-Erinnerung:", error);
+    alert(error.message || "Push-Benachrichtigung konnte nicht gesendet werden.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousLabel || "Spieler ohne Zu-/Absage erinnern";
+    }
+  }
+}
+
 async function loadTrainingsFromSupabase() {
   try {
     if (typeof supabaseClient === "undefined" || !supabaseClient) {

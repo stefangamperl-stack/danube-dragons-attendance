@@ -147,6 +147,9 @@ async function login() {
 }
 
 async function logout() {
+  if (state.currentUser?.role === "player" && typeof window.unregisterPushForLogout === "function") {
+    await window.unregisterPushForLogout();
+  }
   await supabaseClient.auth.signOut();
   state.currentUser = null;
   localStorage.removeItem("dd_user");
