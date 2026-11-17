@@ -19,49 +19,77 @@
 <body>
   <div id="landing" class="hidden"></div>
 
-  <div id="loginScreen">
-    <section class="hero">
-      <div class="roleBadge">Login</div>
-      <h1>Salix</h1>
-      <p class="smallMuted">
-        ...
-      </p>
-
-      <div class="card">
-        <div class="field">
-          <label for="loginUsername">Loginname</label>
-          <input id="loginUsername" class="input" placeholder="z. B. mmustermann" />
-        </div>
-
-        <div class="field">
-          <label for="loginPassword">Passwort</label>
-          <input id="loginPassword" class="input" type="password" placeholder="Passwort" />
-        </div>
-
-        <button class="button" onclick="login()">Anmelden</button>
-        <p id="loginError" class="smallMuted"></p>
-      </div>
-
-      <div class="card" style="margin-top: 20px;">
-        <p class="smallMuted" style="margin-top:12px;">
-          Das Startpasswort lautet test123. Eine Änderung ist freiwillig.<br><br>
-          Der Loginname setzt sich normalerweise aus dem ersten Buchstaben des Vornamens und dem Nachnamen zusammen.<br>
-          Max Mustermann → mmustermann<br>
-          Umlaute werden unterstützt, zum Beispiel Jörg Müller → jmüller. Groß- und Kleinschreibung sind bei der Anmeldung egal.
-        </p>
-      </div>
-
-      <div id="pwaInstallCard" class="card installCard">
-        <div class="installHeader">
-          <img src="/icons/salix-icon-192-v2.png" alt="" class="installIcon" />
+  <div id="loginScreen" class="loginScreen">
+    <section class="loginShell" aria-labelledby="loginTitle">
+      <div class="loginBrandPanel">
+        <div class="loginBrand">
+          <img src="/icons/salix-icon-192-v2.png" alt="" class="loginBrandIcon" />
           <div>
-            <h2>Salix als App nutzen</h2>
-            <p id="pwaInstallHint" class="smallMuted">
-              Einmal installieren, danach öffnet sich Salix wie eine normale App. Spätere Updates werden automatisch bereitgestellt.
-            </p>
+            <strong>Salix</strong>
+            <span>Danube Dragons</span>
           </div>
         </div>
-        <button id="pwaInstallAction" class="button" type="button">App installieren</button>
+
+        <div class="loginIntro">
+          <span class="loginEyebrow">Team. Training. Gemeinsam.</span>
+          <h1>Alles für dein Team an einem Ort.</h1>
+          <p>Trainings planen, Rückmeldungen im Blick behalten und als Team organisiert bleiben.</p>
+        </div>
+
+        <div class="loginBenefits" aria-label="Vorteile von Salix">
+          <div class="loginBenefit"><span>✓</span> Schnell zu- oder absagen</div>
+          <div class="loginBenefit"><span>✓</span> Trainings und Status jederzeit im Blick</div>
+          <div class="loginBenefit"><span>✓</span> Direkt am Handy als App nutzbar</div>
+        </div>
+
+        <div class="loginBrandFooter">Danube Dragons Football</div>
+      </div>
+
+      <div class="loginAccessPanel">
+        <div class="loginAccessHeader">
+          <span class="loginEyebrow">Willkommen zurück</span>
+          <h2 id="loginTitle">Bei Salix anmelden</h2>
+          <p>Nutze deinen persönlichen Loginname oder deine hinterlegte E-Mail-Adresse.</p>
+        </div>
+
+        <div class="loginFormCard">
+          <div class="field">
+            <label for="loginUsername">Loginname oder E-Mail</label>
+            <input id="loginUsername" class="input loginInput" autocomplete="username" placeholder="z. B. mmustermann" />
+          </div>
+
+          <div class="field">
+            <label for="loginPassword">Passwort</label>
+            <input id="loginPassword" class="input loginInput" type="password" autocomplete="current-password" placeholder="Passwort" />
+          </div>
+
+          <button class="button loginSubmit" onclick="login()">Sicher anmelden</button>
+          <p id="loginError" class="loginError" role="alert"></p>
+
+          <details class="loginHelp">
+            <summary>Wie lauten meine Zugangsdaten?</summary>
+            <div class="loginHelpBody">
+              <p>Das Startpasswort lautet <strong>test123</strong>. Eine Änderung ist freiwillig.</p>
+              <p>Der Loginname besteht normalerweise aus dem ersten Buchstaben des Vornamens und dem Nachnamen, zum Beispiel <strong>mmustermann</strong>.</p>
+              <p>Umlaute werden unterstützt. Groß- und Kleinschreibung spielen bei der Anmeldung keine Rolle.</p>
+            </div>
+          </details>
+        </div>
+
+        <div id="pwaInstallCard" class="installCard loginInstallCard">
+          <div class="installHeader">
+            <img src="/icons/salix-icon-192-v2.png" alt="" class="installIcon" />
+            <div>
+              <span class="installLabel">Salix für dein Handy</span>
+              <h2>Wie eine App. Ohne App-Store.</h2>
+              <p id="pwaInstallHint" class="smallMuted">
+                Einmal installieren und Salix direkt vom Home-Bildschirm öffnen.
+              </p>
+            </div>
+          </div>
+          <button id="pwaInstallAction" class="button installAction" type="button">Mobil installieren</button>
+          <a class="installShareLink" href="/?install=1">Installationslink öffnen</a>
+        </div>
       </div>
     </section>
   </div>

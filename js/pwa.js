@@ -37,6 +37,17 @@
     if (hint) hint.innerHTML = text.innerHTML;
   }
 
+  function openInstallLink() {
+    if (isStandalone() || new URLSearchParams(window.location.search).get("install") !== "1") return;
+
+    const card = document.getElementById("pwaInstallCard");
+    card?.classList.add("installLinkTarget");
+    window.requestAnimationFrame(() => {
+      card?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    showInstallInstructions();
+  }
+
   async function requestInstall() {
     if (!installPrompt) {
       showInstallInstructions();
@@ -68,7 +79,7 @@
     card?.classList.remove("hidden");
 
     if (action) {
-      action.textContent = installPrompt ? "App installieren" : "Installationsanleitung anzeigen";
+      action.textContent = installPrompt ? "Mobil installieren" : "Installationsanleitung anzeigen";
       action.onclick = requestInstall;
     }
 
@@ -309,10 +320,15 @@
   window.addEventListener("offline", updateConnectionStatus);
   updateConnectionStatus();
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", updateInstallUi, { once: true });
-  } else {
+  function initializeInstallUi() {
     updateInstallUi();
+    openInstallLink();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeInstallUi, { once: true });
+  } else {
+    initializeInstallUi();
   }
 
   if (!("serviceWorker" in navigator)) return;
