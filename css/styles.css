@@ -22,6 +22,7 @@
       color: #ecfdf5;
       padding-top: var(--safe-top);
       -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
     }
 
     button, input, select, textarea {
@@ -78,8 +79,20 @@
       cursor: pointer;
     }
 
+    .nav button.active {
+      border-color: #4ade80;
+      background: #166534;
+      box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.16);
+    }
+
     .main {
       padding: 24px;
+      min-width: 0;
+    }
+
+    #content,
+    .topbar > div:first-child {
+      min-width: 0;
     }
 
     .topbar {
@@ -154,6 +167,11 @@
       font-weight: 700;
     }
 
+    button:disabled {
+      cursor: wait;
+      opacity: 0.62;
+    }
+
     .primaryButton, .button {
       background: #15803d;
       color: white;
@@ -209,6 +227,8 @@
       border: 1px solid #214235;
       border-radius: 18px;
       padding: 20px;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
 
     .card h2, .card h3, .card p {
@@ -254,6 +274,8 @@
 
     .tableWrap {
       overflow-x: auto;
+      max-width: 100%;
+      overscroll-behavior-inline: contain;
     }
 
     table {
@@ -320,6 +342,21 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
+    }
+
+    .limitationItem {
+      margin-bottom: 12px;
+      border: 1px solid #214235;
+      border-radius: 12px;
+      padding: 12px;
+      background: #08140f;
+    }
+
+    #playerFormCard,
+    #coachFormCard,
+    #trainingFormCard,
+    #limitationFormCard {
+      scroll-margin-top: 16px;
     }
 
     .accordionHeader {
@@ -831,6 +868,19 @@
 
       .main {
         padding: 16px;
+        max-width: 100%;
+        overflow: hidden;
+      }
+
+      #screenTitle {
+        overflow-wrap: anywhere;
+        font-size: clamp(26px, 8vw, 34px);
+        line-height: 1.08;
+      }
+
+      #screenSubtitle {
+        margin-top: 6px;
+        line-height: 1.4;
       }
 
       .hero {
@@ -855,6 +905,31 @@
 
       .twoCol, .threeCol {
         grid-template-columns: 1fr;
+      }
+
+      .playerManagementLayout .managementListCard,
+      .coachManagementLayout .coachListCard,
+      .limitationsLayout .limitationCurrentCard {
+        order: -1;
+      }
+
+      .playerManagementLayout.isEditing .managementFormColumn,
+      .coachManagementLayout.isEditing .coachFormCard,
+      .limitationsLayout.isEditing .limitationFormCard {
+        order: -2;
+      }
+
+      .grid.kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .grid.kpis .card {
+        padding: 14px;
+      }
+
+      .grid.kpis .kpi {
+        font-size: clamp(24px, 8vw, 30px);
       }
 
       .grid.unitSummary {
@@ -884,6 +959,64 @@
         padding: 14px;
       }
 
+      .mobileStackTable {
+        overflow: visible;
+      }
+
+      .mobileStackTable table,
+      .mobileStackTable tbody,
+      .mobileStackTable tr,
+      .mobileStackTable td {
+        display: block;
+        width: 100%;
+      }
+
+      .mobileStackTable thead {
+        display: none;
+      }
+
+      .mobileStackTable tbody {
+        display: grid;
+        gap: 12px;
+      }
+
+      .mobileStackTable tr {
+        overflow: hidden;
+        border: 1px solid #214235;
+        border-radius: 14px;
+        background: #08140f;
+      }
+
+      .mobileStackTable td {
+        display: grid;
+        grid-template-columns: minmax(104px, 34%) minmax(0, 1fr);
+        align-items: start;
+        gap: 12px;
+        padding: 10px 12px;
+        overflow-wrap: anywhere;
+      }
+
+      .mobileStackTable td::before {
+        content: attr(data-label);
+        color: #86efac;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+
+      .mobileStackTable td[data-label="Aktionen"] {
+        grid-template-columns: 1fr;
+      }
+
+      .mobileStackTable td[colspan]::before {
+        display: none;
+      }
+
+      .mobileStackTable td:last-child {
+        border-bottom: 0;
+      }
+
       .coachOwnResponseButtons {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -898,6 +1031,7 @@
       .topbar {
         align-items: flex-start;
         flex-direction: column;
+        margin-bottom: 18px;
       }
 
       .topbarRight {
@@ -905,8 +1039,42 @@
       }
 
       .compactItem {
-        flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
+      }
+
+      .unitPills {
+        margin-right: -16px;
+        padding-right: 16px;
+        padding-bottom: 8px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: none;
+      }
+
+      .unitPills::-webkit-scrollbar {
+        display: none;
+      }
+
+      .unitPill {
+        flex: 0 0 auto;
+      }
+
+      .chartWrap {
+        height: 300px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 12px;
+      }
+
+      .chartSvg {
+        min-width: 620px;
+      }
+
+      .legend {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
       }
 
       .pwaInstallButton,
@@ -949,6 +1117,101 @@
     }
 
     @media (max-width: 520px) {
+      .main {
+        padding: 12px;
+      }
+
+      .card {
+        border-radius: 15px;
+        padding: 14px;
+      }
+
+      .card h2 {
+        font-size: 20px;
+      }
+
+      .topbarRight {
+        display: grid;
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 8px;
+      }
+
+      .topbarRight .dateTimeBadge,
+      .topbarRight .roleBadge {
+        min-width: 0;
+        padding: 8px 10px;
+        overflow-wrap: anywhere;
+        text-align: center;
+      }
+
+      .topbarRight .secondaryButton {
+        width: 100%;
+        grid-column: 1 / -1;
+      }
+
+      .rowActions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .rowActions > button {
+        width: 100%;
+        min-width: 0;
+        padding: 0 10px;
+        white-space: normal;
+        line-height: 1.2;
+      }
+
+      .rowActions > button:only-child {
+        grid-column: 1 / -1;
+      }
+
+      .statusButtons:not(.coachOwnResponseButtons) {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .statusButtons:not(.coachOwnResponseButtons) button {
+        width: 100%;
+        min-width: 0;
+        padding: 0 8px;
+      }
+
+      .accordionHeader {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .accordionHeader .secondaryButton {
+        width: 100%;
+        text-align: center;
+      }
+
+      .inlineInfo {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 5px;
+      }
+
+      .mobileStackTable td {
+        grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+        gap: 9px;
+        padding: 9px 10px;
+      }
+
+      input[type="file"] {
+        max-width: 100%;
+        padding: 9px;
+      }
+
+      .card > .button,
+      .hero .card > .button,
+      .installCard > .button,
+      .pushSettingsCard > .button {
+        width: 100%;
+      }
+
       .coachAttendanceToggle {
         padding: 13px 14px;
       }
@@ -977,10 +1240,34 @@
         align-items: flex-start;
       }
 
+      .pwaToast {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .pwaToast button {
+        width: 100%;
+      }
+
       .installIcon {
         width: 54px;
         height: 54px;
         flex-basis: 54px;
         border-radius: 14px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .installHeader {
+        flex-direction: column;
+      }
+
+      .grid.unitSummary {
+        gap: 8px;
+      }
+
+      .unitSummaryCard {
+        min-height: 78px;
+        padding: 12px;
       }
     }

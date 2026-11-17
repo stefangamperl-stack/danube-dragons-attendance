@@ -952,6 +952,7 @@ function startTrainingEdit(trainingId) {
   state.editingTrainingId = trainingId;
   state.selectedTrainingId = trainingId;
   renderTrainingsView();
+  focusMobilePanel("trainingFormCard");
 }
 
 function cancelTrainingEdit() {
@@ -1124,6 +1125,7 @@ function cancelPlayerEdit() {
 function startCoachEdit(coachId) {
   state.editCoachId = coachId;
   renderCoachesView();
+  focusMobilePanel("coachFormCard");
 }
 
 function cancelCoachEdit() {
@@ -2169,6 +2171,7 @@ function openLimitationEdit(playerId) {
   state.editingLimitationId = null;
   state.currentView = "limitations";
   renderLimitationsView();
+  focusMobilePanel("limitationFormCard");
 }
 
 function startLimitationEdit(playerId, limitationId) {
@@ -2176,6 +2179,7 @@ function startLimitationEdit(playerId, limitationId) {
   state.editingLimitationId = limitationId || null;
   state.currentView = "limitations";
   renderLimitationsView();
+  focusMobilePanel("limitationFormCard");
 }
 
 function cancelLimitationEdit() {

@@ -68,7 +68,7 @@ function renderCoachAttendance(training) {
             <div class="statusSummaryRow"><span>Keine Antwort</span><strong>${counts.open}</strong></div>
           </div>
 
-          <div class="tableWrap">
+          <div class="tableWrap mobileStackTable">
             <table>
               <thead>
                 <tr>
@@ -83,9 +83,9 @@ function renderCoachAttendance(training) {
                   const status = getCoachTrainingStatus(coach, training.id);
                   return `
                     <tr>
-                      <td>${escapeHtml(getCoachDisplayName(coach))}</td>
-                      <td>${getStatusTag(status)}</td>
-                      <td>${formatResponseTimestamp(response?.updatedAt)}</td>
+                      <td data-label="Coach">${escapeHtml(getCoachDisplayName(coach))}</td>
+                      <td data-label="Status">${getStatusTag(status)}</td>
+                      <td data-label="Letzte Änderung">${formatResponseTimestamp(response?.updatedAt)}</td>
                     </tr>
                   `;
                 }).join("")}
@@ -157,8 +157,20 @@ function renderNav() {
   }
 
   nav.innerHTML = items.map(item =>
-    `<button onclick="setView('${item.key}')">${item.label}</button>`
+    `<button
+      class="navButton ${state.currentView === item.key ? "active" : ""}"
+      onclick="setView('${item.key}')"
+      ${state.currentView === item.key ? 'aria-current="page"' : ""}
+    >${item.label}</button>`
   ).join("");
+
+  window.requestAnimationFrame(() => {
+    nav.querySelector(".navButton.active")?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center"
+    });
+  });
 }
 
 function renderApp() {
@@ -558,7 +570,7 @@ function renderDashboardView() {
     ${state.filterGroup !== "all" ? `
       <div class="card">
         <h2>${state.filterGroup} · Detailübersicht</h2>
-        <div class="tableWrap">
+        <div class="tableWrap mobileStackTable">
           <table>
             <thead>
               <tr>
@@ -570,9 +582,9 @@ function renderDashboardView() {
             <tbody>
               ${sortPlayersByLastName(filteredPlayers).map(player => `
                 <tr>
-                  <td>${fullName(player)}</td>
-                  <td>${getStatusTag(getPlayerTrainingStatus(player, selectedTraining.id))}</td>
-                  <td>${getCurrentPlayerStatusLabel(player)}</td>
+                  <td data-label="Spieler">${fullName(player)}</td>
+                  <td data-label="Status">${getStatusTag(getPlayerTrainingStatus(player, selectedTraining.id))}</td>
+                  <td data-label="Gesundheit">${getCurrentPlayerStatusLabel(player)}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -604,9 +616,9 @@ function renderPlayersView() {
 
   content.innerHTML = `
     ${renderMustChangePasswordNotice()}
-    <div class="twoCol">
-      <div>
-        <div class="card">
+    <div class="twoCol playerManagementLayout ${editPlayer ? "isEditing" : ""}">
+      <div class="managementFormColumn">
+        <div id="playerFormCard" class="card">
           <h2>${editPlayer ? "Spieler bearbeiten" : "Spieler anlegen"}</h2>
 
           ${editPlayer && !editPlayer.profileId ? `
@@ -663,7 +675,7 @@ function renderPlayersView() {
         </div>
       </div>
 
-      <div class="card">
+      <div class="card managementListCard">
         <h2>Spieler finden</h2>
         <div class="field">
           <label>Suche nach Name</label>
@@ -682,7 +694,7 @@ function renderPlayersView() {
           </div>
         </div>
 
-        <div class="tableWrap" style="margin-top: 16px;">
+        <div class="tableWrap mobileStackTable" style="margin-top: 16px;">
           <table>
             <thead>
               <tr>
@@ -697,12 +709,12 @@ function renderPlayersView() {
             <tbody>
               ${filtered.map(p => `
                 <tr>
-                  <td>${fullName(p)}</td>
-                  <td>${getGroupLabelForUnit(p.unit)}</td>
-                  <td>${p.unit}</td>
-                  <td>${formatDateDisplay(p.birthday)}</td>
-                  <td>${getCurrentPlayerStatusLabel(p)}</td>
-                  <td>
+                  <td data-label="Name">${fullName(p)}</td>
+                  <td data-label="Gruppe">${getGroupLabelForUnit(p.unit)}</td>
+                  <td data-label="Unit">${p.unit}</td>
+                  <td data-label="Geburtstag">${formatDateDisplay(p.birthday)}</td>
+                  <td data-label="Gesundheit">${getCurrentPlayerStatusLabel(p)}</td>
+                  <td data-label="Aktionen">
                     <div class="rowActions">
                       <button class="secondaryButton" onclick="startPlayerEdit('${p.id}')">Bearbeiten</button>
                       <button class="warnButton" onclick="openLimitationEdit('${p.id}')">Limitation</button>
@@ -735,7 +747,7 @@ function renderTrainingsView() {
   content.innerHTML = `
     ${renderMustChangePasswordNotice()}
     <div class="twoCol">
-      <div class="card">
+      <div id="trainingFormCard" class="card">
         <h2>Training auswählen</h2>
         <div class="field">
           <label>Trainingsliste</label>
@@ -1062,8 +1074,8 @@ function renderLimitationsView() {
 
   content.innerHTML = `
     ${renderMustChangePasswordNotice()}
-    <div class="twoCol">
-      <div class="card">
+    <div class="twoCol limitationsLayout ${player ? "isEditing" : ""}">
+      <div id="limitationFormCard" class="card limitationFormCard">
         <h2>${player ? `Limitation für ${fullName(player)}` : "Limitation erfassen"}</h2>
 
         <div class="field">
@@ -1096,10 +1108,10 @@ function renderLimitationsView() {
         </div>
       </div>
 
-      <div class="card">
+      <div class="card limitationCurrentCard">
         <h2>Aktuell Limited</h2>
         ${currentLimitations.length === 0 ? `<p>Keine aktuellen Limitations.</p>` : currentLimitations.map(item => `
-          <div style="border:1px solid #214235; border-radius:12px; padding:12px; margin-bottom:12px;">
+          <div class="limitationItem">
             <strong>${fullName(item.player)}</strong>
             <p style="margin:8px 0 0 0;">Gruppe: ${getGroupLabelForUnit(item.player.unit)} · Unit: ${item.player.unit}</p>
             <p style="margin:8px 0 0 0;">Art: ${item.limitation.type}</p>
@@ -1118,7 +1130,7 @@ function renderLimitationsView() {
     <div class="card">
       <h2>Vergangen</h2>
       ${pastLimitations.length === 0 ? `<p>Keine vergangenen Limitations.</p>` : pastLimitations.map(item => `
-        <div style="border:1px solid #214235; border-radius:12px; padding:12px; margin-bottom:12px;">
+        <div class="limitationItem">
           <strong>${fullName(item.player)}</strong>
           <p style="margin:8px 0 0 0;">Gruppe: ${getGroupLabelForUnit(item.player.unit)} · Unit: ${item.player.unit}</p>
           <p style="margin:8px 0 0 0;">Art: ${item.limitation.type}</p>
@@ -1317,7 +1329,7 @@ function renderStatisticsView() {
 
     <div class="card" style="margin-top:24px;">
       <h2>Vergangene Trainings</h2>
-      <div class="tableWrap">
+      <div class="tableWrap mobileStackTable">
         <table>
           <thead>
             <tr>
@@ -1334,14 +1346,14 @@ function renderStatisticsView() {
           <tbody>
             ${rows.map(r => `
               <tr>
-                <td>${r.training.title}</td>
-                <td>${formatDateDisplay(r.training.date)}</td>
-                <td>${r.yes}</td>
-                <td>${r.no}</td>
-                <td>${r.maybe}</td>
-                <td>${r.limited}</td>
-                <td>${r.open}</td>
-                <td>${r.yesPct}%</td>
+                <td data-label="Training">${r.training.title}</td>
+                <td data-label="Datum">${formatDateDisplay(r.training.date)}</td>
+                <td data-label="Zusage">${r.yes}</td>
+                <td data-label="Absage">${r.no}</td>
+                <td data-label="Unsicher">${r.maybe}</td>
+                <td data-label="Limited">${r.limited}</td>
+                <td data-label="Keine Antwort">${r.open}</td>
+                <td data-label="Zusagequote">${r.yesPct}%</td>
               </tr>
             `).join("")}
             ${rows.length === 0 ? `<tr><td colspan="8">Noch keine vergangenen Trainings vorhanden.</td></tr>` : ""}
@@ -1412,8 +1424,8 @@ function renderCoachesView() {
 
   content.innerHTML = `
     ${renderMustChangePasswordNotice()}
-    <div class="twoCol">
-      <div class="card">
+    <div class="twoCol coachManagementLayout ${editCoach ? "isEditing" : ""}">
+      <div id="coachFormCard" class="card coachFormCard">
         <h2>${editCoach ? "Coach bearbeiten" : "Coach anlegen"}</h2>
         <div class="field"><label>Vorname</label><input id="coachFirstName" class="input" value="${editCoach ? escapeHtml(editCoach.first_name || "") : ""}" placeholder="Vorname" /></div>
         <div class="field"><label>Nachname</label><input id="coachLastName" class="input" value="${editCoach ? escapeHtml(editCoach.last_name || "") : ""}" placeholder="Nachname" /></div>
@@ -1436,9 +1448,9 @@ function renderCoachesView() {
         </p>
       </div>
 
-      <div class="card">
+      <div class="card coachListCard">
         <h2>Bestehende Coaches</h2>
-        <div class="tableWrap">
+        <div class="tableWrap mobileStackTable">
           <table>
             <thead>
               <tr>
@@ -1453,12 +1465,12 @@ function renderCoachesView() {
             <tbody>
               ${coaches.map(c => `
                 <tr>
-                  <td>${getCoachDisplayName(c)}</td>
-                  <td>${c.username || "-"}</td>
-                  <td>${c.email || "-"}</td>
-                  <td>${c.role}</td>
-                  <td>${c.profile_id ? "Aktiv" : "Nicht verknüpft"}</td>
-                  <td>
+                  <td data-label="Name">${getCoachDisplayName(c)}</td>
+                  <td data-label="Loginname">${c.username || "-"}</td>
+                  <td data-label="E-Mail">${c.email || "-"}</td>
+                  <td data-label="Rolle">${c.role}</td>
+                  <td data-label="Loginstatus">${c.profile_id ? "Aktiv" : "Nicht verknüpft"}</td>
+                  <td data-label="Aktionen">
                     <div class="rowActions">
                       <button class="secondaryButton" onclick="startCoachEdit('${c.id}')">Bearbeiten</button>
                       ${c.role === "headAdmin" ? "" : c.profile_id
@@ -1586,4 +1598,5 @@ function searchPlayerList() {
 function startPlayerEdit(playerId) {
   state.editPlayerId = playerId;
   renderPlayersView();
+  focusMobilePanel("playerFormCard");
 }

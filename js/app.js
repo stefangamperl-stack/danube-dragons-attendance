@@ -102,6 +102,17 @@ function focusRequestedTraining() {
   });
 }
 
+function focusMobilePanel(elementId) {
+  if (!window.matchMedia("(max-width: 900px)").matches) return;
+
+  window.requestAnimationFrame(() => {
+    document.getElementById(elementId)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  });
+}
+
 function sortPlayersByLastName(list) {
   return [...list].sort((a, b) => {
     const last = a.lastName.localeCompare(b.lastName);
