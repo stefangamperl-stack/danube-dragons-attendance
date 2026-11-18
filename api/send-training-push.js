@@ -117,8 +117,8 @@ export default async function handler(req, res) {
     const payload = JSON.stringify({
       title: `Erinnerung: ${training.title}`,
       body,
-      icon: "/icons/salix-icon-192-v2.png",
-      badge: "/icons/salix-icon-192-v2.png",
+      icon: "/icons/salix-icon-192-v3.png",
+      badge: "/icons/salix-icon-192-v3.png",
       tag: `training-${training.id}`,
       data: {
         url: `/?training=${encodeURIComponent(training.id)}`,
