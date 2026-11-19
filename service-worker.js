@@ -1,4 +1,4 @@
-const CACHE_NAME = "salix-v17";
+const CACHE_NAME = "salix-v18";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -6,6 +6,7 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/manifest-v2.webmanifest",
   "/manifest-v3.webmanifest",
+  "/manifest-v4.webmanifest",
   "/css/styles.css",
   "/js/data.js",
   "/js/supabaseClient.js",
@@ -15,10 +16,10 @@ const APP_SHELL = [
   "/js/actions.js",
   "/js/app.js",
   "/js/pwa.js",
-  "/icons/salix-icon-192-v3.png",
-  "/icons/salix-icon-512-v3.png",
-  "/icons/salix-maskable-512-v3.png",
-  "/icons/salix-apple-touch-icon-v3.png"
+  "/icons/salix-icon-192-v4.png",
+  "/icons/salix-icon-512-v4.png",
+  "/icons/salix-maskable-512-v4.png",
+  "/icons/salix-apple-touch-icon-v4.png"
 ];
 
 self.addEventListener("install", event => {
@@ -49,8 +50,8 @@ self.addEventListener("push", event => {
     payload.title || "Salix Trainingserinnerung",
     {
       body: payload.body || "Bitte gib deine Zu- oder Absage ab.",
-      icon: payload.icon || "/icons/salix-icon-192-v3.png",
-      badge: payload.badge || "/icons/salix-icon-192-v3.png",
+      icon: payload.icon || "/icons/salix-icon-192-v4.png",
+      badge: payload.badge || "/icons/salix-icon-192-v4.png",
       tag: payload.tag || "salix-training-reminder",
       data: payload.data || { url: "/" }
     }
