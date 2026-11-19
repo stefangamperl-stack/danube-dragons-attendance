@@ -20,6 +20,19 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
+  <div id="globalLoadingScreen" class="globalLoadingScreen" hidden aria-hidden="true">
+    <div class="globalLoadingPanel" role="status" aria-live="polite" aria-atomic="true">
+      <div class="globalLoadingHeader">
+        <span class="globalLoadingPulse" aria-hidden="true"></span>
+        <div>
+          <strong id="globalLoadingTitle">Wird geladen</strong>
+          <span>Salix aktualisiert deine Ansicht.</span>
+        </div>
+      </div>
+      <div class="globalLoadingTrack" aria-hidden="true"><span></span></div>
+    </div>
+  </div>
+
   <div id="landing" class="hidden"></div>
 
   <div id="loginScreen" class="loginScreen">
@@ -129,5 +142,6 @@
   <script src="js/actions.js"></script>
   <script src="js/app.js"></script>
   <script src="js/pwa.js"></script>
+  <script src="js/loading.js"></script>
 </body>
 </html>

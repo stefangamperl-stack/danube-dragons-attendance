@@ -45,6 +45,124 @@
       display: none !important;
     }
 
+    .globalLoadingScreen {
+      position: fixed;
+      z-index: 10000;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(3, 10, 7, 0.46);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease;
+      backdrop-filter: blur(4px);
+    }
+
+    .globalLoadingScreen.isVisible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .globalLoadingPanel {
+      width: min(310px, 100%);
+      padding: 18px;
+      border: 1px solid rgba(134, 239, 172, 0.24);
+      border-radius: 18px;
+      background: rgba(8, 24, 17, 0.96);
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.46), inset 0 1px rgba(255, 255, 255, 0.04);
+      transform: translateY(7px) scale(0.98);
+      transition: transform 160ms ease;
+    }
+
+    .globalLoadingScreen.isVisible .globalLoadingPanel {
+      transform: translateY(0) scale(1);
+    }
+
+    .globalLoadingHeader {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+    }
+
+    .globalLoadingHeader strong,
+    .globalLoadingHeader span {
+      display: block;
+    }
+
+    .globalLoadingHeader strong {
+      color: #ecfdf5;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .globalLoadingHeader div > span {
+      margin-top: 3px;
+      color: #8fbda5;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .globalLoadingPulse {
+      position: relative;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      border: 2px solid rgba(74, 222, 128, 0.24);
+      border-top-color: #4ade80;
+      border-radius: 50%;
+      animation: salixLoadingSpin 760ms linear infinite;
+    }
+
+    .globalLoadingPulse::after {
+      position: absolute;
+      inset: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 16px rgba(74, 222, 128, 0.52);
+      content: "";
+    }
+
+    .globalLoadingTrack {
+      height: 3px;
+      margin-top: 16px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #18362a;
+    }
+
+    .globalLoadingTrack span {
+      display: block;
+      width: 42%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #16a34a, #86efac);
+      box-shadow: 0 0 12px rgba(74, 222, 128, 0.42);
+      animation: salixLoadingProgress 1.05s ease-in-out infinite;
+    }
+
+    @keyframes salixLoadingSpin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes salixLoadingProgress {
+      0% { transform: translateX(-115%); }
+      55% { transform: translateX(135%); }
+      100% { transform: translateX(245%); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .globalLoadingScreen,
+      .globalLoadingPanel {
+        transition: none;
+      }
+
+      .globalLoadingPulse,
+      .globalLoadingTrack span {
+        animation-duration: 1.8s;
+      }
+    }
+
     .app {
       min-height: 100vh;
       display: grid;

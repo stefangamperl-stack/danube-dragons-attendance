@@ -1,4 +1,4 @@
-const CACHE_NAME = "salix-v18";
+const CACHE_NAME = "salix-v19";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -16,6 +16,7 @@ const APP_SHELL = [
   "/js/actions.js",
   "/js/app.js",
   "/js/pwa.js",
+  "/js/loading.js",
   "/icons/salix-icon-192-v4.png",
   "/icons/salix-icon-512-v4.png",
   "/icons/salix-maskable-512-v4.png",
