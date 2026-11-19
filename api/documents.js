@@ -20,10 +20,9 @@ import {
   sortDocumentFolders
 } from "../lib/documentStore.js";
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabaseAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+  : null;
 
 const ALL_ROLES = ["player", "adminCoach", "headAdmin"];
 const COACH_ROLES = ["adminCoach", "headAdmin"];
@@ -34,8 +33,8 @@ function isCoach(authorized) {
   return COACH_ROLES.includes(authorized?.profile?.role);
 }
 
-async function loadPlayerForProfile(profileId) {
-  const { data, error } = await supabaseAdmin
+async function loadPlayerForProfile(adminClient, profileId) {
+  const { data, error } = await adminClient
     .from("players")
     .select("id, unit, active")
     .eq("profile_id", profileId)
@@ -83,8 +82,8 @@ function validateFolderParent(metadata, folderId, parentId, units) {
   }
 }
 
-async function verifyUploadedPdf(path) {
-  const { data: signed, error: signedError } = await supabaseAdmin.storage
+async function verifyUploadedPdf(adminClient, path) {
+  const { data: signed, error: signedError } = await adminClient.storage
     .from(DOCUMENT_BUCKET)
     .createSignedUrl(path, 60);
   if (signedError || !signed?.signedUrl) throw signedError || new Error("Datei konnte nicht geprüft werden.");
@@ -95,7 +94,7 @@ async function verifyUploadedPdf(path) {
   if (bytes !== "%PDF-") throw new Error("Die hochgeladene Datei ist keine gültige PDF-Datei.");
 }
 
-async function handleGet(req, res, authorized, metadata) {
+async function handleGet(req, res, authorized, metadata, adminClient) {
   const action = String(req.query?.action || "");
 
   if (action === "player-units") {
@@ -103,7 +102,7 @@ async function handleGet(req, res, authorized, metadata) {
       return res.status(200).json({ playerUnits: metadata.playerUnits });
     }
 
-    const player = await loadPlayerForProfile(authorized.profile.id);
+    const player = await loadPlayerForProfile(adminClient, authorized.profile.id);
     if (!player) return res.status(404).json({ error: "Spielerprofil wurde nicht gefunden." });
     return res.status(200).json({ playerUnits: { [player.id]: metadata.playerUnits[player.id] || "" } });
   }
@@ -115,7 +114,7 @@ async function handleGet(req, res, authorized, metadata) {
     if (!file || !folder) return res.status(404).json({ error: "Datei wurde nicht gefunden." });
 
     if (!isCoach(authorized)) {
-      const player = await loadPlayerForProfile(authorized.profile.id);
+      const player = await loadPlayerForProfile(adminClient, authorized.profile.id);
       if (!player) return res.status(404).json({ error: "Spielerprofil wurde nicht gefunden." });
       const units = [player.unit, metadata.playerUnits[player.id]];
       if (!documentUnitsAllow(folder.units, units) || !documentUnitsAllow(file.units, units)) {
@@ -123,7 +122,7 @@ async function handleGet(req, res, authorized, metadata) {
       }
     }
 
-    const { data, error } = await supabaseAdmin.storage
+    const { data, error } = await adminClient.storage
       .from(DOCUMENT_BUCKET)
       .createSignedUrl(file.storagePath, 90);
     if (error || !data?.signedUrl) {
@@ -149,7 +148,7 @@ async function handleGet(req, res, authorized, metadata) {
     });
   }
 
-  const player = await loadPlayerForProfile(authorized.profile.id);
+  const player = await loadPlayerForProfile(adminClient, authorized.profile.id);
   if (!player) return res.status(404).json({ error: "Spielerprofil wurde nicht gefunden." });
   const visible = filterDocumentsForPlayer(metadata, player);
   return res.status(200).json({
@@ -159,7 +158,7 @@ async function handleGet(req, res, authorized, metadata) {
   });
 }
 
-async function handlePost(req, res, authorized, metadata) {
+async function handlePost(req, res, authorized, metadata, adminClient, verifyPdf) {
   if (!isCoach(authorized)) {
     return res.status(403).json({ error: "Nur Coaches dürfen Dokumente verwalten." });
   }
@@ -170,7 +169,7 @@ async function handlePost(req, res, authorized, metadata) {
   if (action === "set-secondary-unit") {
     const playerId = String(body.playerId || "");
     const unit = normalizeDocumentUnits([body.unit])[0] || "";
-    const { data: player, error } = await supabaseAdmin
+    const { data: player, error } = await adminClient
       .from("players")
       .select("id")
       .eq("id", playerId)
@@ -179,7 +178,7 @@ async function handlePost(req, res, authorized, metadata) {
 
     if (unit) metadata.playerUnits[playerId] = unit;
     else delete metadata.playerUnits[playerId];
-    await saveDocumentPlayerUnits(supabaseAdmin, metadata.playerUnits);
+    await saveDocumentPlayerUnits(adminClient, metadata.playerUnits);
     return res.status(200).json({ success: true, playerId, unit });
   }
 
@@ -202,7 +201,7 @@ async function handlePost(req, res, authorized, metadata) {
       updatedAt: new Date().toISOString()
     };
     metadata.folders.push(folder);
-    await saveDocumentFolders(supabaseAdmin, metadata.folders);
+    await saveDocumentFolders(adminClient, metadata.folders);
     return res.status(200).json({ success: true, folder });
   }
 
@@ -235,7 +234,7 @@ async function handlePost(req, res, authorized, metadata) {
       folder.sortOrder = siblings.length;
     }
     folder.updatedAt = new Date().toISOString();
-    await saveDocumentFolders(supabaseAdmin, metadata.folders);
+    await saveDocumentFolders(adminClient, metadata.folders);
     return res.status(200).json({ success: true, folder });
   }
 
@@ -251,7 +250,7 @@ async function handlePost(req, res, authorized, metadata) {
     }
     [siblings[index], siblings[targetIndex]] = [siblings[targetIndex], siblings[index]];
     siblings.forEach((item, order) => { item.sortOrder = order; });
-    await saveDocumentFolders(supabaseAdmin, metadata.folders);
+    await saveDocumentFolders(adminClient, metadata.folders);
     return res.status(200).json({ success: true });
   }
 
@@ -266,7 +265,7 @@ async function handlePost(req, res, authorized, metadata) {
       return res.status(400).json({ error: "Bitte zuerst alle Dateien in diesem Ordner löschen oder verschieben." });
     }
     metadata.folders = metadata.folders.filter(item => item.id !== folderId);
-    await saveDocumentFolders(supabaseAdmin, metadata.folders);
+    await saveDocumentFolders(adminClient, metadata.folders);
     return res.status(200).json({ success: true });
   }
 
@@ -288,7 +287,7 @@ async function handlePost(req, res, authorized, metadata) {
 
     const fileId = createDocumentId("file");
     const path = `files/${folder.id}/${fileId}.pdf`;
-    const { data, error } = await supabaseAdmin.storage.from(DOCUMENT_BUCKET).createSignedUploadUrl(path);
+    const { data, error } = await adminClient.storage.from(DOCUMENT_BUCKET).createSignedUploadUrl(path);
     if (error || !data?.token) return res.status(500).json({ error: "Upload konnte nicht vorbereitet werden." });
     return res.status(200).json({ success: true, fileId, path, token: data.token, name, units });
   }
@@ -310,25 +309,25 @@ async function handlePost(req, res, authorized, metadata) {
       return res.status(400).json({ error: "Die Dateifreigabe muss innerhalb der Ordnerfreigabe liegen." });
     }
 
-    const { data: objects, error: listError } = await supabaseAdmin.storage
+    const { data: objects, error: listError } = await adminClient.storage
       .from(DOCUMENT_BUCKET)
       .list(`files/${folder.id}`, { search: `${fileId}.pdf`, limit: 10 });
     const object = objects?.find(item => item.name === `${fileId}.pdf`);
     if (listError || !object) return res.status(400).json({ error: "Die hochgeladene Datei wurde nicht gefunden." });
     const size = Number(object.metadata?.size || 0);
     if (!size || size > MAX_DOCUMENT_FILE_SIZE) {
-      await supabaseAdmin.storage.from(DOCUMENT_BUCKET).remove([path]);
+      await adminClient.storage.from(DOCUMENT_BUCKET).remove([path]);
       return res.status(400).json({ error: "Die PDF-Datei ist zu groß oder leer." });
     }
     if (getDocumentUsedBytes(metadata.files) + size > getDocumentStorageLimitBytes()) {
-      await supabaseAdmin.storage.from(DOCUMENT_BUCKET).remove([path]);
+      await adminClient.storage.from(DOCUMENT_BUCKET).remove([path]);
       return res.status(400).json({ error: "Der verfügbare Dokumentenspeicher reicht für diese Datei nicht aus." });
     }
 
     try {
-      await verifyUploadedPdf(path);
+      await verifyPdf(adminClient, path);
     } catch (error) {
-      await supabaseAdmin.storage.from(DOCUMENT_BUCKET).remove([path]);
+      await adminClient.storage.from(DOCUMENT_BUCKET).remove([path]);
       return res.status(400).json({ error: error.message || "Die PDF-Datei ist ungültig." });
     }
 
@@ -345,7 +344,7 @@ async function handlePost(req, res, authorized, metadata) {
       updatedAt: new Date().toISOString()
     };
     metadata.files.push(file);
-    await saveDocumentFiles(supabaseAdmin, metadata.files);
+    await saveDocumentFiles(adminClient, metadata.files);
     return res.status(200).json({ success: true, file });
   }
 
@@ -362,42 +361,51 @@ async function handlePost(req, res, authorized, metadata) {
     file.name = name.toLowerCase().endsWith(".pdf") ? name : `${name}.pdf`;
     file.units = units;
     file.updatedAt = new Date().toISOString();
-    await saveDocumentFiles(supabaseAdmin, metadata.files);
+    await saveDocumentFiles(adminClient, metadata.files);
     return res.status(200).json({ success: true, file });
   }
 
   if (action === "delete-file") {
     const file = metadata.files.find(item => item.id === String(body.fileId || ""));
     if (!file) return res.status(404).json({ error: "Datei wurde nicht gefunden." });
-    const { error } = await supabaseAdmin.storage.from(DOCUMENT_BUCKET).remove([file.storagePath]);
+    const { error } = await adminClient.storage.from(DOCUMENT_BUCKET).remove([file.storagePath]);
     if (error) return res.status(500).json({ error: "Datei konnte nicht aus dem Speicher gelöscht werden." });
     metadata.files = metadata.files.filter(item => item.id !== file.id);
-    await saveDocumentFiles(supabaseAdmin, metadata.files);
+    await saveDocumentFiles(adminClient, metadata.files);
     return res.status(200).json({ success: true });
   }
 
   return res.status(400).json({ error: "Unbekannte Dokumentaktion." });
 }
 
-export default async function handler(req, res) {
-  if (req.method !== "GET" && req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
-  try {
-    const authorized = await requireRole(req, res, supabaseAdmin, ALL_ROLES);
-    if (!authorized) return;
-    await ensureDocumentBucket(supabaseAdmin);
-    const metadata = await loadDocumentMetadata(supabaseAdmin);
-
-    if (req.method === "GET") return handleGet(req, res, authorized, metadata);
-    return handlePost(req, res, authorized, metadata);
-  } catch (error) {
-    if (error instanceof DocumentValidationError) {
-      return res.status(400).json({ error: error.message });
+export function createDocumentsHandler({
+  adminClient = supabaseAdmin,
+  authorize = requireRole,
+  verifyPdf = verifyUploadedPdf
+} = {}) {
+  return async function handler(req, res) {
+    if (req.method !== "GET" && req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
     }
-    console.error("Dokumentenbereich ist aktuell nicht verfügbar.", error);
-    return res.status(500).json({ error: "Dokumentenbereich ist aktuell nicht verfügbar." });
-  }
+
+    try {
+      if (!adminClient) throw new Error("Supabase configuration is missing.");
+      const authorized = await authorize(req, res, adminClient, ALL_ROLES);
+      if (!authorized) return;
+      await ensureDocumentBucket(adminClient);
+      const metadata = await loadDocumentMetadata(adminClient);
+
+      if (req.method === "GET") return handleGet(req, res, authorized, metadata, adminClient);
+      return handlePost(req, res, authorized, metadata, adminClient, verifyPdf);
+    } catch (error) {
+      if (error instanceof DocumentValidationError) {
+        return res.status(400).json({ error: error.message });
+      }
+      console.error("Dokumentenbereich ist aktuell nicht verfügbar.", error);
+      return res.status(500).json({ error: "Dokumentenbereich ist aktuell nicht verfügbar." });
+    }
+  };
 }
+
+export default createDocumentsHandler();
 
