@@ -1600,6 +1600,315 @@
       align-items: flex-start;
     }
 
+    .documentStorageCard,
+    .documentCreateFolderCard,
+    .documentIntro {
+      margin-bottom: 18px;
+    }
+
+    .documentStorageHeader,
+    .documentFolderHeader,
+    .documentSectionHeading,
+    .documentIntro {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .documentStorageHeader > span {
+      color: #a9bdb4;
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .documentStorageTrack {
+      height: 8px;
+      margin: 14px 0 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #172e25;
+    }
+
+    .documentStorageTrack > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #4fd49b, #9ce5c4);
+      transition: width 220ms ease;
+    }
+
+    .documentFolderEditGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .documentUnitGrid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .documentUnitOption {
+      position: relative;
+      display: inline-flex;
+      min-width: 46px;
+      min-height: 38px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #315044;
+      border-radius: 11px;
+      color: #b8c9c1;
+      background: #10241c;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+    }
+
+    .documentUnitOption input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .documentUnitOption:has(input:checked),
+    .documentUnitOption.isSelected:has(input:checked) {
+      border-color: #55d6a0;
+      color: #effff7;
+      background: rgba(61, 180, 129, 0.2);
+      box-shadow: inset 0 0 0 1px rgba(85, 214, 160, 0.14);
+    }
+
+    .documentUnitOption:focus-within {
+      outline: 2px solid #80dfb7;
+      outline-offset: 2px;
+    }
+
+    .documentUnitOption:has(input:disabled) {
+      opacity: 0.38;
+      cursor: not-allowed;
+    }
+
+    .documentLibraryHeading {
+      margin: 26px 2px 12px;
+    }
+
+    .documentLibraryHeading h2,
+    .documentSectionHeading h2,
+    .documentIntro h2 {
+      margin-bottom: 4px;
+    }
+
+    .documentTreeBranch {
+      margin-left: calc(var(--document-depth, 0) * 18px);
+    }
+
+    .documentTreeBranch + .documentTreeBranch {
+      margin-top: 12px;
+    }
+
+    .documentTreeBranch .documentTreeBranch {
+      position: relative;
+      margin-top: 12px;
+    }
+
+    .documentTreeBranch .documentTreeBranch::before {
+      position: absolute;
+      top: -12px;
+      bottom: 18px;
+      left: -10px;
+      width: 1px;
+      background: #29453a;
+      content: "";
+    }
+
+    .documentFolderCard {
+      padding: 18px;
+      border: 1px solid #29493c;
+      border-radius: 16px;
+      background: linear-gradient(145deg, rgba(15, 37, 28, 0.98), rgba(12, 29, 23, 0.98));
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+    }
+
+    .documentFolderTitle {
+      margin-bottom: 4px;
+      color: #f0fff7;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .documentFolderTitle > span {
+      display: inline-block;
+      margin-right: 5px;
+      color: #67d6a5;
+    }
+
+    .documentFolderActions,
+    .documentFileActions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .iconButton {
+      min-width: 40px;
+      height: 40px;
+      border: 1px solid #315044;
+      border-radius: 11px;
+      color: #d9ede4;
+      background: #142c22;
+      cursor: pointer;
+    }
+
+    .iconButton:hover {
+      border-color: #5ecf9f;
+      background: #1b382c;
+    }
+
+    .documentFiles {
+      display: grid;
+      gap: 9px;
+      margin-top: 16px;
+    }
+
+    .documentFile {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid #29463a;
+      border-radius: 13px;
+      background: rgba(8, 24, 18, 0.72);
+    }
+
+    .documentFileEditing {
+      display: block;
+      padding: 16px;
+    }
+
+    .documentFileIcon,
+    .documentIntroIcon {
+      display: flex;
+      width: 46px;
+      height: 46px;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 46px;
+      border-radius: 12px;
+      color: #0b2017;
+      background: linear-gradient(145deg, #8ae0b9, #52c995);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .documentIntroIcon {
+      width: 58px;
+      height: 58px;
+      flex-basis: 58px;
+      border-radius: 16px;
+      font-size: 13px;
+    }
+
+    .documentFileInfo {
+      display: grid;
+      min-width: 0;
+      gap: 3px;
+    }
+
+    .documentFileInfo strong {
+      overflow-wrap: anywhere;
+    }
+
+    .documentFileInfo span {
+      color: #9bb3a8;
+      font-size: 12px;
+    }
+
+    .documentUploadBox {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px dashed #3b5e4f;
+      border-radius: 13px;
+      background: rgba(19, 45, 35, 0.52);
+    }
+
+    .documentUploadBox .button {
+      margin-top: 4px;
+    }
+
+    .documentEmptyHint {
+      margin: 0;
+      padding: 8px 2px;
+    }
+
+    .playerDocumentFolder .documentFileActions .secondaryButton {
+      min-width: 96px;
+    }
+
+    .documentErrorCard {
+      border-color: #7d493f;
+    }
+
+    @media (max-width: 700px) {
+      .documentFolderEditGrid {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .documentTreeBranch {
+        margin-left: calc(var(--document-depth, 0) * 8px);
+      }
+
+      .documentFolderHeader,
+      .documentStorageHeader,
+      .documentSectionHeading {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .documentStorageHeader > span {
+        text-align: left;
+      }
+
+      .documentFolderActions {
+        display: grid;
+        grid-template-columns: 40px 40px minmax(0, 1fr) minmax(0, 1fr);
+      }
+
+      .documentFolderActions button {
+        min-width: 0;
+        width: 100%;
+        padding-right: 8px;
+        padding-left: 8px;
+      }
+
+      .documentFile {
+        grid-template-columns: auto minmax(0, 1fr);
+      }
+
+      .documentFileActions {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .documentFileActions button {
+        min-width: 0;
+        width: 100%;
+        padding-right: 8px;
+        padding-left: 8px;
+      }
+
+      .playerDocumentFolder .documentFileActions {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 520px) {
       .loginScreen {
         display: block;
@@ -1802,6 +2111,36 @@
         height: 54px;
         flex-basis: 54px;
         border-radius: 14px;
+      }
+
+      .documentFolderCard {
+        padding: 13px;
+        border-radius: 14px;
+      }
+
+      .documentFolderActions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .documentFolderActions .iconButton {
+        width: 100%;
+      }
+
+      .documentFileActions {
+        grid-template-columns: 1fr;
+      }
+
+      .documentUnitGrid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .documentUnitOption {
+        width: 100%;
+      }
+
+      .documentUploadBox > .button {
+        width: 100%;
       }
     }
 

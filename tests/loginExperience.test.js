@@ -26,7 +26,7 @@ test("mobile install link opens the device-specific installation flow", () => {
 });
 
 test("new branding assets are delivered through a fresh app cache", () => {
-  assert.match(workerSource, /CACHE_NAME = "salix-v19"/);
+  assert.match(workerSource, /CACHE_NAME = "salix-v20"/);
   assert.match(workerSource, /"\/css\/styles\.css"/);
   assert.match(workerSource, /"\/js\/pwa\.js"/);
   assert.match(workerSource, /"\/icons\/salix-icon-192-v4\.png"/);

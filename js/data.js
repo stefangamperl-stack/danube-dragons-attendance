@@ -181,6 +181,7 @@ function makePlayer(id, username, firstName, lastName, birthday, unit, limitatio
     lastName,
     birthday,
     unit,
+    secondaryUnit: "",
     active: true,
     healthStatus: current ? "injured" : "fit",
     injuryType: current ? current.type : "",

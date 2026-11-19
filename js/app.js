@@ -19,6 +19,8 @@ let state = {
   playerListGroup: "all",
   editingLimitationPlayerId: null,
   editingLimitationId: null,
+  editingDocumentFolderId: null,
+  editingDocumentFileId: null,
   importSummary: null
 };
 
@@ -413,6 +415,7 @@ function isEditingAnyForm() {
     state.currentView === "trainings" ||
     state.currentView === "limitations" ||
     state.currentView === "playerSearch" ||
+    state.currentView === "documents" ||
     (state.playerListSearch && state.playerListSearch.trim()) ||
     (state.playerSearchValue && state.playerSearchValue.trim())
   );

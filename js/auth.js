@@ -159,6 +159,16 @@ async function logout() {
 async function setView(view) {
   state.currentView = view;
 
+  if (view === "documents") {
+    state.editingDocumentFolderId = null;
+    state.editingDocumentFileId = null;
+    await loadDocuments();
+  }
+
+  if (view === "players" && (state.currentUser?.role === "adminCoach" || state.currentUser?.role === "headAdmin")) {
+    await loadDocumentPlayerUnits({ silent: true });
+  }
+
   if (
     (view === "dashboard" || view === "reports") &&
     (state.currentUser?.role === "adminCoach" || state.currentUser?.role === "headAdmin")

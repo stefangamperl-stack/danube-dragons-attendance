@@ -131,6 +131,7 @@ function renderNav() {
     items.push({ key: "reports", label: "Zusagen/Absagen" });
   }
 
+  items.push({ key: "documents", label: "Dokumente" });
   items.push({ key: "profile", label: "Mein Profil" });
 
   if (role === "player") {
@@ -283,6 +284,11 @@ function renderOwnProfileView() {
 function renderPlayerView() {
   const player = players.find(p => p.id === state.currentUser.playerId);
   const content = document.getElementById("content");
+
+  if (state.currentView === "documents") {
+    renderDocumentsView();
+    return;
+  }
 
   if (state.currentView === "health") {
     document.getElementById("screenTitle").textContent = "Mein Status";
@@ -458,6 +464,11 @@ function renderPlayerView() {
 }
 
 function renderCoachView() {
+  if (state.currentView === "documents") {
+    renderDocumentsView();
+    return;
+  }
+
   if (state.currentView === "profile") {
     renderOwnProfileView();
     return;
@@ -637,10 +648,18 @@ function renderPlayersView() {
           <div class="field"><label>E-Mail</label><input id="playerEmail" class="input" type="email" value="${escapeHtml(editPlayerEmail)}" placeholder="spieler@example.com" /></div>
           <div class="field"><label>Geburtstag</label><input id="playerBirthday" class="input" type="date" value="${editPlayer ? editPlayer.birthday : ""}" /></div>
           <div class="field">
-            <label>Unit</label>
+            <label>Unit für Anwesenheit</label>
             <select id="playerUnit" class="select">
               ${unitOrder.map(u => `<option value="${u}" ${editPlayer && editPlayer.unit === u ? "selected" : ""}>${u}</option>`).join("")}
             </select>
+          </div>
+          <div class="field">
+            <label>2. Unit nur für Dokumente</label>
+            <select id="playerSecondaryUnit" class="select">
+              <option value="">Keine zweite Unit</option>
+              ${unitOrder.map(u => `<option value="${u}" ${editPlayer && editPlayer.secondaryUnit === u ? "selected" : ""}>${u}</option>`).join("")}
+            </select>
+            <p class="smallMuted">Diese Auswahl erweitert ausschließlich Dokumentfreigaben und zählt nicht zur Unit-Anwesenheit.</p>
           </div>
           <div class="rowActions">
             <button class="button" onclick="${editPlayer ? "updatePlayer()" : "createPlayer()"}">${editPlayer ? "Spieler speichern" : "Spieler anlegen"}</button>
@@ -701,6 +720,7 @@ function renderPlayersView() {
                 <th>Name</th>
                 <th>Gruppe</th>
                 <th>Unit</th>
+                <th>2. Unit Dokumente</th>
                 <th>Geburtstag</th>
                 <th>Gesundheit</th>
                 <th>Aktionen</th>
@@ -712,6 +732,7 @@ function renderPlayersView() {
                   <td data-label="Name">${fullName(p)}</td>
                   <td data-label="Gruppe">${getGroupLabelForUnit(p.unit)}</td>
                   <td data-label="Unit">${p.unit}</td>
+                  <td data-label="2. Unit Dokumente">${p.secondaryUnit || "–"}</td>
                   <td data-label="Geburtstag">${formatDateDisplay(p.birthday)}</td>
                   <td data-label="Gesundheit">${getCurrentPlayerStatusLabel(p)}</td>
                   <td data-label="Aktionen">
@@ -724,7 +745,7 @@ function renderPlayersView() {
                   </td>
                 </tr>
               `).join("")}
-              ${filtered.length === 0 ? `<tr><td colspan="6">Keine Spieler gefunden.</td></tr>` : ""}
+              ${filtered.length === 0 ? `<tr><td colspan="7">Keine Spieler gefunden.</td></tr>` : ""}
             </tbody>
           </table>
         </div>

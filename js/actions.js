@@ -335,6 +335,7 @@ async function loadPlayersFromSupabase() {
       return;
     }
 
+    const secondaryUnits = new Map(players.map(player => [player.id, player.secondaryUnit || ""]));
     players.length = 0;
 
     (data || []).forEach(row => {
@@ -353,6 +354,7 @@ async function loadPlayersFromSupabase() {
       player.email = row.email || "";
       player.mustChangePassword = false;
       player.injuries = [];
+      player.secondaryUnit = secondaryUnits.get(player.id) || "";
 
       players.push(player);
     });
@@ -721,6 +723,7 @@ function clearPlayerForm() {
   const emailInput = document.getElementById("playerEmail");
   const birthdayInput = document.getElementById("playerBirthday");
   const unitSelect = document.getElementById("playerUnit");
+  const secondaryUnitSelect = document.getElementById("playerSecondaryUnit");
 
   if (firstNameInput) firstNameInput.value = "";
   if (lastNameInput) lastNameInput.value = "";
@@ -728,6 +731,7 @@ function clearPlayerForm() {
   if (emailInput) emailInput.value = "";
   if (birthdayInput) birthdayInput.value = "";
   if (unitSelect) unitSelect.selectedIndex = 0;
+  if (secondaryUnitSelect) secondaryUnitSelect.value = "";
 }
 
 function clearCoachForm() {
@@ -770,6 +774,7 @@ async function createPlayer() {
     const email = document.getElementById("playerEmail")?.value?.trim() || "";
     const birthday = document.getElementById("playerBirthday")?.value || "";
     const unit = document.getElementById("playerUnit")?.value?.trim() || "";
+    const secondaryUnit = document.getElementById("playerSecondaryUnit")?.value?.trim() || "";
 
     if (!firstName || !lastName || !birthday) {
       alert("Bitte zumindest Vorname, Nachname und Geburtstag ausfüllen.");
@@ -804,7 +809,9 @@ async function createPlayer() {
       return;
     }
 
+    const secondaryUnitSaved = await savePlayerDocumentUnit(result?.player?.id, secondaryUnit, { silent: true });
     await loadPlayersFromSupabase();
+    await loadDocumentPlayerUnits({ silent: true });
 
     state.editPlayerId = null;
     clearPlayerForm();
@@ -814,7 +821,8 @@ async function createPlayer() {
       `Spieler wurde angelegt.\n` +
       `Loginname: ${result?.username || username || "-"}\n` +
       `Startpasswort: ${result?.initialPassword || "test123"}\n` +
-      `Eine Änderung ist freiwillig.`
+      `Eine Änderung ist freiwillig.` +
+      (secondaryUnitSaved ? "" : "\nHinweis: Die zweite Dokumenten-Unit konnte nicht gespeichert werden.")
     );
   } catch (err) {
     console.error("Unerwarteter Fehler beim Anlegen des Spielers:", err);
@@ -1152,6 +1160,7 @@ async function updatePlayer() {
     const email = document.getElementById("playerEmail")?.value?.trim() || "";
     const birthday = document.getElementById("playerBirthday")?.value || "";
     const unit = document.getElementById("playerUnit")?.value || "";
+    const secondaryUnit = document.getElementById("playerSecondaryUnit")?.value || "";
 
     if (!firstName || !lastName || !birthday) {
       alert("Bitte Vorname, Nachname und Geburtstag ausfüllen.");
@@ -1190,7 +1199,9 @@ async function updatePlayer() {
         return;
       }
 
+      const secondaryUnitSaved = await savePlayerDocumentUnit(editPlayer.id, secondaryUnit, { silent: true });
       await loadPlayersFromSupabase();
+      await loadDocumentPlayerUnits({ silent: true });
 
       state.editPlayerId = null;
       renderPlayersView();
@@ -1199,7 +1210,8 @@ async function updatePlayer() {
         `Spieler wurde gespeichert und für Login aktiviert.\n` +
         `Loginname: ${result?.username || username}\n` +
         `Startpasswort: ${result?.initialPassword || "test123"}\n` +
-        `Eine Änderung ist freiwillig.`
+        `Eine Änderung ist freiwillig.` +
+        (secondaryUnitSaved ? "" : "\nHinweis: Die zweite Dokumenten-Unit konnte nicht gespeichert werden.")
       );
       return;
     }
@@ -1238,11 +1250,16 @@ async function updatePlayer() {
       return;
     }
 
+    const secondaryUnitSaved = await savePlayerDocumentUnit(editPlayer.id, secondaryUnit, { silent: true });
     await loadPlayersFromSupabase();
+    await loadDocumentPlayerUnits({ silent: true });
 
     state.editPlayerId = null;
     renderPlayersView();
-    alert("Spieler wurde gespeichert.");
+    alert(secondaryUnitSaved
+      ? "Spieler wurde gespeichert."
+      : "Spieler wurde gespeichert, aber die zweite Dokumenten-Unit konnte nicht aktualisiert werden."
+    );
   } catch (err) {
     console.error("Unerwarteter Fehler beim Speichern des Spielers:", err);
     alert("Unerwarteter Fehler beim Speichern des Spielers:\n" + (err.message || err));
